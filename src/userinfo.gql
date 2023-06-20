@@ -1,0 +1,18 @@
+query UserInfo {
+  users {
+    name
+    username
+    firstname
+    id
+    info: emails {
+      email
+      features {
+        app {
+          featureid
+          name: appspec(path: "name")
+          appspec
+        }
+      }
+    }
+  }
+}

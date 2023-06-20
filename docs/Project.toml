@@ -1,0 +1,7 @@
+[deps]
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+DocumenterMermaid = "a078cd44-4d9c-4618-b545-3ab9d77f9177"
+JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+JuliaHub = "bc7fa6ce-b75e-4d60-89ad-56c957190b6e"
+Mocking = "78c3b35d-d492-501b-9361-3d52fe80e533"
+URIs = "5c2747f8-b7ea-4ff2-ba2e-563bfd36b1d4"

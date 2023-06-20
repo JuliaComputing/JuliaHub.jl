@@ -1,0 +1,17 @@
+name = "Pkg1"
+uuid = "0d733eb5-97ac-4a4a-9738-0f33664ba196"
+authors = ["Sebastian Pfitzner <pfitzseb@gmail.com> and contributors"]
+version = "0.1.0"
+
+[deps]
+Pkg2 = "df0ae394-da6f-45d5-857b-fe46f2dd6ae6"
+Pkg3 = "8e8c87e8-d389-41a9-b801-d72778e29757"
+
+[compat]
+julia = "1"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]

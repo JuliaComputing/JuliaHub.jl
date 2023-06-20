@@ -1,0 +1,13 @@
+name = "Pkg3"
+uuid = "8e8c87e8-d389-41a9-b801-d72778e29757"
+authors = ["Sebastian Pfitzner <pfitzseb@gmail.com> and contributors"]
+version = "0.1.0"
+
+[compat]
+julia = "1"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]

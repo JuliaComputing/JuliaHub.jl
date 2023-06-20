@@ -1,0 +1,646 @@
+@testset "JuliaHub.script" begin
+    jobfile(path...) = joinpath(@__DIR__, "jobenvs", "job1", path...)
+
+    let s = JuliaHub.script(; code="1", project="name=1", manifest="name=1", artifacts="name=1")
+        @test s.code == "1"
+        @test s.environment.project_toml == "name=1"
+        @test s.environment.manifest_toml == "name=1"
+        @test s.environment.artifacts_toml == "name=1"
+    end
+    let s = JuliaHub.script(; code="1", project="name=1")
+        @test s.code == "1"
+        @test s.environment.project_toml == "name=1"
+        @test s.environment.manifest_toml === nothing
+        @test s.environment.artifacts_toml === nothing
+    end
+    @test_throws ArgumentError JuliaHub.script(; code="1", project=".")
+    @test_throws ArgumentError JuliaHub.script(; code="1", artifacts=".")
+
+    let s = JuliaHub.script(jobfile("script.jl"))
+        @test s.code == read(jobfile("script.jl"), String)
+        @test s.environment.project_toml === nothing
+        @test s.environment.manifest_toml === nothing
+        @test s.environment.artifacts_toml === nothing
+    end
+    let s = JuliaHub.script(
+            jobfile("script.jl");
+            project_directory=jobfile(),
+        )
+        @test s.code == read(jobfile("script.jl"), String)
+        @test s.environment.project_toml == read(jobfile("Project.toml"), String)
+        @test s.environment.manifest_toml == read(jobfile("Manifest.toml"), String)
+        @test s.environment.artifacts_toml === nothing
+    end
+
+    withproject(jobfile("Project.toml")) do
+        s = JuliaHub.script"test()"
+        @test s.code == "test()"
+        @test s.environment.project_toml == read(jobfile("Project.toml"), String)
+        @test s.environment.manifest_toml == read(jobfile("Manifest.toml"), String)
+        @test s.environment.artifacts_toml === nothing
+    end
+
+    withproject(jobfile("Project.toml")) do
+        s = JuliaHub.script"test()"noenv
+        @test s.code == "test()"
+        @test s.environment.project_toml === nothing
+        @test s.environment.manifest_toml === nothing
+        @test s.environment.artifacts_toml === nothing
+    end
+end
+
+@testset "JuliaHub.appbundle" begin
+    jobfile(path...) = joinpath(@__DIR__, "jobenvs", "job1", path...)
+
+    bundle = JuliaHub.appbundle(jobfile(), "script.jl")
+    @test isfile(bundle.environment.tarball_path)
+    @test bundle.code == read(jobfile("script.jl"), String)
+
+    bundle = JuliaHub.appbundle(jobfile(); code="test()")
+    @test isfile(bundle.environment.tarball_path)
+    @test bundle.code == "test()"
+
+    mktempdir() do path
+        bigfile_path = joinpath(path, "bigfile")
+        open(bigfile_path, write=true) do io
+            chunk = '\0' ^ (2^20)
+            for _ in 1:3000
+                write(io, chunk)
+            end
+        end
+        @test_throws JuliaHub.AppBundleSizeError JuliaHub.appbundle(path; code="")
+        rm(bigfile_path, force=true)
+    end
+end
+
+# We'll re-use this further down in job submission tests.
+ns_cheapest = Mocking.apply(mocking_patch) do
+    JuliaHub.nodespec()
+end
+
+@testset "JuliaHub.nodespec/s()" begin
+    @testset "Cheapest" begin
+        @test ns_cheapest.hasGPU === false
+        @test ns_cheapest.vcores == 2
+        @test ns_cheapest.mem == 8
+        @test ns_cheapest.nodeClass == "m6"
+    end
+
+    Mocking.apply(mocking_patch) do
+        nodes = JuliaHub.nodespecs()
+        @test length(nodes) == 9
+        @test nodes isa Vector{JuliaHub.NodeSpec}
+
+        # JuliaHub.nodespec()
+        let n = JuliaHub.nodespec()
+            @test n.mem == 8
+            @test n.vcores == 2
+            @test !n.hasGPU
+            @test n.priceHr == minimum(n.priceHr for n in nodes)
+        end
+        let n = JuliaHub.nodespec(; ncpu=2, memory=16)
+            @test n.nodeClass == "r6"
+            @test n.mem == 16
+            @test n.vcores == 2
+            @test !n.hasGPU
+        end
+        let n = JuliaHub.nodespec(; ncpu=4, memory=16)
+            @test n.nodeClass == "m6"
+            @test n.mem == 16
+            @test n.vcores == 4
+            @test !n.hasGPU
+        end
+        let n = JuliaHub.nodespec(; ncpu=4, memory=16, ngpu=1)
+            @test n.nodeClass == "p2"
+            @test n.mem == 61
+            @test n.vcores == 4
+            @test n.hasGPU
+        end
+        # Nodes with requirements that can't be met
+        @test_throws JuliaHub.InvalidRequestError JuliaHub.nodespec(; ncpu=100, memory=5)
+        @test_throws JuliaHub.InvalidRequestError JuliaHub.nodespec(; ncpu=100, memory=5, throw=true)
+        @test JuliaHub.nodespec(; ncpu=100, memory=5, throw=false) === nothing
+        @test_throws JuliaHub.InvalidRequestError JuliaHub.nodespec(; ncpu=4, memory=50_000)
+
+        # Exact matching
+        let n = JuliaHub.nodespec(; ncpu=1, memory=5)
+            @test n.vcores == 2
+            @test n.mem == 8
+        end
+        @test_throws JuliaHub.InvalidRequestError JuliaHub.nodespec(; ncpu=1, memory=5, exactmatch=true)
+        @test JuliaHub.nodespec(; ncpu=1, memory=5, exactmatch=true, throw=false) === nothing
+        let n = JuliaHub.nodespec(; ncpu=2, memory=8, exactmatch=true)
+            @test n.vcores == 2
+            @test n.mem == 8
+        end
+    end
+end
+
+@testset "JuliaHub.ComputeConfig" begin
+    let cc = JuliaHub.ComputeConfig(ns_cheapest)
+        @test cc.nnodes_max === 1
+        @test cc.nnodes_min === nothing
+        @test cc.process_per_node === true
+        @test cc.elastic === false
+    end
+    let cc = JuliaHub.ComputeConfig(ns_cheapest; nnodes = 5, elastic=true)
+        @test cc.nnodes_max === 5
+        @test cc.nnodes_min === nothing
+        @test cc.process_per_node === true
+        @test cc.elastic === true
+    end
+    let cc = JuliaHub.ComputeConfig(ns_cheapest; nnodes = (10, 20))
+        @test cc.nnodes_max === 20
+        @test cc.nnodes_min === 10
+        @test cc.process_per_node === true
+        @test cc.elastic === false
+    end
+    @test_throws ArgumentError JuliaHub.ComputeConfig(ns_cheapest; nnodes=-20)
+    @test_throws ArgumentError JuliaHub.ComputeConfig(ns_cheapest; nnodes=(-5, 3))
+    @test_throws ArgumentError JuliaHub.ComputeConfig(ns_cheapest; nnodes=(3, 2))
+    @test_throws ArgumentError JuliaHub.ComputeConfig(ns_cheapest; nnodes=(4, 4))
+    @test_throws ArgumentError JuliaHub.ComputeConfig(ns_cheapest; nnodes=(5, 10), elastic=true)
+end
+
+@testset "JuliaHub.JobStatus" begin
+    empty!(JuliaHub._OTHER_JOB_STATES)
+
+    s = JuliaHub.JobStatus("Completed")
+    @test_throws JuliaHub.JuliaHubError JuliaHub.JobStatus("completed")
+    @test_logs (:warn,) JuliaHub.JobStatus("BadJobState")
+    @test_nowarn JuliaHub.JobStatus("BadJobState")
+
+    @test s == s
+    @test s == JuliaHub.JobStatus("Completed")
+    @test JuliaHub.JobStatus("Completed") == s
+    @test s != JuliaHub.JobStatus("Failed")
+    @test JuliaHub.JobStatus("Failed") != s
+    @test s != JuliaHub.JobStatus("BadJobState")
+    @test JuliaHub.JobStatus("BadJobState") != s
+
+    @test s == "Completed"
+    @test s != "Failed"
+    @test !(@test_logs (:error,) s == "completed")
+    @test (@test_logs (:error,) s != "completed")
+    @test !(@test_logs (:error,) s == "Completed ")
+
+    @test "Completed" == s
+    @test s != "Failed"
+    @test !(@test_logs (:error,) "completed" == s)
+    @test (@test_logs (:error,) "completed" != s)
+    @test !(@test_logs (:error,) "Completed " == s)
+
+    @test @test_logs (:error,) s != :Completed
+    @test @test_logs (:error,) s != :completed
+    @test !(@test_logs (:error,) s == :Failed)
+    @test !(@test_logs (:error,) s == :Finished)
+    @test !(@test_logs (:error,) :Completed == s)
+
+    # AbstractString comparisons
+    @test s == SubString("Completed", 1:9)
+    @test SubString("Completed", 1:9) == s
+    @test s != SubString("Failed", 1:6)
+    @test SubString("Failed", 1:6) != s
+    @test !(@test_logs (:error,) s == SubString("completed", 1:9))
+    @test !(@test_logs (:error,) SubString("completed", 1:9) == s)
+
+    local s_convert::JuliaHub.JobStatus
+    s_convert = "Completed"
+    @test s_convert === JuliaHub.JobStatus("Completed")
+end
+
+@testset "JuliaHub.submit_job/s()" begin
+    Mocking.apply(mocking_patch) do
+        s = JuliaHub.script"run()"
+        let jc = JuliaHub.submit_job(s, dryrun = true)
+            @test jc isa JuliaHub.WorkloadConfig
+            @test jc.app isa JuliaHub.BatchJob
+            @test jc.compute.node == ns_cheapest
+            @test jc.compute.process_per_node === true
+            @test jc.compute.nnodes_max == 1
+            @test jc.compute.nnodes_min === nothing
+            @test jc.timelimit == JuliaHub._DEFAULT_WorkloadConfig_timelimit
+            @test jc.name === nothing
+            @test jc.project === nothing
+            @test isempty(jc.env)
+        end
+        @test JuliaHub.submit_job(s) isa JuliaHub.Job
+        # Test passing valid parameters
+        kwargs_ns = (; ncpu = 4, memory = 16, ngpu = 1)
+        ns = JuliaHub.nodespec(; kwargs_ns...)
+        @test ns != ns_cheapest
+        kwargs_cc = (; process_per_node = false, nnodes=(3, 10))
+        kwargs_rt = (;
+            name = "test-job",
+            project = "e1d9d1d4-814c-4f0c-a3c1-5e063cd2b02b",
+            env = Dict("MY_ARGUMENT" => "value"),
+            timelimit = 5
+        )
+        kwargs = (; kwargs_ns..., kwargs_cc..., kwargs_rt...)
+        let jc = JuliaHub.submit_job(s; kwargs..., dryrun = true)
+            @test jc.compute.node == ns
+            @test jc.compute.process_per_node === false
+            @test jc.compute.nnodes_max == 10
+            @test jc.compute.nnodes_min === 3
+            @test jc.timelimit === Dates.Hour(5)
+            @test jc.name == kwargs.name
+            @test jc.project === UUIDs.UUID(kwargs.project)
+            @test jc.env == kwargs.env
+        end
+        cc = JuliaHub.ComputeConfig(ns; kwargs_cc...)
+        let jc = JuliaHub.submit_job(s, cc; kwargs_rt..., dryrun = true)
+            @test jc.compute.node == ns
+            @test jc.compute.process_per_node === false
+            @test jc.compute.nnodes_max == 10
+            @test jc.compute.nnodes_min === 3
+            @test jc.timelimit === Dates.Hour(5)
+            @test jc.name == kwargs.name
+            @test jc.project === UUIDs.UUID(kwargs.project)
+            @test jc.env == kwargs.env
+        end
+        @test JuliaHub.submit_job(s; kwargs...) isa JuliaHub.Job
+        # Test argument validation
+        @test_throws MethodError JuliaHub.submit_job(s, cc; kwargs...)
+        @test_throws ArgumentError JuliaHub.submit_job(s, timelimit=-20)
+        @test_throws ArgumentError JuliaHub.submit_job(s, project="123")
+        @test_throws ArgumentError JuliaHub.submit_job(s; env = (; jobname = "foo"), name = "bar")
+        @test_logs (:warn,) JuliaHub.submit_job(s; env = (; jobname = "foo"))
+        # TODO: mocked tests that actually check that we submit the correct information
+        # to the backend (e.g. by inspecting the returned Job object)
+    end
+end
+
+@testset "JuliaHub.kill_job" begin
+    empty!(MOCK_JULIAHUB_STATE)
+    Mocking.apply(mocking_patch) do
+        let j = JuliaHub.job("jr-novcmdtiz6")
+            @test j.id == "jr-novcmdtiz6"
+            @test j.status == "Completed"
+        end
+        let j = JuliaHub.kill_job("jr-novcmdtiz6")
+            @test j isa JuliaHub.Job
+            @test j.id == "jr-novcmdtiz6"
+            @test j.status == "Stopped"
+        end
+        let j = JuliaHub.job("jr-novcmdtiz6")
+            @test j.id == "jr-novcmdtiz6"
+            @test j.status == "Stopped"
+        end
+
+        # Killing a non-existent job:
+        @test_throws JuliaHub.InvalidRequestError JuliaHub.kill_job("jr-6gk4vuozhl")
+    end
+end
+
+@testset "JuliaHub.extend_job" begin
+    empty!(MOCK_JULIAHUB_STATE)
+    Mocking.apply(mocking_patch) do
+        let j = JuliaHub.extend_job("jr-cnp3trdmy1", 5)
+            @test j isa JuliaHub.Job
+            @test j.id == "jr-cnp3trdmy1"
+        end
+        let j = JuliaHub.extend_job("jr-cnp3trdmy1", Dates.Hour(5))
+            @test j isa JuliaHub.Job
+            @test j.id == "jr-cnp3trdmy1"
+        end
+        let j = JuliaHub.extend_job("jr-cnp3trdmy1", Dates.Day(1))
+            @test j isa JuliaHub.Job
+            @test j.id == "jr-cnp3trdmy1"
+        end
+        let j = @test_logs (:warn,) JuliaHub.extend_job("jr-cnp3trdmy1", Dates.Second(1))
+            @test j isa JuliaHub.Job
+            @test j.id == "jr-cnp3trdmy1"
+        end
+        # Errors
+        @test_throws JuliaHub.InvalidRequestError JuliaHub.extend_job("this-job-does-not-exist", 1)
+        @test_throws ArgumentError JuliaHub.extend_job("jr-cnp3trdmy1", 0)
+        @test_throws ArgumentError JuliaHub.extend_job("jr-cnp3trdmy1", Dates.Hour(0))
+        @test_throws ArgumentError JuliaHub.extend_job("jr-cnp3trdmy1", -10)
+        @test_throws ArgumentError JuliaHub.extend_job("jr-cnp3trdmy1", Dates.Hour(-10))
+    end
+end
+
+@testset "JuliaHub.job" begin
+    empty!(MOCK_JULIAHUB_STATE)
+    Mocking.apply(mocking_patch) do
+        @test JuliaHub.job("jr-eezd3arpcj") isa JuliaHub.Job
+        @test JuliaHub.job("jr-eezd3arpcj", throw=false) isa JuliaHub.Job
+        @test_throws JuliaHub.InvalidRequestError JuliaHub.job("jr-nonexistent-id")
+        @test JuliaHub.job("jr-nonexistent-id", throw=false) === nothing
+
+        let job = JuliaHub.job("jr-eezd3arpcj")
+            @test JuliaHub.job("jr-eezd3arpcj") isa JuliaHub.Job
+            @test JuliaHub.job("jr-eezd3arpcj", throw=false) isa JuliaHub.Job
+        end
+        let job = JuliaHub.Job(Dict(
+                "jobname" => "jr-nonexistent-id",
+                "outputs" => "",
+                "status" => "Running",
+                "inputs" => nothing,
+                "jobname_alias" => nothing,
+                "submittimestamp" => nothing,
+                "starttimestamp" => nothing,
+                "endtimestamp" => nothing,
+            ))
+            @test_throws JuliaHub.InvalidRequestError JuliaHub.job(job)
+            @test JuliaHub.job(job, throw=false) === nothing
+        end
+    end
+end
+
+@testset "JuliaHub.download_job_file" begin
+    empty!(MOCK_JULIAHUB_STATE)
+    Mocking.apply(mocking_patch) do
+        job = JuliaHub.job("jr-eezd3arpcj")
+        @test length(job.files) == 4
+        @test JuliaHub.job_files(job) == job.files
+        @test length(JuliaHub.job_files(job, :input)) == 1
+        @test length(JuliaHub.job_files(job, :source)) == 1
+        @test length(JuliaHub.job_files(job, :project)) == 2
+        @test @test_logs (:warn,) JuliaHub.job_files(job, :badcat) |> isempty
+
+        # JuliaHub.job_file
+        file = JuliaHub.job_file(job, :input, "code.jl")
+        @test file isa JuliaHub.JobFile
+        @test file.filename == "code.jl"
+        @test file.type === :input
+        # Requesting a non-existent file or category returns nothing
+        @test JuliaHub.job_file(job, :input, "doesn't exist") === nothing
+        @test @test_logs (:warn,) JuliaHub.job_file(job, :badcat, "code.jl") === nothing
+
+        @test JuliaHub.download_job_file(file, tempname()) === nothing
+        @test JuliaHub.download_job_file(file, IOBuffer()) === nothing
+    end
+end
+
+function logging_mocking_wrapper(f::Base.Callable, testset_name::AbstractString; legacy=false)
+    global MOCK_JULIAHUB_STATE
+    logengine = LogEngine(kafkalogging=!legacy)
+    MOCK_JULIAHUB_STATE[:logengine] = logengine
+    try
+        Mocking.apply(mocking_patch) do
+            @testset "$testset_name" begin
+                f(logengine)
+            end
+        end
+    finally
+        delete!(MOCK_JULIAHUB_STATE, :logengine)
+    end
+end
+
+JuliaHub._OPTION_LoggingMode[] = JuliaHub._LoggingMode.AUTOMATIC
+@testset "Job logs: legacy = $legacy" for legacy in [true , false]
+    logging_mocking_wrapper("Basic logging"; legacy=legacy) do logengine
+        @testset "Invalid requests" begin
+            # Negative offsets are not allowed
+            @test_throws ArgumentError JuliaHub.job_logs_buffered("jr-test1"; offset=-1)
+            # First, just double check that a missing job 403s on the backend
+            @test_throws JuliaHub.PermissionError JuliaHub.job_logs_buffered("jr-test1"; offset=0)
+        end
+        # Let's check that we are using the correct backend
+        @testset "Dispatching on backend" begin
+            auth = JuliaHub.current_authentication()
+            # If the job is not present, then the Kafka backend will always be disabled
+            @test JuliaHub._job_logging_api_version(auth, "jr-test1") == JuliaHub._LegacyLogging()
+            # Let's add a finished job without any logs. Since these jobs are marked as finished,
+            # we should not add logs to the "backend" after the buffer has been constructed.
+            logengine.jobs["jr-test1"] = LogEngineJob([])
+            # After the job is added, the expected backend depends on whether we're testing for legacy
+            # of the Kafka backend.
+            expected_backend = legacy ? JuliaHub._LegacyLogging() : JuliaHub._KafkaLogging()
+            @test JuliaHub._job_logging_api_version(auth, "jr-test1") == expected_backend
+            # Let's also test the override variable
+            JuliaHub._OPTION_LoggingMode[] = JuliaHub._LoggingMode.FORCEKAFKA
+            @test JuliaHub._job_logging_api_version(auth, "jr-test1") == JuliaHub._KafkaLogging()
+            JuliaHub._OPTION_LoggingMode[] = JuliaHub._LoggingMode.NOKAFKA
+            @test JuliaHub._job_logging_api_version(auth, "jr-test1") == JuliaHub._LegacyLogging()
+            JuliaHub._OPTION_LoggingMode[] = JuliaHub._LoggingMode.AUTOMATIC
+        end
+        # Test the fetching of logs
+        @testset "Zero logs" begin
+            let lb = JuliaHub.job_logs_buffered("jr-test1"; offset=0)
+                # Just one check to make sure that the returned buffer actually matches the backend
+                # that we're trying to test.
+                @test lb isa (legacy ? JuliaHub._LegacyLogsBuffer : JuliaHub.KafkaLogsBuffer)
+                @test length(lb.logs) == 0
+                @test JuliaHub.hasfirst(lb)
+                @test JuliaHub.haslast(lb)
+                # Because the first and last are found, these operations should succeed, but be no-ops.
+                JuliaHub.job_logs_newer!(lb)
+                JuliaHub.job_logs_older!(lb)
+                @test length(lb.logs) == 0
+                @test JuliaHub.hasfirst(lb)
+                @test JuliaHub.haslast(lb)
+            end
+            # default offset=nothing
+            # Note: we don't know if we have first or last message yet.
+            # But we should after we try to update the newer and older.
+            #
+            # TODO: the 6.0 state here is not good
+            let lb = JuliaHub.job_logs_buffered("jr-test1")
+                @test length(lb.logs) == 0
+                JuliaHub.job_logs_newer!(lb)
+                @test length(lb.logs) == 0
+                @test JuliaHub.haslast(lb)
+            end
+            let lb = JuliaHub.job_logs_buffered("jr-test1") # default offset=nothing
+                @test length(lb.logs) == 0
+                JuliaHub.job_logs_older!(lb)
+                @test length(lb.logs) == 0
+                @test JuliaHub.hasfirst(lb)
+            end
+            # Requesting a non-existent offset should throw an error
+            @test_throws JuliaHub.InvalidRequestError JuliaHub.job_logs_buffered("jr-test1"; offset=1)
+            @test_throws JuliaHub.InvalidRequestError JuliaHub.job_logs_buffered("jr-test1"; offset=1_000_000)
+        end
+
+        # Now, let's test with a single log message
+        @testset "1 log message" begin
+            logengine.jobs["jr-test1"].logs = ["SINGLE"]
+            let lb = JuliaHub.job_logs_buffered("jr-test1"; offset=0)
+                @test length(lb.logs) == 0
+                # Since offset=0, getting older logs is a no-op
+                JuliaHub.job_logs_older!(lb)
+                @test length(lb.logs) == 0
+                @test JuliaHub.hasfirst(lb)
+                # Because the first and last are found, these operations should succeed, but be no-ops.
+                JuliaHub.job_logs_newer!(lb, count=1)
+                @test length(lb.logs) == 1
+                @test lb.logs[1].message == "SINGLE"
+                @test JuliaHub.hasfirst(lb)
+                @test JuliaHub.haslast(lb)
+            end
+            # As there is only one log (offset=0), requesting offset=1 should throw
+            @test_throws JuliaHub.InvalidRequestError JuliaHub.job_logs_buffered("jr-test1"; offset=1)
+            let lb = JuliaHub.job_logs_buffered("jr-test1")
+                @test length(lb.logs) == 0
+                JuliaHub.job_logs_newer!(lb, count=1)
+                @test length(lb.logs) == 0
+                @test JuliaHub.haslast(lb)
+                JuliaHub.job_logs_older!(lb)
+                @test length(lb.logs) == 1
+                @test lb.logs[1].message == "SINGLE"
+                @test JuliaHub.hasfirst(lb)
+                @test JuliaHub.haslast(lb)
+            end
+            @test_throws JuliaHub.InvalidRequestError JuliaHub.job_logs_buffered("jr-test1"; offset=2)
+        end
+
+        # Now let's try the case with a bunch of log messages, which will
+        # require multiple fetches.
+        @testset "Many log messages" begin
+            logengine.jobs["jr-test1"].logs = ["LOG $i" for i = 1:25]
+            # Starting from the top
+            let lb = JuliaHub.job_logs_buffered("jr-test1"; offset=0)
+                @test length(lb.logs) == 0
+                @test JuliaHub.hasfirst(lb)
+                @test !JuliaHub.haslast(lb)
+                # Since offset=0, getting older logs is a no-op
+                JuliaHub.job_logs_older!(lb)
+                @test length(lb.logs) == 0
+                @test JuliaHub.hasfirst(lb)
+                @test !JuliaHub.haslast(lb)
+                # Because the first and last are found, these operations should succeed, but be no-ops.
+                JuliaHub.job_logs_newer!(lb, count=5)
+                @test length(lb.logs) == 5
+                @test lb.logs[1].message == "LOG 1"
+                @test lb.logs[end].message == "LOG 5"
+                @test JuliaHub.hasfirst(lb)
+                @test !JuliaHub.haslast(lb)
+                # Let's now fetch the next 19 logs one by one
+                for i = 6:24
+                    JuliaHub.job_logs_newer!(lb, count=1)
+                    @test length(lb.logs) == i
+                    @test lb.logs[1].message == "LOG 1"
+                    @test lb.logs[end].message == "LOG $i"
+                    @test JuliaHub.hasfirst(lb)
+                    @test !JuliaHub.haslast(lb)
+                end
+                # And let's now fetch a bunch more, but we should only receive one.
+                JuliaHub.job_logs_newer!(lb, count=100)
+                @test length(lb.logs) == 25
+                @test lb.logs[1].message == "LOG 1"
+                @test lb.logs[end].message == "LOG 25"
+                @test JuliaHub.hasfirst(lb)
+                @test JuliaHub.haslast(lb)
+            end
+            # Starting from the end
+            let lb = JuliaHub.job_logs_buffered("jr-test1")
+                @test length(lb.logs) == 0
+                @test !JuliaHub.hasfirst(lb)
+                @test JuliaHub.haslast(lb) # because it's a finished job
+                # Fetch 15 older logs
+                JuliaHub.job_logs_older!(lb, count=15)
+                @test length(lb.logs) == 15
+                @test lb.logs[1].message == "LOG 11"
+                @test lb.logs[end].message == "LOG 25"
+                @test !JuliaHub.hasfirst(lb)
+                @test JuliaHub.haslast(lb)
+                # And another one..
+                JuliaHub.job_logs_older!(lb, count=1)
+                @test length(lb.logs) == 16
+                @test lb.logs[1].message == "LOG 10"
+                @test lb.logs[end].message == "LOG 25"
+                @test !JuliaHub.hasfirst(lb)
+                @test JuliaHub.haslast(lb)
+                # And then all the way to the start
+                JuliaHub.job_logs_older!(lb)
+                @test length(lb.logs) == 25
+                @test lb.logs[1].message == "LOG 1"
+                @test lb.logs[end].message == "LOG 25"
+                @test JuliaHub.hasfirst(lb)
+                @test JuliaHub.haslast(lb)
+                # newer! is still a no-op
+                JuliaHub.job_logs_newer!(lb)
+                JuliaHub.job_logs_newer!(lb, count=1)
+                JuliaHub.job_logs_newer!(lb, count=1_000_000)
+                @test length(lb.logs) == 25
+                @test lb.logs[1].message == "LOG 1"
+                @test lb.logs[end].message == "LOG 25"
+                @test JuliaHub.hasfirst(lb)
+                @test JuliaHub.haslast(lb)
+            end
+            # And starting from the middle. Conceptually, at the start, the cursor
+            # should be just before offset=17, so the first newer log will be offset=17
+            # log.. which is LOG 18, since the indexing starts at 1.
+            let lb = JuliaHub.job_logs_buffered("jr-test1", offset=17)
+                @test length(lb.logs) == 0
+                @test !JuliaHub.hasfirst(lb)
+                @test !JuliaHub.haslast(lb) # because it's a finished job
+                # Fetch older and newer longs mixedly
+                JuliaHub.job_logs_older!(lb, count=1)
+                @test length(lb.logs) == 1
+                # Since we're moving backwards, we are fetching LOG 17 with older!
+                @test lb.logs[1].message == "LOG 17"
+                @test !JuliaHub.hasfirst(lb)
+                @test !JuliaHub.haslast(lb)
+
+                JuliaHub.job_logs_newer!(lb, count=3)
+                @test length(lb.logs) == 4
+                @test lb.logs[1].message == "LOG 17"
+                @test lb.logs[end].message == "LOG 20"
+                @test !JuliaHub.hasfirst(lb)
+                @test !JuliaHub.haslast(lb)
+
+                JuliaHub.job_logs_older!(lb, count=2)
+                @test length(lb.logs) == 6
+                @test lb.logs[1].message == "LOG 15"
+                @test lb.logs[end].message == "LOG 20"
+                @test !JuliaHub.hasfirst(lb)
+                @test !JuliaHub.haslast(lb)
+                # And now run all the way to the end, both ways
+                JuliaHub.job_logs_older!(lb)
+                @test length(lb.logs) == 20
+                @test lb.logs[1].message == "LOG 1"
+                @test lb.logs[end].message == "LOG 20"
+                @test JuliaHub.hasfirst(lb)
+                @test !JuliaHub.haslast(lb)
+
+                JuliaHub.job_logs_newer!(lb)
+                @test length(lb.logs) == 25
+                @test lb.logs[1].message == "LOG 1"
+                @test lb.logs[end].message == "LOG 25"
+                @test JuliaHub.hasfirst(lb)
+                @test JuliaHub.haslast(lb)
+            end
+            # Explicitly checking that offset=1 leads to LOG 2
+            let lb = JuliaHub.job_logs_buffered("jr-test1", offset=1)
+                JuliaHub.job_logs_newer!(lb, count=1)
+                @test length(lb.logs) == 1
+                @test lb.logs[1].message == "LOG 2"
+            end
+            # Also checking that starting by moving forward makes sense at higher offset
+            let lb = JuliaHub.job_logs_buffered("jr-test1", offset=17)
+                @test length(lb.logs) == 0
+                @test !JuliaHub.hasfirst(lb)
+                @test !JuliaHub.haslast(lb) # because it's a finished job
+                JuliaHub.job_logs_newer!(lb, count=1)
+                @test length(lb.logs) == 1
+                @test lb.logs[1].message == "LOG 18"
+                @test !JuliaHub.hasfirst(lb)
+                @test !JuliaHub.haslast(lb)
+            end
+        end
+
+        # Test that the callback gets called correctly
+        @testset "Callback" begin
+            logengine.jobs["jr-test1"].logs = ["LOG $i" for i = 1:25]
+            cb_results = []
+            lb = JuliaHub.job_logs_buffered("jr-test1", offset=6) do buffer::JuliaHub.AbstractJobLogsBuffer, logs::AbstractVector{JuliaHub.JobLogMessage}
+                push!(cb_results, (first(logs).message, length(logs), last(logs).message))
+            end
+            JuliaHub.job_logs_newer!(lb, count=12)
+            JuliaHub.job_logs_older!(lb, count=1)
+            JuliaHub.job_logs_newer!(lb)
+            JuliaHub.job_logs_older!(lb)
+            @test length(cb_results) == 4
+            @test cb_results[1] == ("LOG 7", 12, "LOG 18")
+            @test cb_results[2] == ("LOG 6", 13, "LOG 18")
+            @test cb_results[3] == ("LOG 6", 20, "LOG 25")
+            @test cb_results[4] == ("LOG 1", 25, "LOG 25")
+            @test JuliaHub.hasfirst(lb)
+            @test JuliaHub.haslast(lb)
+        end
+    end
+end
+JuliaHub._OPTION_LoggingMode[] = JuliaHub._LoggingMode.NOKAFKA
