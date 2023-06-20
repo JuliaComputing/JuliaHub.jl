@@ -77,9 +77,4 @@ Mocking.apply(mocking_patch) do
     )
 end
 
-#=
-deploydocs(;
-    repo="github.com/JuliaComputing/JuliaHub.jl",
-    branch="jhub-pages",
-)
-=#
+deploydocs(; repo="github.com/JuliaComputing/JuliaHub.jl")
