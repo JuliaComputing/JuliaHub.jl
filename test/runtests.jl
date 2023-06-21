@@ -80,7 +80,7 @@ end
             :AbstractJobConfig, :AbstractJuliaHubApp,
             :appbundle, :AppBundleSizeError, :ApplicationJob, :Authentication,
             :AuthenticationError, :BatchJob, :BatchImage, :ComputeConfig, :Dataset,
-            :DatasetReference, :DatasetStorage,
+            :DatasetReference,
             :DefaultApp, :FileHash, :InvalidAuthentication, :InvalidRequestError, :Job,
             :WorkloadConfig, :JobFile, :JobLogMessage, :JobReference, :JobStatus,
             :JuliaHub, :JuliaHubConnectionError, :JuliaHubError,

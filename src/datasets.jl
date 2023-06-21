@@ -6,7 +6,7 @@ const _DOCS_nondynamic_datasets_object_warning = """
     metadata, you can pass the existing [`Dataset`](@ref) to [`JuliaHub.dataset`](@ref).
 """
 
-Base.@kwdef struct DatasetStorage
+Base.@kwdef struct _DatasetStorage
     credentials_url::String
     region::String
     bucket::String
@@ -50,7 +50,7 @@ Base.@kwdef struct Dataset
     _downloadURL::String
     _version::Union{Nothing, String}
     _versions::Vector
-    _storage::DatasetStorage
+    _storage::_DatasetStorage
     # Should not be used in code, but stores the full server
     # response for developer convenience.
     _config::Dict
@@ -74,7 +74,7 @@ function Dataset(d::Dict)
             _utc2localtz(datetime_utc)
         end,
         _version=isnothing(d["version"]) ? nothing : d["version"],
-        _storage=DatasetStorage(;
+        _storage=_DatasetStorage(;
             credentials_url=d["credentials_url"],
             region=d["storage"]["bucket_region"],
             bucket=d["storage"]["bucket"],
