@@ -25,7 +25,7 @@ const MOCK_USERNAME = "username"
 mockauth(server_uri) = JuliaHub.Authentication(
     server_uri, JuliaHub._MISSING_API_VERSION, MOCK_USERNAME, JuliaHub.Secret("")
 )
-JuliaHub.__AUTH__[] = mockauth(URIs.URI("https://juliahub.example.org"))
+JuliaHub.__AUTH__[] = mockauth(URIs.URI("https://juliahub.com"))
 
 # The following Mocking.jl patches _rest_request, so the the rest calls would have fixed
 # reponses.
