@@ -35,6 +35,8 @@ public API:
     I.e. for a dataset object `dataset`, it can be constructed as `"\$(dataset.owner)/\$(dataset.name)"`.
 
 $(_DOCS_nondynamic_datasets_object_warning)
+
+$(_DOCS_no_constructors_admonition)
 """
 Base.@kwdef struct Dataset
     owner::String
