@@ -1,6 +1,6 @@
 Base.@kwdef struct _JuliaHubInfo
-    username::String
-    api_version::Union{VersionNumber, Nothing}
+    username::Union{String, Nothing}
+    api_version::VersionNumber
     _user_emails::Vector{String} = String[]
     _userid::Union{Int, Nothing} = nothing
 end
@@ -18,16 +18,21 @@ function _get_authenticated_user_legacy_gql_request(server::AbstractString, toke
         _authheaders(token)...,
         "X-Hasura-Role" => "jhuser",
     ]
-    @_httpcatch HTTP.post("$server/v1/graphql", headers, query; status_exception=false)
+    r = @_httpcatch HTTP.post("$server/v1/graphql", headers, query; status_exception=false)
+    return _RESTResponse(r)
 end
 
 function _get_authenticated_user_api_v1_request(server::AbstractString, token::Secret)
     headers = _authheaders(token)
-    @_httpcatch HTTP.get("$server/api/v1", headers; status_exception=false)
+    # We explicitly want HTTP to retry these requests, just to make it less likely that
+    # we don't fail here due to an intermittent error. Note: retry=true is the default
+    # actually, so this is mostly for documentation purposes.
+    r = @_httpcatch HTTP.get("$server/api/v1", headers; retry=true, status_exception=false)
+    return _RESTResponse(r)
 end
 
-function _get_authenticated_user_60(server::AbstractString, token::Secret)
-    r = _get_authenticated_user_legacy_gql_request(server, token)
+function _get_authenticated_user_legacy(server::AbstractString, token::Secret)::_JuliaHubInfo
+    r = Mocking.@mock _get_authenticated_user_legacy_gql_request(server, token)
     msg = "Unable to query for user information (Hasura)" # error message
     r.status == 200 || _throw_invalidresponse(r; msg)
     json, _ = _parse_response_json(r, Dict)
@@ -40,19 +45,21 @@ function _get_authenticated_user_60(server::AbstractString, token::Secret)
     username = _get_json(user, "username", String; msg)
     info = _get_json(user, "info", Vector; msg)
     emails = [_get_json(x, "email", String) for x in info]
-    return _JuliaHubInfo(; api_version=nothing, username, _user_emails=emails, _userid=userid)
+    return _JuliaHubInfo(;
+        api_version=_MISSING_API_VERSION, username, _user_emails=emails, _userid=userid
+    )
 end
 
-function _get_api_information(server::AbstractString, token::Secret)
+function _get_api_information(server::AbstractString, token::Secret)::_JuliaHubInfo
     # First, try to access the /api/v1 endpoint
-    r = _get_authenticated_user_api_v1_request(server, token)
+    r = Mocking.@mock _get_authenticated_user_api_v1_request(server, token)
     if r.status == 200
         json, _ = _parse_response_json(r, Dict)
-        username = _get_json(json, "username", String)
+        username = _get_json_or(json, "username", String, nothing)
         api_version = _json_get(json, "api_version", VersionNumber; parse=true, var="/api/v1")
         return _JuliaHubInfo(; username, api_version)
     elseif r.status == 404
-        return _get_authenticated_user_60(server, token)
+        return _get_authenticated_user_legacy(server, token)
     end
     _throw_invalidresponse(r; msg="Unable to query for user information (/api/v1)")
 end
