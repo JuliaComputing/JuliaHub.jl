@@ -135,7 +135,7 @@ try
         dataset = JuliaHub.dataset(datasetname; auth)
         @test dataset.name == datasetname
         @test dataset.dtype == "Blob"
-        @test length(dataset._versions) == 2
+        @test length(dataset.versions) == 2
     end
 
     # Updating metadata

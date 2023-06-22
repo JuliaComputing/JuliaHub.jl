@@ -1,6 +1,6 @@
 # This contains the shared mocking setup for the offline test suite, but is also
 # re-used in docs/make.jl to make the doctest outputs consistent.
-import Mocking, JSON, SHA, URIs, UUIDs
+import Dates, Mocking, JSON, SHA, URIs, UUIDs, TimeZones
 
 # Development note: you can MITM the REST calls and save the raw API responses
 # with the following Mocking setup:
@@ -306,6 +306,27 @@ function _restcall_mocked(method, url, headers, payload; query)
         end
     elseif (method == :GET) && endswith(url, "datasets")
         dataset_params = get(MOCK_JULIAHUB_STATE, :dataset_params, Dict())
+        dataset_version_sizes = get(MOCK_JULIAHUB_STATE, :dataset_version_sizes, nothing)
+        zerotime = TimeZones.ZonedDateTime("2022-10-12T05:39:42.906+00:00")
+        versions_json =
+            dataset -> begin
+                version_sizes = something(
+                    dataset_version_sizes,
+                    (dataset == "example-dataset") ? [57, 331] : [57]
+                )
+                Dict(
+                    "version" => string("v", length(version_sizes)),
+                    "versions" => map(enumerate(version_sizes)) do (i, sz)
+                        Dict(
+                            "version" => i,
+                            "blobstore_path" => string("u", 2),
+                            "size" => sz,
+                            "date" => string(zerotime + Dates.Day(i) + Dates.Millisecond(sz)),
+                        )
+                    end,
+                    "size" => isempty(version_sizes) ? 0 : sum(version_sizes),
+                )
+            end
         #! format: off
         shared = Dict(
             "groups" => Any[],
@@ -316,16 +337,6 @@ function _restcall_mocked(method, url, headers, payload; query)
                     "vendor" => "aws",
                 ),
                 "description" => get(dataset_params, "description", "An example dataset"),
-                "version" => "v1",
-                "versions" => Any[
-                    Dict(
-                        "version" => 1,
-                        "blobstore_path" => "u1",
-                        "size" => 57,
-                        "date" => "2022-10-12T05:39:42.906+00:00",
-                    )
-                ],
-                "size" => 57,
                 "tags" => get(dataset_params, "tags", ["tag1", "tag2"]),
                 "license" => (
                     "name" => "MIT License",
@@ -351,6 +362,7 @@ function _restcall_mocked(method, url, headers, payload; query)
                     ),
                     "type" => occursin("blobtree", dataset) ? "BlobTree" : "Blob",
                     "visibility" => occursin("public", dataset) ? "public" : "private",
+                    versions_json(dataset)...,
                     shared...,
                 ),
             )

@@ -7,6 +7,7 @@ import HTTP
 import Pkg
 import Random
 import Tar
+import TimeZones
 import SHA
 import URIs
 
@@ -79,8 +80,8 @@ end
             Symbol("@script_str"),
             :AbstractJobConfig, :AbstractJuliaHubApp,
             :appbundle, :AppBundleSizeError, :ApplicationJob, :Authentication,
-            :AuthenticationError, :BatchJob, :BatchImage, :ComputeConfig, :Dataset,
-            :DatasetReference,
+            :AuthenticationError, :BatchJob, :BatchImage, :ComputeConfig,
+            :Dataset, :DatasetReference, :DatasetVersion,
             :DefaultApp, :FileHash, :InvalidAuthentication, :InvalidRequestError, :Job,
             :WorkloadConfig, :JobFile, :JobLogMessage, :JobReference, :JobStatus,
             :JuliaHub, :JuliaHubConnectionError, :JuliaHubError,

@@ -30,12 +30,13 @@ julia> JuliaHub.datasets()
 
 If you know the name of the dataset, you can also directly access it with the [`dataset`](@ref) function, and you can access the dataset metadata via the properties of the [`Dataset`](@ref) object.
 
-```jldoctest
+```jldoctest example-dataset
 julia> ds = JuliaHub.dataset("example-dataset")
 Dataset: example-dataset (Blob)
  owner: username
  description: An example dataset
- size: 57 bytes
+ versions: 2
+ size: 388 bytes
  tags: tag1, tag2
 
 julia> ds.owner
@@ -45,7 +46,7 @@ julia> ds.description
 "An example dataset"
 
 julia> ds.size
-57
+388
 ```
 
 If you want to work with dataset that you do not own but is shared with you in JuliaHub, you can pass `shared=true` to [`datasets`](@ref), or specify the username.
@@ -65,6 +66,7 @@ julia> JuliaHub.dataset(("anotheruser", "publicdataset"))
 Dataset: publicdataset (Blob)
  owner: anotheruser
  description: An example dataset
+ versions: 1
  size: 57 bytes
  tags: tag1, tag2
 ```
@@ -77,6 +79,41 @@ Transferred:       86.767 KiB / 86.767 KiB, 100%, 0 B/s, ETA -
 Transferred:            1 / 1, 100%
 Elapsed time:         2.1s
 "/home/username/my-project/mydata"
+```
+
+As datasets can have multiple versions, the [`.versions` property of `Dataset`](@ref Dataset) can be used to see information about the individual versions (represented with [`DatasetVersion`](@ref) objects).
+When downloading, you can also specify the version you wish to download (with the default being the newest version).
+
+```jldoctest example-dataset; filter = r"\"/.+/mydata\""
+julia> ds.versions
+2-element Vector{JuliaHub.DatasetVersion}:
+ JuliaHub.DatasetVersion(dataset = ("username", "example-dataset"), version = 1)
+ JuliaHub.DatasetVersion(dataset = ("username", "example-dataset"), version = 2)
+
+julia> ds.versions[1]
+DatasetVersion: example-dataset @ v1
+ owner: username
+ timestamp: 2022-10-13T01:39:42.963-04:00
+ size: 57 bytes
+
+julia> JuliaHub.download_dataset("example-dataset", "mydata", version=ds.versions[1].id)
+Transferred:       86.767 KiB / 86.767 KiB, 100%, 0 B/s, ETA -
+Transferred:            1 / 1, 100%
+Elapsed time:         2.1s
+"/home/username/my-project/mydata"
+
+```
+
+The dataset version are sorted with oldest first.
+To explicitly access the newest dataset, you can use the `last` function on the `.versions` property.
+
+```jldoctest example-dataset
+julia> last(ds.versions)
+DatasetVersion: example-dataset @ v2
+ owner: username
+ timestamp: 2022-10-14T01:39:43.237-04:00
+ size: 331 bytes
+
 ```
 
 !!! tip "Tip: DataSets.jl"

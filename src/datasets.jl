@@ -14,6 +14,63 @@ Base.@kwdef struct _DatasetStorage
 end
 
 """
+    struct DatasetVersion
+
+Represents one version of a dataset.
+
+Objects have the following properties:
+
+- `.id`: unique dataset version identifier (used e.g. in [`download_dataset`](@ref) to
+  identify the dataset version).
+- `.size :: Int`: size of the dataset version in bytes
+- `.timestamp :: ZonedDateTime`: dataset version timestamp
+
+```
+julia> JuliaHub.datasets()
+```
+
+See also: [`Dataset`](@ref), [`datasets`](@ref), [`dataset`](@ref).
+
+$(_DOCS_no_constructors_admonition)
+"""
+struct DatasetVersion
+    _dsref::Tuple{String, String}
+    id::Int
+    size::Int
+    timestamp::TimeZones.ZonedDateTime
+    _blobstore_path::String
+
+    function DatasetVersion(json::Dict; owner::AbstractString, name::AbstractString)
+        msg = "Unable to parse dataset version info for ($owner, $name)"
+        version = _get_json(json, "version", Int; msg)
+        size = _get_json(json, "size", Int; msg)
+        timestamp = _parse_tz(_get_json(json, "date", String; msg); msg)
+        blobstore_path = _get_json(json, "blobstore_path", String; msg)
+        new((owner, name), version, size, timestamp, blobstore_path)
+    end
+end
+
+function Base.show(io::IO, dsv::DatasetVersion)
+    owner, name = dsv._dsref
+    print(
+        io,
+        "JuliaHub.DatasetVersion(dataset = (\"",
+        owner,
+        "\", \"",
+        name,
+        "\"), version = $(dsv.id))",
+    )
+end
+function Base.show(io::IO, ::MIME"text/plain", dsv::DatasetVersion)
+    owner, name = dsv._dsref
+    printstyled(io, "DatasetVersion:"; bold=true)
+    print(io, " ", name, " @ v", dsv.id)
+    print(io, "\n owner: ", owner)
+    print(io, "\n timestamp: ", dsv.timestamp)
+    print(io, "\n size: ", dsv.size, " bytes")
+end
+
+"""
     struct Dataset
 
 Information about a dataset stored on JuliaHub, and the following fields are considered to be
@@ -23,6 +80,8 @@ public API:
 - `owner :: String`: username of the dataset owner
 - `name :: String`: dataset name
 - `dtype :: String`: generally either `Blob` or `BlobTree`, but additional values may be added in the future
+- `versions :: Vector{DatasetVersion}`: an ordered list of [`DatasetVersion`](@ref) objects, one for
+  each dataset version, sorted from oldest to latest (i.e. you can use `last` to get the newest version).
 - `size :: Int`: total size of the whole dataset (including all the dataset versions) in bytes
 - Fields to access user-provided dataset metadata:
   - `description :: String`: dataset description
@@ -44,14 +103,13 @@ Base.@kwdef struct Dataset
     uuid::UUIDs.UUID
     dtype::String
     size::Int64
+    versions::Vector{DatasetVersion}
     # User-set metadata
     description::String
     tags::Vector{String}
     # Additional metadata, but not part of public API
     _last_modified::Union{Nothing, TimeZones.ZonedDateTime}
     _downloadURL::String
-    _version::Union{Nothing, String}
-    _versions::Vector
     _storage::_DatasetStorage
     # Should not be used in code, but stores the full server
     # response for developer convenience.
@@ -59,15 +117,17 @@ Base.@kwdef struct Dataset
 end
 
 function Dataset(d::Dict)
+    owner = d["owner"]["username"]
+    name = d["name"]
+    versions_json = _get_json_or(d, "versions", Vector, [])
+    versions = sort([DatasetVersion(json; owner, name) for json in versions_json]; by=dsv -> dsv.id)
     Dataset(;
         uuid=UUIDs.UUID(d["id"]),
-        name=d["name"],
-        owner=d["owner"]["username"],
+        name, owner, versions,
         dtype=d["type"],
         description=d["description"],
         size=d["size"],
         tags=d["tags"],
-        _versions=d["versions"],
         _downloadURL=d["downloadURL"],
         _last_modified=_nothing_or(d["lastModified"]) do last_modified
             datetime_utc = Dates.DateTime(
@@ -75,7 +135,6 @@ function Dataset(d::Dict)
             )
             _utc2localtz(datetime_utc)
         end,
-        _version=isnothing(d["version"]) ? nothing : d["version"],
         _storage=_DatasetStorage(;
             credentials_url=d["credentials_url"],
             region=d["storage"]["bucket_region"],
@@ -94,6 +153,7 @@ function Base.show(io::IO, ::MIME"text/plain", d::Dataset)
     print(io, " ", d.name, " (", d.dtype, ")")
     print(io, "\n owner: ", d.owner)
     print(io, "\n description: ", d.description)
+    print(io, "\n versions: ", length(d.versions))
     print(io, "\n size: ", d.size, " bytes")
     isempty(d.tags) || print(io, "\n tags: ", join(d.tags, ", "))
 end
@@ -101,12 +161,11 @@ end
 function Base.:(==)(d1::Dataset, d2::Dataset)
     d1.name == d2.name &&
         d1.description == d2.description &&
-        d1._versions == d2._versions &&
+        d1.versions == d2.versions &&
         d1._downloadURL == d2._downloadURL &&
         d1.size == d2.size &&
         d1.tags == d2.tags &&
         d1._last_modified == d2._last_modified &&
-        d1._version == d2._version &&
         d1.dtype == d2.dtype &&
         d1.uuid == d2.uuid
 end
@@ -297,14 +356,16 @@ julia> dataset = JuliaHub.dataset("example-dataset")
 Dataset: example-dataset (Blob)
  owner: username
  description: An example dataset
- size: 57 bytes
+ versions: 2
+ size: 388 bytes
  tags: tag1, tag2
 
 julia> JuliaHub.dataset(dataset)
 Dataset: example-dataset (Blob)
  owner: username
  description: An example dataset
- size: 57 bytes
+ versions: 2
+ size: 388 bytes
  tags: tag1, tag2
 ```
 
@@ -703,8 +764,10 @@ function _parse_dataset_version(version::AbstractString)
 end
 
 function _find_dataset_version(dataset::Dataset, version::Integer)
-    for version_dict in dataset._versions
-        version_dict["version"] == version && return version_dict
+    # Starting form latest first, assuming that it's more common to
+    # try to find newer versions.
+    for dsv in Iterators.reverse(dataset.versions)
+        dsv.id == version && return dsv
     end
     return nothing
 end
@@ -722,7 +785,9 @@ If the dataset is a `Blob`, then the created `local_path` will be a file, and if
 the `local_path` will be a directory.
 
 By default, it downloads the latest version, but an older version can be downloaded by specifying
-the `version` keyword argument.
+the `version` keyword argument. Caution: you should never assume that the index of the `.versions` property
+of [`Dataset`](@ref) matches the version number -- always explicitly use the `.id` propert of the
+[`DatasetVersion`](@ref) object.
 
 The function also prints download progress to standard output. This can be disabled by setting `quiet=true`.
 Any error output from the download is still printed.
@@ -766,12 +831,14 @@ function download_dataset(
         ),
     )
 
+    isempty(dataset.versions) &&
+        throw(InvalidRequestError("Dataset '$(dataset.name)' does not have any versions"))
     if isnothing(version)
-        version = _parse_dataset_version(dataset._version)
+        version = last(dataset.versions).id
     end
     version_info = _find_dataset_version(dataset, version)
     isnothing(version_info) &&
-        throw(InvalidRequestError("Dataset '$(dataset.name)' does not have version '$version'"))
+        throw(InvalidRequestError("Dataset '$(dataset.name)' does not have version 'v$version'"))
 
     credentials = Mocking.@mock _get_dataset_credentials(auth, dataset)
     credentials["vendor"] == "aws" ||
@@ -780,8 +847,7 @@ function download_dataset(
 
     bucket = dataset._storage.bucket
     prefix = dataset._storage.prefix
-    version_path = version_info["blobstore_path"]
-    remote_uri = "juliahub_remote:$bucket/$prefix/$(dataset.uuid)/$version_path"
+    remote_uri = "juliahub_remote:$bucket/$prefix/$(dataset.uuid)/$(version_info._blobstore_path)"
     if dataset.dtype == "Blob"
         remote_uri *= "/data"
     end

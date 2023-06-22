@@ -372,3 +372,30 @@ function _throw_or_nothing(
     isnothing(nothrow_extra_logic_f) || nothrow_extra_logic_f(msg)
     return nothing
 end
+
+# Parses a timezoned timestamp string into a local timezone object
+const _VALID_TZ_DATEFORMATS = [
+    Dates.dateformat"yyyy-mm-ddTHH:MM:SS.ssszzz",
+    Dates.dateformat"yyyy-mm-ddTHH:MM:SS.sszzz",
+    Dates.dateformat"yyyy-mm-ddTHH:MM:SS.szzz",
+    Dates.dateformat"yyyy-mm-ddTHH:MM:SSzzz",
+]
+function _parse_tz(timestamp_str::AbstractString; msg::Union{AbstractString, Nothing}=nothing)
+    timestamp = nothing
+    for dateformat in _VALID_TZ_DATEFORMATS
+        timestamp = try
+            TimeZones.ZonedDateTime(timestamp_str, dateformat)
+        catch e
+            isa(e, ArgumentError) && continue
+            rethrow(e)
+        end
+    end
+    if isnothing(timestamp)
+        errmsg = "Unable to parse timestamp '$timestamp_str'"
+        if !isnothing(msg)
+            errmsg = string(msg, '\n', errmsg)
+        end
+        throw(JuliaHubError(errmsg))
+    end
+    return TimeZones.astimezone(timestamp, TimeZones.localzone())
+end
