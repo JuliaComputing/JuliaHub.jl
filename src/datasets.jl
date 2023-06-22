@@ -256,6 +256,7 @@ function datasets(
         _get_datasets(; auth)
     catch e
         e isa JuliaHubException && rethrow(e)
+        e isa JuliaHubError && rethrow(e)
         throw(
             JuliaHubError("Error while retrieving datasets from the server", e, catch_backtrace()),
         )
