@@ -142,9 +142,9 @@ try
     dataset = JuliaHub.dataset(blobname; auth)
     @test dataset.description == "some blob"
     @test dataset.tags == ["x", "y", "z"]
-    @test dataset._config["groups"] == []
-    @test dataset._config["visibility"] == "private"
-    @test dataset._config["license"] == Dict{String, Any}(
+    @test dataset._json["groups"] == []
+    @test dataset._json["visibility"] == "private"
+    @test dataset._json["license"] == Dict{String, Any}(
         "name" => "Other",
         "spdx_id" => "NOASSERTION",
         "text" => "All rights reserved",
@@ -155,9 +155,9 @@ try
     dataset = JuliaHub.dataset(blobname; auth)
     @test dataset.description == "some blob"
     @test dataset.tags == ["x", "y", "z"]
-    @test dataset._config["groups"] == []
-    @test dataset._config["visibility"] == "private"
-    @test dataset._config["license"] == Dict{String, Any}(
+    @test dataset._json["groups"] == []
+    @test dataset._json["visibility"] == "private"
+    @test dataset._json["license"] == Dict{String, Any}(
         "name" => "Other",
         "spdx_id" => "NOASSERTION",
         "text" => "All rights reserved",
@@ -170,9 +170,9 @@ try
     dataset = JuliaHub.dataset(blobname; auth)
     @test dataset.description == "new description"
     @test dataset.tags == ["x", "y", "z"]
-    @test dataset._config["groups"] == []
-    @test dataset._config["visibility"] == "private"
-    @test dataset._config["license"] == Dict{String, Any}(
+    @test dataset._json["groups"] == []
+    @test dataset._json["visibility"] == "private"
+    @test dataset._json["license"] == Dict{String, Any}(
         "name" => "Other",
         "spdx_id" => "NOASSERTION",
         "text" => "All rights reserved",
@@ -186,9 +186,9 @@ try
     dataset = JuliaHub.dataset(blobname; auth)
     @test dataset.description == "new description"
     @test dataset.tags == ["foo", "bar"]
-    @test Set(dataset._config["groups"]) == Set(new_groups)
-    @test dataset._config["visibility"] == "public"
-    @test dataset._config["license"] == Dict{String, Any}(
+    @test Set(dataset._json["groups"]) == Set(new_groups)
+    @test dataset._json["visibility"] == "public"
+    @test dataset._json["license"] == Dict{String, Any}(
         "name" => "Other",
         "spdx_id" => "NOASSERTION",
         "text" => "All rights reserved",
@@ -197,7 +197,7 @@ try
     # License updates
     JuliaHub.update_dataset(dataset.name; auth, license="MIT")
     dataset = JuliaHub.dataset(blobname; auth)
-    @test dataset._config["license"] == Dict{String, Any}(
+    @test dataset._json["license"] == Dict{String, Any}(
         "name" => "MIT License",
         "spdx_id" => "MIT",
         "text" => nothing,
@@ -207,7 +207,7 @@ try
         dataset.name; auth, license=(:text, "hello license my old friend")
     )
     dataset = JuliaHub.dataset(blobname; auth)
-    @test dataset._config["license"] == Dict{String, Any}(
+    @test dataset._json["license"] == Dict{String, Any}(
         "name" => "Other",
         "spdx_id" => "NOASSERTION",
         "text" => "hello license my old friend",

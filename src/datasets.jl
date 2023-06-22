@@ -55,7 +55,7 @@ Base.@kwdef struct Dataset
     _storage::_DatasetStorage
     # Should not be used in code, but stores the full server
     # response for developer convenience.
-    _config::Dict
+    _json::Dict
 end
 
 function Dataset(d::Dict)
@@ -82,7 +82,7 @@ function Dataset(d::Dict)
             bucket=d["storage"]["bucket"],
             prefix=d["storage"]["prefix"],
         ),
-        _config=d,
+        _json=d,
     )
 end
 
