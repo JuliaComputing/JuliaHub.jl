@@ -423,11 +423,15 @@ function job_file(job::Job, filetype::Symbol, filename::AbstractString)
 end
 
 """
-    JuliaHub.download_job_file(file::JobFile, path::AbstractString; [auth])
+    JuliaHub.download_job_file(file::JobFile, path::AbstractString; [auth]) -> String
     JuliaHub.download_job_file(file::JobFile, io::IO; [auth])
 
 Downloads a [`JobFile`](@ref) to a local path. Alternative, writeable stream object can be
 passed as the second argument to write the contents directly into the stream.
+
+When a local path is passed, it returns the path (which can be useful when calling the function
+as e.g. `JuliaHub.download_job_file(file, tempname()))`). When an `IO` object is passed, it
+returns `nothing`.
 
 For example, to download a file into a temporary file:
 
@@ -474,7 +478,7 @@ function download_job_file(file::JobFile, path::AbstractString; auth::Authentica
     open(path, "w") do io
         Mocking.@mock _download_job_file(auth, file, io)
     end
-    return nothing
+    return path
 end
 
 # Internal, mockable version of download_job_file

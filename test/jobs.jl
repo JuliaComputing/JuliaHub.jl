@@ -368,7 +368,7 @@ end
         @test JuliaHub.job_file(job, :input, "doesn't exist") === nothing
         @test @test_logs (:warn,) JuliaHub.job_file(job, :badcat, "code.jl") === nothing
 
-        @test JuliaHub.download_job_file(file, tempname()) === nothing
+        @test JuliaHub.download_job_file(file, tempname()) isa String
         @test JuliaHub.download_job_file(file, IOBuffer()) === nothing
     end
 end
