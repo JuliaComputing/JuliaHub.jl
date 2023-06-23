@@ -22,6 +22,7 @@
 end
 
 @testset "JuliaHub.dataset(s)" begin
+    empty!(MOCK_JULIAHUB_STATE)
     Mocking.apply(mocking_patch) do
         let dss = JuliaHub.datasets()
             @test dss isa Vector{JuliaHub.Dataset}
@@ -48,6 +49,13 @@ end
             @test ds.dtype == "Blob"
             @test ds.description == "An example dataset"
 
+            @test length(ds.versions) == 2
+            @test ds.versions[1] isa JuliaHub.DatasetVersion
+            @test ds.versions[1].id == 1
+            @test ds.versions[1].size == 57
+            @test ds.versions[2].id == 2
+            @test ds.versions[2].size == 331
+
             ds_updated = JuliaHub.dataset("example-dataset")
             @test ds_updated isa JuliaHub.Dataset
             @test ds_updated.name == ds.name
@@ -66,6 +74,11 @@ end
             @test ds.name == "blobtree/example"
             @test ds.dtype == "BlobTree"
             @test ds.description == "An example dataset"
+
+            @test length(ds.versions) == 1
+            @test ds.versions[1] isa JuliaHub.DatasetVersion
+            @test ds.versions[1].id == 1
+            @test ds.versions[1].size == 57
         end
         @test_throws JuliaHub.InvalidRequestError JuliaHub.dataset("doesnt-exist")
         @test_throws JuliaHub.InvalidRequestError JuliaHub.dataset("doesn't-exist")
@@ -80,10 +93,22 @@ end
             @test ds.name == "publicdataset"
             @test ds.dtype == "Blob"
         end
+
+        # Test zero-version datasets
+        MOCK_JULIAHUB_STATE[:dataset_version_sizes] = []
+        let ds = JuliaHub.dataset("example-dataset")
+            @test ds isa JuliaHub.Dataset
+            @test ds.name == "example-dataset"
+            @test ds.owner == "username"
+            @test ds.dtype == "Blob"
+            @test ds.description == "An example dataset"
+            @test isempty(ds.versions)
+        end
     end
 end
 
 @testset "JuliaHub.download_dataset" begin
+    empty!(MOCK_JULIAHUB_STATE)
     # The mocked _rclone() prints, so we can override it here.
     MOCK_JULIAHUB_STATE[:stdout_stream] = devnull
     Mocking.apply(mocking_patch) do
@@ -134,6 +159,17 @@ end
         @test_throws JuliaHub.InvalidRequestError JuliaHub.download_dataset(
             "dont-exist", "local"
         )
+        # Dataset versions
+        #! format: off
+        @test JuliaHub.download_dataset("example-dataset", "local"; version=1) == joinpath(pwd(), "local")
+        @test JuliaHub.download_dataset("example-dataset", "local"; version=2) == joinpath(pwd(), "local")
+        @test JuliaHub.download_dataset(("anotheruser", "publicdataset"), "local"; version=1) == joinpath(pwd(), "local")
+        @test_throws JuliaHub.InvalidRequestError JuliaHub.download_dataset("example-dataset", "local"; version=0)
+        @test_throws JuliaHub.InvalidRequestError JuliaHub.download_dataset("example-dataset", "local"; version=3)
+        @test_throws JuliaHub.InvalidRequestError JuliaHub.download_dataset(("anotheruser", "publicdataset"), "local"; version=2)
+        MOCK_JULIAHUB_STATE[:dataset_version_sizes] = []
+        @test_throws JuliaHub.InvalidRequestError JuliaHub.download_dataset("example-dataset", "local")
+        #! format: on
     end
     delete!(MOCK_JULIAHUB_STATE, :stdout_stream)
 end

@@ -1,6 +1,10 @@
 using JuliaHub
 using Documenter, DocumenterMermaid
 
+# Timestamp printing is dependent on the timezone, so we force a specific (non-UTC)
+# timezone to make sure that the doctests don't fail because of timezone differences.
+ENV["TZ"] = "America/New_York"
+
 DocMeta.setdocmeta!(
     JuliaHub, :DocTestSetup,
     quote
