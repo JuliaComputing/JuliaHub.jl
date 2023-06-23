@@ -41,6 +41,8 @@ The versions are indexed with a linear list of integers starting from `1`.
 ## Reference
 
 ```@docs
+JuliaHub.Dataset
+JuliaHub.DatasetVersion
 JuliaHub.datasets
 JuliaHub.DatasetReference
 JuliaHub.dataset
@@ -48,7 +50,6 @@ JuliaHub.download_dataset
 JuliaHub.upload_dataset
 JuliaHub.update_dataset
 JuliaHub.delete_dataset
-JuliaHub.Dataset
 ```
 
 ## Index

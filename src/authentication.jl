@@ -303,36 +303,41 @@ function _authentication(
     username::Union{AbstractString, Nothing}=nothing,
     tokenpath::Union{AbstractString, Nothing}=nothing,
 )
+    # If something goes badly wrong in _get_api_information, it may throw. We won't really
+    # be able to proceed, since we do not know what JuliaHub APIs to use, so we need to
+    # propagate this to the user. But we'll change the exception type here to
+    # AuthenticationError to be consistent with what authenticate() should throw.
     api = try
         _get_api_information(string(server), token)
     catch e
-        @warn "Failed to acquire API & user information from server, falling back to auth.toml" exception = (
-            e, catch_backtrace()
-        )
-        nothing
+        errmsg = """
+        Unable to determine JuliaHub API version.
+        _get_api_information failed with an exception:
+        $(sprint(showerror, e))"""
+        # Note: the original stacktrace should available from the "caused by" stack.
+        throw(AuthenticationError(errmsg))
     end
-    if isnothing(api)
-        # If we were not able to fetch user information from the server, we fall back to auth.toml values
-        # for email and username. If the username is missing there _as well_, then we give up.
+    # If fetching user information was successful, we use that to populate the Authentication
+    # object. Otherwise, we'll fall back to the auth.toml values.
+    email = if isempty(api._user_emails)
+        @debug "No user emails provided by the server, falling back to auth.toml value"
+        email
+    else
+        first(api._user_emails)
+    end
+    # It is sometimes possible for the username to not be set in /api/v1 endpoint. In that case
+    # we warn (since this is unusual, but still fall back to auth.toml value).
+    if isnothing(api.username)
+        @warn "Failed to acquire username from server, falling back to auth.toml value (may be incorrect)" username
+        # However, if user auth.toml username is also missing, then we don't really have any
+        # other opportunity other than to throw.
         if isnothing(username)
-            throw(AuthenticationError("Unable to determine JuliaHub username"))
+            throw(AuthenticationError("Unable to determine username."))
         end
     else
-        # If fetching user information was successful, we use that to populate the Authentication object
-        email = if isempty(api._user_emails)
-            @debug "No user emails provided by the server, falling back to auth.toml value"
-            email
-        else
-            first(api._user_emails)
-        end
         username = api.username
     end
-    api_version = if isnothing(api) || isnothing(api.api_version)
-        _MISSING_API_VERSION
-    else
-        api.api_version
-    end
-    return Authentication(server, api_version, username, token; email, expires, tokenpath)
+    return Authentication(server, api.api_version, username, token; email, expires, tokenpath)
 end
 _authentication(server::AbstractString; kwargs...) = _authentication(URIs.URI(server); kwargs...)
 
