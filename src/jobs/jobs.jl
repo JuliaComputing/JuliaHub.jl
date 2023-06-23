@@ -25,8 +25,9 @@ A reference to a job input or output file, with the following properties:
 - `.name :: String`: the name of the [`Job`](@ref) this file is attached to
 - `.type :: Symbol`: indicated the file type (see below)
 - `.filename :: String`: file name
-- `.size :: Int`: size of the file in bytes
-- `.hash :: FileHash`: a [`FileHash`](@ref) object containing the file hash
+- `.size :: Int`: size of the file in bytes (reported to be zero in cases where the file contents is missing)
+- `.hash :: Union{FileHash, Nothing}`: a [`FileHash`](@ref) object containing the file hash, but may
+  also be missing (`nothing`) in some cases, like when the file upload has not completed yet.
 
 The file is uniquely identified by the `(job, type, filename)` triplet.
 
@@ -48,32 +49,50 @@ struct JobFile
     type::Symbol
     filename::String
     size::Int
-    hash::FileHash
+    hash::Union{FileHash, Nothing}
     _upload_timestamp::String
 
-    function JobFile(jobname::AbstractString, jf::AbstractDict)
-        hash = _json_get(jf, "hash", Dict; var="get_jobs")
-        hash_algorithm = _json_get(hash, "algorithm", String; var="get_jobs")
-        hash_value = _json_get(hash, "value", String; var="get_jobs")
+    function JobFile(jobname::AbstractString, jf::AbstractDict; var)
+        filehash = let hash = _json_get(jf, "hash", Dict; var)
+            hash_algorithm = _json_get(hash, "algorithm", Union{String, Nothing}; var)
+            hash_value = _json_get(hash, "value", Union{String, Nothing}; var)
+            if isnothing(hash_algorithm) || isnothing(hash_value)
+                nothing
+            else
+                FileHash(hash_algorithm, hash_value)
+            end
+        end
+        # It is possible to the 'size' field to be 'null', which normally indicates that
+        # the file has not actually been uploaded yet. Defaulting the file size to zero bytes.
+        file_size = something(_json_get(jf, "size", Union{Int, Nothing}; var), 0)
         new(
             jobname,
-            Symbol(_json_get(jf, "type", String; var="get_jobs")),
-            _json_get(jf, "name", String; var="get_jobs"),
-            _json_get(jf, "size", Int; var="get_jobs"),
-            FileHash(hash_algorithm, hash_value),
+            Symbol(_json_get(jf, "type", String; var)),
+            _json_get(jf, "name", String; var),
+            file_size,
+            filehash,
             # this is not exported, so let's not throw if it's missing:
             get(jf, "upload_timestamp", ""),
         )
     end
 end
 
-Base.show(io::IO, jf::JobFile) =
-    print(io, "JuliaHub.JobFile(:", jf.type, ", \"", jf.filename, "\", ", jf.size, ", ...)")
+Base.show(io::IO, jf::JobFile) = print(
+    io,
+    "JuliaHub.job_file(JuliaHub.job(\"$(jf.jobname)\"), :",
+    jf.type,
+    ", \"",
+    jf.filename,
+    "\")",
+)
 
 function Base.show(io::IO, ::MIME"text/plain", jf::JobFile)
     printstyled(io, "JuliaHub.JobFile"; bold=true)
-    println(io, " ", jf.filename, " (", jf.jobname, ", :", jf.type, ", ", jf.size, " bytes)")
-    println(io, string(jf.hash.algorithm), ":", Base64.base64encode(jf.hash.hash))
+    file_size = isnothing(jf.hash) && (jf.size == 0) ? "missing data" : string(jf.size, " bytes")
+    println(io, " ", jf.filename, " (", jf.jobname, ", :", jf.type, ", ", file_size, ")")
+    if !isnothing(jf.hash)
+        println(io, string(jf.hash.algorithm), ":", Base64.base64encode(jf.hash.hash))
+    end
     print(io, "Uploaded: ", jf._upload_timestamp)
 end
 
@@ -202,7 +221,7 @@ struct Job
     function Job(j::AbstractDict)
         jobname = _json_get(j, "jobname", String; var="get_jobs")
         # We'll try to parse 'outputs' as a string, but
-        var = "get_jobs[$jobname]"
+        var = "get_jobs/$jobname"
         outputs = _json_get(j, "outputs", String; var)
         # Inputs should always be valid JSON.. except under some unclear circumstances it
         # can also be Nothing (null?).
@@ -226,7 +245,7 @@ struct Job
             JobStatus(_json_get(j, "status", String; var)),
             inputs,
             outputs,
-            haskey(j, "files") ? JobFile.(jobname, j["files"]) : JobFile[],
+            haskey(j, "files") ? JobFile.(jobname, j["files"]; var) : JobFile[],
             # Under some circumstances, submittimestamp can also be nothing, even though that is
             # weird.
             _json_get(j, "submittimestamp", Union{String, Nothing}; var), # TODO: drop Nothing?
@@ -423,11 +442,15 @@ function job_file(job::Job, filetype::Symbol, filename::AbstractString)
 end
 
 """
-    JuliaHub.download_job_file(file::JobFile, path::AbstractString; [auth])
+    JuliaHub.download_job_file(file::JobFile, path::AbstractString; [auth]) -> String
     JuliaHub.download_job_file(file::JobFile, io::IO; [auth])
 
 Downloads a [`JobFile`](@ref) to a local path. Alternative, writeable stream object can be
 passed as the second argument to write the contents directly into the stream.
+
+When a local path is passed, it returns the path (which can be useful when calling the function
+as e.g. `JuliaHub.download_job_file(file, tempname()))`). When an `IO` object is passed, it
+returns `nothing`.
 
 For example, to download a file into a temporary file:
 
@@ -441,6 +464,7 @@ julia> tmp = tempname()
 "/tmp/jl_nE3uvkZwvC"
 
 julia> JuliaHub.download_job_file(file, tmp)
+"/tmp/jl_BmHgj8rQXe"
 
 julia> bytes2hex(open(sha2_256, tmp))
 "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
@@ -474,7 +498,7 @@ function download_job_file(file::JobFile, path::AbstractString; auth::Authentica
     open(path, "w") do io
         Mocking.@mock _download_job_file(auth, file, io)
     end
-    return nothing
+    return path
 end
 
 # Internal, mockable version of download_job_file
