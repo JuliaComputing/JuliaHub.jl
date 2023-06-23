@@ -71,6 +71,15 @@ mocking_patch = [
             return mockauth(server_uri)
         end
     ),
+    Mocking.@patch(
+        JuliaHub._get_authenticated_user_legacy_gql_request(
+            ::AbstractString, ::JuliaHub.Secret
+        ) = _auth_legacy_gql_mocked()
+    ),
+    Mocking.@patch(
+        JuliaHub._get_authenticated_user_api_v1_request(::AbstractString, ::JuliaHub.Secret) =
+            _auth_apiv1_mocked()
+    )
 ]
 uuidhash(s::AbstractString) = only(reinterpret(UUIDs.UUID, SHA.sha1(s)[1:16]))
 function _restput_mocked(url::AbstractString, headers, input)
@@ -679,4 +688,42 @@ function serve_legacy(logengine::LogEngine, query::Dict)
         end
     end
     return JuliaHub._RESTResponse(200, string('"', escape_string(JSON.json(logs)), '"'))
+end
+
+# Authentication mocking
+function _auth_legacy_gql_mocked()
+    global MOCK_JULIAHUB_STATE
+    if get(MOCK_JULIAHUB_STATE, :auth_gql_fail, false)
+        return JuliaHub._RESTResponse(500, "auth_gql_fail = true")
+    end
+    return Dict{String, Any}(
+        "data" => Dict{String, Any}(
+            "users" => Any[Dict{String, Any}(
+                "name" => "Test User",
+                "firstname" => "Test",
+                "id" => 42,
+                "username" => "username",
+                "info" => Any[Dict{String, Any}(
+                    "email" => "testuser@example.org"
+                )],
+            )],
+        ),
+    ) |> jsonresponse(200)
+end
+
+function _auth_apiv1_mocked()
+    global MOCK_JULIAHUB_STATE, MOCK_USERNAME
+    status = get(MOCK_JULIAHUB_STATE, :auth_v1_status, 200)
+    if status != 200
+        return JuliaHub._RESTResponse(status, "auth_v1_status override")
+    end
+    d = Dict{String, Any}(
+        "timezone" => Dict{String, Any}("abbreviation" => "Etc/UTC", "utc_offset" => "+00:00"),
+        "api_version" => "0.0.1",
+    )
+    username = get(MOCK_JULIAHUB_STATE, :auth_v1_username, MOCK_USERNAME)
+    if !isnothing(username)
+        d["username"] = username
+    end
+    d |> jsonresponse(200)
 end

@@ -51,8 +51,9 @@ If you are curious about changes and updates that new version have brought, see 
 [jh-version-url]: https://juliahub.com/ui/Packages/JuliaHub/...
 
 [docs-stable-img]: https://img.shields.io/badge/docs-help.juliahub.com-blue.svg
-[docs-stable-url]: https://help.juliahub.com/julia-client/stable
-[docs-stable-changelog-url]: https://help.juliahub.com/julia-client/stable/CHANGELOG/
+[docs-stable-url]: https://help.juliahub.com/julia-api/stable/
+<!-- [docs-stable-changelog-url]: https://help.juliahub.com/julia-api/stable/CHANGELOG/ -->
+[docs-stable-changelog-url]: CHANGELOG.md
 
 [gha-img]: https://github.com/JuliaComputing/JuliaHub.jl/workflows/CI/badge.svg
 [gha-url]: https://github.com/JuliaComputing/JuliaHub.jl/actions?query=workflows/CI
