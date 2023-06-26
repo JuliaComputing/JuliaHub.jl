@@ -50,3 +50,30 @@ end
     @test _print_indented("x\n\ny\n"; indent=1) == " x\n\n y\n"
     @test _print_indented("x\n\ny\n"; indent=3) == "   x\n\n   y\n"
 end
+
+@testset "_parse_tz" begin
+    @test isassigned(JuliaHub._LOCAL_TZ)
+    let t = JuliaHub._parse_tz("2022-10-12T05:30:31.1+00:00")
+        @test t isa TimeZones.ZonedDateTime
+        @test t.timezone == JuliaHub._LOCAL_TZ[]
+        @test Dates.millisecond(t) == 100
+    end
+    let t = JuliaHub._parse_tz("2022-10-12T05:30:31.12+00:00")
+        @test t isa TimeZones.ZonedDateTime
+        @test t.timezone == JuliaHub._LOCAL_TZ[]
+        @test Dates.millisecond(t) == 120
+    end
+    let t = JuliaHub._parse_tz("2022-10-12T05:30:31.123+00:00")
+        @test t isa TimeZones.ZonedDateTime
+        @test t.timezone == JuliaHub._LOCAL_TZ[]
+        @test Dates.millisecond(t) == 123
+    end
+    @test_throws JuliaHub.JuliaHubError JuliaHub._parse_tz("2022-10-12T05:30:31.+00:00")
+    let t = JuliaHub._parse_tz("2022-10-12T05:30:31+00:00")
+        @test t isa TimeZones.ZonedDateTime
+        @test t.timezone == JuliaHub._LOCAL_TZ[]
+        @test Dates.millisecond(t) == 0
+    end
+    @test_throws JuliaHub.JuliaHubError JuliaHub._parse_tz("")
+    @test_throws JuliaHub.JuliaHubError JuliaHub._parse_tz("bad-string")
+end

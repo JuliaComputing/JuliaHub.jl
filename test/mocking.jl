@@ -1,6 +1,6 @@
 # This contains the shared mocking setup for the offline test suite, but is also
 # re-used in docs/make.jl to make the doctest outputs consistent.
-import Mocking, JSON, SHA, URIs, UUIDs
+import Dates, Mocking, JSON, SHA, URIs, UUIDs, TimeZones
 
 # Development note: you can MITM the REST calls and save the raw API responses
 # with the following Mocking setup:
@@ -71,6 +71,15 @@ mocking_patch = [
             return mockauth(server_uri)
         end
     ),
+    Mocking.@patch(
+        JuliaHub._get_authenticated_user_legacy_gql_request(
+            ::AbstractString, ::JuliaHub.Secret
+        ) = _auth_legacy_gql_mocked()
+    ),
+    Mocking.@patch(
+        JuliaHub._get_authenticated_user_api_v1_request(::AbstractString, ::JuliaHub.Secret) =
+            _auth_apiv1_mocked()
+    )
 ]
 uuidhash(s::AbstractString) = only(reinterpret(UUIDs.UUID, SHA.sha1(s)[1:16]))
 function _restput_mocked(url::AbstractString, headers, input)
@@ -306,6 +315,27 @@ function _restcall_mocked(method, url, headers, payload; query)
         end
     elseif (method == :GET) && endswith(url, "datasets")
         dataset_params = get(MOCK_JULIAHUB_STATE, :dataset_params, Dict())
+        dataset_version_sizes = get(MOCK_JULIAHUB_STATE, :dataset_version_sizes, nothing)
+        zerotime = TimeZones.ZonedDateTime("2022-10-12T05:39:42.906+00:00")
+        versions_json =
+            dataset -> begin
+                version_sizes = something(
+                    dataset_version_sizes,
+                    (dataset == "example-dataset") ? [57, 331] : [57]
+                )
+                Dict(
+                    "version" => string("v", length(version_sizes)),
+                    "versions" => map(enumerate(version_sizes)) do (i, sz)
+                        Dict(
+                            "version" => i,
+                            "blobstore_path" => string("u", 2),
+                            "size" => sz,
+                            "date" => string(zerotime + Dates.Day(i) + Dates.Millisecond(sz)),
+                        )
+                    end,
+                    "size" => isempty(version_sizes) ? 0 : sum(version_sizes),
+                )
+            end
         #! format: off
         shared = Dict(
             "groups" => Any[],
@@ -316,16 +346,6 @@ function _restcall_mocked(method, url, headers, payload; query)
                     "vendor" => "aws",
                 ),
                 "description" => get(dataset_params, "description", "An example dataset"),
-                "version" => "v1",
-                "versions" => Any[
-                    Dict(
-                        "version" => 1,
-                        "blobstore_path" => "u1",
-                        "size" => 57,
-                        "date" => "2022-10-12T05:39:42.906+00:00",
-                    )
-                ],
-                "size" => 57,
                 "tags" => get(dataset_params, "tags", ["tag1", "tag2"]),
                 "license" => (
                     "name" => "MIT License",
@@ -351,6 +371,7 @@ function _restcall_mocked(method, url, headers, payload; query)
                     ),
                     "type" => occursin("blobtree", dataset) ? "BlobTree" : "Blob",
                     "visibility" => occursin("public", dataset) ? "public" : "private",
+                    versions_json(dataset)...,
                     shared...,
                 ),
             )
@@ -667,4 +688,42 @@ function serve_legacy(logengine::LogEngine, query::Dict)
         end
     end
     return JuliaHub._RESTResponse(200, string('"', escape_string(JSON.json(logs)), '"'))
+end
+
+# Authentication mocking
+function _auth_legacy_gql_mocked()
+    global MOCK_JULIAHUB_STATE
+    if get(MOCK_JULIAHUB_STATE, :auth_gql_fail, false)
+        return JuliaHub._RESTResponse(500, "auth_gql_fail = true")
+    end
+    return Dict{String, Any}(
+        "data" => Dict{String, Any}(
+            "users" => Any[Dict{String, Any}(
+                "name" => "Test User",
+                "firstname" => "Test",
+                "id" => 42,
+                "username" => "username",
+                "info" => Any[Dict{String, Any}(
+                    "email" => "testuser@example.org"
+                )],
+            )],
+        ),
+    ) |> jsonresponse(200)
+end
+
+function _auth_apiv1_mocked()
+    global MOCK_JULIAHUB_STATE, MOCK_USERNAME
+    status = get(MOCK_JULIAHUB_STATE, :auth_v1_status, 200)
+    if status != 200
+        return JuliaHub._RESTResponse(status, "auth_v1_status override")
+    end
+    d = Dict{String, Any}(
+        "timezone" => Dict{String, Any}("abbreviation" => "Etc/UTC", "utc_offset" => "+00:00"),
+        "api_version" => "0.0.1",
+    )
+    username = get(MOCK_JULIAHUB_STATE, :auth_v1_username, MOCK_USERNAME)
+    if !isnothing(username)
+        d["username"] = username
+    end
+    d |> jsonresponse(200)
 end

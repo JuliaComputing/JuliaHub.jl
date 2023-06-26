@@ -345,6 +345,41 @@ end
             @test_throws JuliaHub.InvalidRequestError JuliaHub.job(job)
             @test JuliaHub.job(job, throw=false) === nothing
         end
+
+        # Handling of invalid job files:
+        MOCK_JULIAHUB_STATE[:jobs] = Dict(
+            "jr-eezd3arpcj" => Dict{String, Any}(
+                "files" => Any[
+                    Dict{String, Any}(
+                        "name" => "jr-eezd3arpcj-code.jl",
+                        "hash" => Dict("algorithm" => nothing, "value" => nothing),
+                        "upload_timestamp" => "2022-06-27T19:47:45.37875+00:00",
+                        "size" => nothing,
+                        "type" => "source"
+                    ),
+                    Dict(
+                        "name" => "jr-eezd3arpcj-test",
+                        "hash" => Dict{String, Any}("algorithm" => nothing, "value" => nothing),
+                        "upload_timestamp" => "2022-06-27T19:47:45.37875+00:00",
+                        "size" => nothing,
+                        "type" => "result"
+                    )
+                ]
+            )
+        )
+        let j = JuliaHub.job("jr-eezd3arpcj")
+            @test j isa JuliaHub.Job
+            @test length(j.files) == 2
+            jf = JuliaHub.job_file(j, :source, "jr-eezd3arpcj-code.jl")
+            @test jf.filename == "jr-eezd3arpcj-code.jl"
+            @test jf.size == 0
+            @test jf.hash === nothing
+            @test JuliaHub.job_file(j, :source, "jr-eezd3arpcj-test") === nothing
+            jf = JuliaHub.job_file(j, :result, "jr-eezd3arpcj-test")
+            @test jf.filename == "jr-eezd3arpcj-test"
+            @test jf.size == 0
+            @test jf.hash === nothing
+        end
     end
 end
 
@@ -368,7 +403,7 @@ end
         @test JuliaHub.job_file(job, :input, "doesn't exist") === nothing
         @test @test_logs (:warn,) JuliaHub.job_file(job, :badcat, "code.jl") === nothing
 
-        @test JuliaHub.download_job_file(file, tempname()) === nothing
+        @test JuliaHub.download_job_file(file, tempname()) isa String
         @test JuliaHub.download_job_file(file, IOBuffer()) === nothing
     end
 end

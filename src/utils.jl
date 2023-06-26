@@ -350,7 +350,7 @@ end
 _utc2localtz(timestamp::Number) = _utc2localtz(Dates.unix2datetime(timestamp))
 function _utc2localtz(datetime_utc::Dates.DateTime)::TimeZones.ZonedDateTime
     datetimez_utc = TimeZones.ZonedDateTime(datetime_utc, TimeZones.tz"UTC")
-    return TimeZones.astimezone(datetimez_utc, TimeZones.localzone())
+    return TimeZones.astimezone(datetimez_utc, _LOCAL_TZ[])
 end
 # Special version of _utc2localtz to handle integer ms timestamp
 function _ms_utc2localtz(timestamp::Integer)::TimeZones.ZonedDateTime
@@ -371,4 +371,43 @@ function _throw_or_nothing(
     throw && Base.throw(InvalidRequestError(msg))
     isnothing(nothrow_extra_logic_f) || nothrow_extra_logic_f(msg)
     return nothing
+end
+
+# Parses a timezoned timestamp string into a local timezone object
+const _VALID_TZ_DATEFORMATS = [
+    Dates.dateformat"yyyy-mm-ddTHH:MM:SS.ssszzz",
+    Dates.dateformat"yyyy-mm-ddTHH:MM:SS.sszzz",
+    Dates.dateformat"yyyy-mm-ddTHH:MM:SS.szzz",
+    Dates.dateformat"yyyy-mm-ddTHH:MM:SSzzz",
+]
+function _parse_tz(timestamp_str::AbstractString; msg::Union{AbstractString, Nothing}=nothing)
+    timestamp = nothing
+    for dateformat in _VALID_TZ_DATEFORMATS
+        timestamp = try
+            TimeZones.ZonedDateTime(timestamp_str, dateformat)
+        catch e
+            isa(e, ArgumentError) && continue
+            rethrow(e)
+        end
+    end
+    if isnothing(timestamp)
+        errmsg = "Unable to parse timestamp '$timestamp_str'"
+        if !isnothing(msg)
+            errmsg = string(msg, '\n', errmsg)
+        end
+        throw(JuliaHubError(errmsg))
+    end
+    return TimeZones.astimezone(timestamp, _LOCAL_TZ[])
+end
+
+# It's quite easy to make TimeZones.localzone() fail and throw.
+# So this wraps it, and adds a UTC fallback (which seems like the sensible
+# default) in the case where somehow the local timezone is not configured properly.
+function _localtz()
+    try
+        TimeZones.localzone()
+    catch e
+        @debug "Unable to determine local timezone" exception = (e, catch_backtrace())
+        TimeZones.tz"UTC"
+    end
 end
