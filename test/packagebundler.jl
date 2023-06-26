@@ -13,7 +13,7 @@ JuliaHub._PackageBundler.bundle(
     verbose=false,
 )
 dir = mktempdir()
-run(`tar -xf $out -C $dir`)
+run(`tar -xf $out -C $dir --force-local`)
 
 @test isfile(joinpath(dir, "bin", "Manifest.toml"))
 @test isfile(joinpath(dir, "bin", "Project.toml"))
