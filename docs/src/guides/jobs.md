@@ -6,7 +6,7 @@ DocTestSetup = :(using JuliaHub)
 using JuliaHub
 ```
 
-# Jobs
+# Jobs guide
 
 JuliaHub.jl can be used to both [submit new jobs](../reference/job-submission.md), and to [inspect running or finished jobs](../reference/jobs.md).
 

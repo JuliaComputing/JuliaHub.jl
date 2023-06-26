@@ -3,7 +3,7 @@ CurrentModule=JuliaHub
 DocTestSetup = :(using JuliaHub)
 ```
 
-# [Job submission](@id job-submission)
+# [Job submission API reference](@id job-submission)
 
 On JuliaHub you can submit _jobs_, which are user-defined workloads that get allocated a dedicated compute capacity.
 For example, this includes running scripts in batch computations, cloud IDEs, interactive notebooks and so on.

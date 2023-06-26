@@ -263,7 +263,7 @@ This tutorial has hopefully given an overview of basic JuliaHub.jl usage.
 For more advanced usage, you may want to read through the more detailed how-to guides.
 
 ```@contents
-Pages = Main.PAGES_GUIDES
+Pages = Main.droptitles(Main.PAGES_GUIDES)
 Depth = 1:1
 ```
 

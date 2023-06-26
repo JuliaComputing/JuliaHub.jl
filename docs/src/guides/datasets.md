@@ -6,7 +6,7 @@ DocTestSetup = :(using JuliaHub)
 using JuliaHub
 ```
 
-# [Datasets](@id guide-datasets)
+# [Datasets guide](@id guide-datasets)
 
 JuliaHub.jl offers a programmatic way to work with your JuliaHub datasets, and this section demonstrates a few common workflows you can use with these APIs.
 

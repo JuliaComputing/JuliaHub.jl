@@ -3,7 +3,7 @@ CurrentModule=JuliaHub
 DocTestSetup = :(using JuliaHub)
 ```
 
-# [Authentication](@id authentication)
+# [Authentication API reference](@id authentication)
 
 In order to talk to a JuliaHub instance, you need to have a valid authentication token.
 JuliaHub reuses the Julia's built-in package server authentication tokens for this purpose.

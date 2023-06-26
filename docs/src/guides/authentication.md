@@ -2,7 +2,7 @@
 CurrentModule=JuliaHub
 ```
 
-# [Authentication](@id guide-authentication)
+# [Authentication guide](@id guide-authentication)
 
 In order to talk to a JuliaHub instance, you must authenticate with your user account, and have an authentication token.
 JuliaHub.jl aims to make it as easy and painless as possible to manage your authentication tokens.

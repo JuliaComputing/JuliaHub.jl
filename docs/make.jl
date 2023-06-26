@@ -43,18 +43,26 @@ end
 
 # These lists are reused in the makedocs, but also in the at-contents
 # blocks on the src/index.md page.
-const PAGES_GUIDES = [
-    "guides/authentication.md",
-    "guides/datasets.md",
-    "guides/jobs.md",
+PAGES_GUIDES = [
+    "Authentication" => "guides/authentication.md",
+    "Datasets" => "guides/datasets.md",
+    "Jobs" => "guides/jobs.md",
 ]
-const PAGES_REFERENCE = [
-    "reference/authentication.md",
-    "reference/job-submission.md",
-    "reference/jobs.md",
-    "reference/datasets.md",
+PAGES_REFERENCE = [
+    "Authentication" => "reference/authentication.md",
+    "Job submission" => "reference/job-submission.md",
+    "Jobs" => "reference/jobs.md",
+    "Datasets" => "reference/datasets.md",
     "reference/exceptions.md",
 ]
+# When using PAGES_GUIDES and PAGES_REFERENCE in at-contents blocks, we only
+# want the paths to the markdown files, so we drop the page title bits with
+# this function.
+function droptitles(pages)
+    map(pages) do page
+        isa(page, Pair) ? page[2] : page
+    end
+end
 Mocking.apply(mocking_patch) do
     makedocs(;
         sitename="JuliaHub.jl",

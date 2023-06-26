@@ -13,14 +13,14 @@ If you are unfamiliar with JuliaHub.jl, you may want to start out by reading thr
 If you want to know in detail how to programmatically work with a particular JuliaHub feature, you may want to skim through the applicable how-to guide:
 
 ```@contents
-Pages = Main.PAGES_GUIDES
+Pages = Main.droptitles(Main.PAGES_GUIDES)
 Depth = 1:1
 ```
 
 Finally, detailed explanations and API references of JuliaHub.jl features and functions are available in the reference section of the manual:
 
 ```@contents
-Pages = Main.PAGES_REFERENCE
+Pages = Main.droptitles(Main.PAGES_REFERENCE)
 Depth = 1:1
 ```
 

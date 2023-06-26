@@ -6,7 +6,7 @@ DocTestSetup = :(using JuliaHub)
 using JuliaHub
 ```
 
-# [Jobs](@id job-apis)
+# [Jobs API reference](@id job-apis)
 
 JuliaHub.jl provides various methods to inspect and interact jobs that [have been submitted to JuliaHub](@ref job-submission).
 It is also possible to get access to job outputs programmatically.

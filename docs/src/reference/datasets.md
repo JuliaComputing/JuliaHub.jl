@@ -7,7 +7,7 @@ DocTestSetup = :(using JuliaHub)
 using JuliaHub
 ```
 
-# [Datasets](@id datasets)
+# [Datasets API reference](@id datasets)
 
 These APIs allow you to create, read, update, and delete datasets owned by [the currently authenticated user](@ref authentication).
 
