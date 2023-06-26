@@ -31,12 +31,10 @@ include("jobs/logging-kafka.jl")
 include("jobs/logging-legacy.jl")
 
 function __init__()
-    _LOCAL_TZ[] = try
-        TimeZones.localzone()
-    catch e
-        @debug "Unable to determine local timezone" exception = (e, catch_backtrace())
-        TimeZones.tz"UTC"
-    end
+    # We'll only attempt to determine the local timezone once, when the package loads,
+    # and store the result in a global. This way all timestamps will have consistent timezones
+    # even if something in the environment changes.
+    _LOCAL_TZ[] = _localtz()
 end
 
 end
