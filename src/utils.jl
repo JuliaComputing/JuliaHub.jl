@@ -350,7 +350,7 @@ end
 _utc2localtz(timestamp::Number) = _utc2localtz(Dates.unix2datetime(timestamp))
 function _utc2localtz(datetime_utc::Dates.DateTime)::TimeZones.ZonedDateTime
     datetimez_utc = TimeZones.ZonedDateTime(datetime_utc, TimeZones.tz"UTC")
-    return TimeZones.astimezone(datetimez_utc, TimeZones.localzone())
+    return TimeZones.astimezone(datetimez_utc, _LOCAL_TZ[])
 end
 # Special version of _utc2localtz to handle integer ms timestamp
 function _ms_utc2localtz(timestamp::Integer)::TimeZones.ZonedDateTime
@@ -397,5 +397,5 @@ function _parse_tz(timestamp_str::AbstractString; msg::Union{AbstractString, Not
         end
         throw(JuliaHubError(errmsg))
     end
-    return TimeZones.astimezone(timestamp, TimeZones.localzone())
+    return TimeZones.astimezone(timestamp, _LOCAL_TZ[])
 end

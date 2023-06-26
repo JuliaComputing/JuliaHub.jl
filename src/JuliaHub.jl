@@ -13,6 +13,8 @@ import TOML
 import URIs
 import UUIDs
 
+const _LOCAL_TZ = Ref{Dates.TimeZone}()
+
 include("utils.jl")
 include("authentication.jl")
 include("restapi.jl")
@@ -27,5 +29,14 @@ include("jobs/jobs.jl")
 include("jobs/logging.jl")
 include("jobs/logging-kafka.jl")
 include("jobs/logging-legacy.jl")
+
+function __init__()
+    _LOCAL_TZ[] = try
+        TimeZones.localzone()
+    catch e
+        @debug "Unable to determine local timezone" exception = (e, catch_backtrace())
+        TimeZones.tz"UTC"
+    end
+end
 
 end
