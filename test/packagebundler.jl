@@ -1,4 +1,4 @@
-import Tar_jll
+import Tar
 
 pkg1 = joinpath(@__DIR__, "fixtures", "ignorefiles", "Pkg1")
 if !isdir(joinpath(pkg1, ".git"))
@@ -15,7 +15,7 @@ JuliaHub._PackageBundler.bundle(
     verbose=false,
 )
 dir = mktempdir()
-run(`$(Tar_jll.tar()) -xf $out -C $dir --force-local`)
+Tar.extract(out, dir)
 
 @test isfile(joinpath(dir, "bin", "Manifest.toml"))
 @test isfile(joinpath(dir, "bin", "Project.toml"))
