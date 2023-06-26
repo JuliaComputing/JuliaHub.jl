@@ -1,3 +1,5 @@
+import Tar_jll
+
 pkg1 = joinpath(@__DIR__, "fixtures", "ignorefiles", "Pkg1")
 if !isdir(joinpath(pkg1, ".git"))
     mkdir(joinpath(pkg1, ".git")) # can't check in sub-repos
@@ -13,7 +15,7 @@ JuliaHub._PackageBundler.bundle(
     verbose=false,
 )
 dir = mktempdir()
-run(`tar -xf $out -C $dir --force-local`)
+run(`$(Tar_jll.tar()) -xf $out -C $dir --force-local`)
 
 @test isfile(joinpath(dir, "bin", "Manifest.toml"))
 @test isfile(joinpath(dir, "bin", "Project.toml"))
