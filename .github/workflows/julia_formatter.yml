@@ -1,6 +1,8 @@
 name: Julia Formatter
 on:
   push:
+    branches:
+      - main
   pull_request:
     paths:
       - "**.jl"
