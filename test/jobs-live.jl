@@ -262,6 +262,9 @@ end
 
 @testset "[LIVE] JuliaHub.submit_job / appbundle" begin
     job1_dir = joinpath(@__DIR__, "jobenvs", "job1")
+    # Note: the exact hash of the file may change if Git decides to change line endings
+    # on e.g. Windows.
+    datafile_hash = bytes2hex(open(SHA.sha1, joinpath(job1_dir, "datafile.txt")))
     job = JuliaHub.submit_job(
         JuliaHub.appbundle(job1_dir, "script.jl");
         auth,
@@ -274,7 +277,7 @@ end
         @test haskey(results, "datastructures_version")
         @test VersionNumber(results["datastructures_version"]) == v"0.17.0"
         @test haskey(results, "datafile_hash")
-        @test results["datafile_hash"] == "e242ed3bffccdf271b7fbaf34ed72d089537b42f"
+        @test results["datafile_hash"] == datafile_hash
     end
 end
 
@@ -372,6 +375,7 @@ end
     end
     if !isnothing(windows_batch_image)
         job1_dir = joinpath(@__DIR__, "jobenvs", "job-windows")
+        datafile_hash = bytes2hex(open(SHA.sha1, joinpath(job1_dir, "datafile.txt")))
         job = JuliaHub.submit_job(
             JuliaHub.appbundle(job1_dir, "script.jl"; image=windows_batch_image);
             auth
@@ -384,7 +388,7 @@ end
             @test haskey(results, "iswindows")
             @test results["iswindows"] === true
             @test haskey(results, "datafile_hash")
-            @test results["datafile_hash"] == "e242ed3bffccdf271b7fbaf34ed72d089537b42f"
+            @test results["datafile_hash"] == datafile_hash
             @test haskey(results, "datafile_fallback")
             if !(results["datafile_fallback"] === true)
                 @warn "Windows live test: datafile_fallback not necessary anymore."
