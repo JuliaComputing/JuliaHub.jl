@@ -1,9 +1,9 @@
 # JuliaHub.jl ![BETA][beta-badge]
 
-<!-- [![Version][jh-version-img]][jh-version-url] -->
+[![Version][jh-version-img]][jh-version-url]
 [![][docs-stable-img]][docs-stable-url]
 [![][gha-img]][gha-url]
-<!-- [![][codecov-img]][codecov-url] -->
+[![][codecov-img]][codecov-url]
 
 A Julia client for the [JuliaHub platform][juliahub-com] APIs.
 It allows you to programmatically interact with the platform to, for example, upload or download datasets, start jobs, and so on.
@@ -48,7 +48,7 @@ If you are curious about changes and updates that new version have brought, see 
 [beta-badge]: https://img.shields.io/badge/-BETA-blue.svg
 
 [jh-version-img]: https://juliahub.com/docs/JuliaHub/version.svg
-[jh-version-url]: https://juliahub.com/ui/Packages/JuliaHub/...
+[jh-version-url]: https://juliahub.com/ui/Packages/JuliaHub/B9bPq/
 
 [docs-stable-img]: https://img.shields.io/badge/docs-help.juliahub.com-blue.svg
 [docs-stable-url]: https://help.juliahub.com/julia-api/stable/
@@ -58,7 +58,5 @@ If you are curious about changes and updates that new version have brought, see 
 [gha-img]: https://github.com/JuliaComputing/JuliaHub.jl/workflows/CI/badge.svg
 [gha-url]: https://github.com/JuliaComputing/JuliaHub.jl/actions?query=workflows/CI
 
-<!--
 [codecov-img]: https://codecov.io/gh/JuliaComputing/JuliaHub.jl/branch/main/graph/badge.svg
 [codecov-url]: https://codecov.io/gh/JuliaComputing/JuliaHub.jl
--->
