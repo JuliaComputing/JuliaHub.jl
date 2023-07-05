@@ -96,11 +96,11 @@ jobs:
           Pkg.add(name="JET", version="0.8")
           Pkg.develop(path=".")
       - name: "JET.test_package(..., mode=:basic) [informational]"
-        run: julia --color=yes --project=@juliahub-jet {0} test/jet.jl
+        run: julia --color=yes --project=@juliahub-jet test/jet.jl
         env:
           JULIAHUB_TEST_JET: basic
       - name: "JET.test_package(..., mode=:typo)"
-        run: julia --color=yes --project=@juliahub-jet {0} test/jet.jl
+        run: julia --color=yes --project=@juliahub-jet test/jet.jl
         continue-on-error: true
 
   docs:
