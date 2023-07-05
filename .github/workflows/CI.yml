@@ -99,9 +99,9 @@ jobs:
         run: julia --color=yes --project=@juliahub-jet test/jet.jl
         env:
           JULIAHUB_TEST_JET: basic
+        continue-on-error: true
       - name: "JET.test_package(..., mode=:typo)"
         run: julia --color=yes --project=@juliahub-jet test/jet.jl
-        continue-on-error: true
 
   docs:
     name: Documentation
