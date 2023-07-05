@@ -218,8 +218,9 @@ function _group_images(images; image_group::AbstractString)
     for image in images
         if !isa(image, Dict)
             msg = """
-            Invalid JSON returned by the server: value for '$(image_group)' not an object
-            $(r_json_str)
+            Invalid JSON returned by the server: image value is not an object
+             image_group = $(image_group)
+             image = $(image)
             """
             throw(JuliaHubError(msg))
         end

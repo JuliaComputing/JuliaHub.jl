@@ -133,6 +133,11 @@ end
             @test n.vcores == 2
             @test n.mem == 8
         end
+
+        # Test the `throw` argument by requesting unsupported multi-GPU nodes
+        @test_throws JuliaHub.InvalidRequestError JuliaHub.nodespec(; ngpu=10)
+        @test_throws JuliaHub.InvalidRequestError JuliaHub.nodespec(; ngpu=10, throw=true)
+        @test @test_logs (:warn,) JuliaHub.nodespec(; ngpu=10, throw=false) === nothing
     end
 end
 
