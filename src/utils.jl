@@ -360,7 +360,9 @@ end
 
 _nothing_or(f::Base.Callable, x) = isnothing(x) ? nothing : f(x)
 
-# Helper function to handle the
+# Helper function to help manage the pattern where a function takes a 'throw::Bool` keyword
+# argument and should either throw an InvalidRequestError, or return nothing.
+#
 # The nothrow_extra_logic_f(msg) callback can be used (via do syntax) do run additional code
 # before returning if throw=false. 'msg' is passed as the first argument.
 function _throw_or_nothing(
