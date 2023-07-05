@@ -88,14 +88,19 @@ jobs:
       - uses: julia-actions/setup-julia@v1
         with:
           version: "1"
-      - run: |
+      - name: "Install dependencies"
+        shell: julia --color=yes {0}
+        run: |
           import Pkg
-          Pkg.activate(temp=true)
+          Pkg.activate("juliahub-jet", shared=true)
           Pkg.add(name="JET", version="0.8")
           Pkg.develop(path=".")
-          include("test/jet.jl")
-        shell: julia --color=yes {0}
-        name: "JET.test_package()"
+      - name: "JET.test_package()"
+        run: julia --color=yes --project=@juliahub-jet {0} test/jet.jl
+      - name: "JET.test_package(..., mode=:basic)"
+        run: julia --color=yes --project=@juliahub-jet {0} test/jet.jl
+        env:
+          JULIAHUB_TEST_JET: basic
         continue-on-error: true
 
   docs:
