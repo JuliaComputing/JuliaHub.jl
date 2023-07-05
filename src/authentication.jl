@@ -104,13 +104,14 @@ end
 const __AUTH__ = Ref{Union{Authentication, Nothing}}(nothing)
 # Internal function to populate the `auth` keyword of the various function
 # with the default, global authentication.
-function __auth__()
-    __AUTH__[] isa Authentication && return __AUTH__[]
+function __auth__()::Authentication
+    auth = __AUTH__[]
+    isa(auth, Authentication) && return auth
     auth = try
         authenticate()
-    catch e
+    catch
         @error "Automatic authentication failed, explicit `auth` keyword argument required."
-        rethrow(e)
+        rethrow()
     end
     return auth
 end

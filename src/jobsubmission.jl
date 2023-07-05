@@ -372,9 +372,10 @@ end
 
 function _batchcompute_env_show(io::IO, script_env::_ScriptEnvironment)
     for s in (:project_toml, :manifest_toml, :artifacts_toml)
-        isnothing(getproperty(script_env, s)) && continue
+        toml = getproperty(script_env, s)
+        isnothing(toml) && continue
         print(io, "\nsha256($s) = ")
-        print(io, bytes2hex(SHA.sha256(getproperty(script_env, s))))
+        print(io, bytes2hex(SHA.sha256(toml)))
     end
 end
 function _batchcompute_env_show(io::IO, appbundle_env::_AppBundleEnvironment)
