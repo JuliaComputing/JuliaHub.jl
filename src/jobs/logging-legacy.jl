@@ -493,7 +493,7 @@ end
 
 function _job_logs_legacy_start_streaming!(auth::Authentication, buffer::_LegacyLogsBuffer)
     if !isnothing(buffer._stream)
-        @warn "Logs are already being streamed" b._jobname
+        @warn "Logs are already being streamed" buffer._jobname
         return nothing
     end
     # If we're not already streaming, we construct a new _JobLogTask

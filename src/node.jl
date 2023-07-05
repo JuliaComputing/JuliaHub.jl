@@ -138,11 +138,11 @@ function nodespec(
     # in the other method; but it's valid to pass here too
     auth::Union{Authentication, Nothing}=nothing,
 )
-    ncpu < 1 && throw(ArgumentError("ncpu must be >= 1"))
-    ngpu < 0 && throw(ArgumentError("ngpu must be >= 0"))
-    memory < 1 && throw(ArgumentError("memory must be >= 1"))
+    ncpu < 1 && Base.throw(ArgumentError("ncpu must be >= 1"))
+    ngpu < 0 && Base.throw(ArgumentError("ngpu must be >= 0"))
+    memory < 1 && Base.throw(ArgumentError("memory must be >= 1"))
     if ngpu >= 2
-        return _throw_or_nothing(; msg="JuliaHub.jl does not support multi-GPU nodes", throw) do
+        return _throw_or_nothing(; msg="JuliaHub.jl does not support multi-GPU nodes", throw) do msg
             @warn msg
         end
     end
