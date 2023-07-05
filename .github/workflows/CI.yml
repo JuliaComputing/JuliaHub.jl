@@ -80,6 +80,29 @@ jobs:
         name: "Aqua.test_all(JuliaHub)"
         continue-on-error: true
 
+  jet:
+    name: JET
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: julia-actions/setup-julia@v1
+        with:
+          version: "1"
+      - name: "Install dependencies"
+        shell: julia --color=yes {0}
+        run: |
+          import Pkg
+          Pkg.activate("juliahub-jet", shared=true)
+          Pkg.add(name="JET", version="0.8")
+          Pkg.develop(path=".")
+      - name: "JET.test_package(..., mode=:basic) [informational]"
+        run: julia --color=yes --project=@juliahub-jet test/jet.jl
+        env:
+          JULIAHUB_TEST_JET: basic
+        continue-on-error: true
+      - name: "JET.test_package(..., mode=:typo)"
+        run: julia --color=yes --project=@juliahub-jet test/jet.jl
+
   docs:
     name: Documentation
     runs-on: ubuntu-latest
