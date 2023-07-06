@@ -1,6 +1,10 @@
 import Tar
 
-pkg1 = joinpath(@__DIR__, "fixtures", "ignorefiles", "Pkg1")
+tmp_fixtures = tempname()
+cp(joinpath(@__DIR__, "fixtures"), tmp_fixtures)
+chmod(tmp_fixtures, 0o777; recursive=true)
+
+pkg1 = joinpath(tmp_fixtures, "ignorefiles", "Pkg1")
 if !isdir(joinpath(pkg1, ".git"))
     mkdir(joinpath(pkg1, ".git")) # can't check in sub-repos
     touch(joinpath(pkg1, ".git", "test"))
