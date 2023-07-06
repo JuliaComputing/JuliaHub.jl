@@ -1,6 +1,7 @@
 import Tar
 
 tmp_fixtures = tempname()
+@show tmp_fixtures
 cp(joinpath(@__DIR__, "fixtures"), tmp_fixtures)
 chmod(tmp_fixtures, 0o777; recursive=true)
 
