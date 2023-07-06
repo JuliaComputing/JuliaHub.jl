@@ -1,5 +1,13 @@
+# We have to copy the test environment files to a temporary directory
+# because PackageBundler needs write access to them.
+JOBENVS = let tmp = tempname()
+    cp(joinpath(@__DIR__, "jobenvs"), tmp)
+    chmod(tmp, 0o777; recursive=true)
+    tmp
+end
+
 @testset "JuliaHub.script" begin
-    jobfile(path...) = joinpath(@__DIR__, "jobenvs", "job1", path...)
+    jobfile(path...) = joinpath(JOBENVS, "job1", path...)
 
     let s = JuliaHub.script(; code="1", project="name=1", manifest="name=1", artifacts="name=1")
         @test s.code == "1"
@@ -50,7 +58,7 @@
 end
 
 @testset "JuliaHub.appbundle" begin
-    jobfile(path...) = joinpath(@__DIR__, "jobenvs", "job1", path...)
+    jobfile(path...) = joinpath(JOBENVS, "job1", path...)
 
     bundle = JuliaHub.appbundle(jobfile(), "script.jl")
     @test isfile(bundle.environment.tarball_path)

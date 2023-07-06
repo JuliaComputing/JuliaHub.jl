@@ -1,11 +1,14 @@
 import Tar
 
-tmp_fixtures = tempname()
-@show tmp_fixtures
-cp(joinpath(@__DIR__, "fixtures"), tmp_fixtures)
-chmod(tmp_fixtures, 0o777; recursive=true)
+# We have to copy the test environment files to a temporary directory
+# because PackageBundler needs write access to them.
+TMP_FIXTURES = let tmp = tempname()
+    cp(joinpath(@__DIR__, "fixtures"), tmp)
+    chmod(tmp, 0o777; recursive=true)
+    tmp
+end
 
-pkg1 = joinpath(tmp_fixtures, "ignorefiles", "Pkg1")
+pkg1 = joinpath(TMP_FIXTURES, "ignorefiles", "Pkg1")
 if !isdir(joinpath(pkg1, ".git"))
     mkdir(joinpath(pkg1, ".git")) # can't check in sub-repos
     touch(joinpath(pkg1, ".git", "test"))
