@@ -20,7 +20,6 @@ function JET.configured_reports(::JuliaHubReportFilter, reports::Vector{JET.Infe
         endswith(string(report.vst[end].file), "logging-kafka.jl") && return false
         # We also ignore the _restput_mockable() error in restapi.jl, since JET seems to
         # assume that kwargs... must be non-empty
-        @show string(report.vst[end].linfo.def.name)
         contains(string(report.vst[end].linfo.def.name), "_restput_mockable") && return false
         return true
     end
