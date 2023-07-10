@@ -2,6 +2,16 @@
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Version v0.1.3 - 2023-07-11
+
+### Fixed
+
+* An assortment of small bugfixes revealed by JET. (#9) (#12)
+
+### Tests
+
+* The test suite now runs successfully when the package is `Pkg.add`ed and the package files have only read-only permissions. (#11)
+
 ## Version v0.1.2 - 2023-06-26
 
 ### Fixed
