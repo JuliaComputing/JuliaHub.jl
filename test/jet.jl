@@ -1,7 +1,7 @@
 import JET, JuliaHub
 using Test
 
-jet_mode = Symbol(get(ENV, "JULIAHUB_TEST_JET", "typo"))
+jet_mode = get(ENV, "JULIAHUB_TEST_JET", "typo")
 @info "Running JET.jl in mode=:$(jet_mode)"
 
 # The following filter is used when jet_mode == "custom-filtering"
@@ -34,7 +34,7 @@ end
         )
     else
         JET.test_package(
-            "JuliaHub"; target_defined_modules=true, mode=jet_mode, toplevel_logger=nothing
+            "JuliaHub"; target_defined_modules=true, mode=Symbol(jet_mode), toplevel_logger=nothing
         )
     end
 end
