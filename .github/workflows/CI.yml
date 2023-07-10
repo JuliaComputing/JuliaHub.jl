@@ -100,8 +100,10 @@ jobs:
         env:
           JULIAHUB_TEST_JET: basic
         continue-on-error: true
-      - name: "JET.test_package(..., mode=:typo)"
+      - name: "JET.test_package() w/ custom filtering"
         run: julia --color=yes --project=@juliahub-jet test/jet.jl
+        env:
+          JULIAHUB_TEST_JET: custom-filtering
 
   docs:
     name: Documentation
