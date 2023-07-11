@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 * The `name` keyword argument to `submit_job` has been deprecated and replaced with `alias`. (#13)
 
+### Fixed
+
+* `extend_job` now correctly handles the `200` but `success: false` response. (#13)
+
 ## Version v0.1.2 - 2023-06-26
 
 ### Fixed
