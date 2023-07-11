@@ -5,7 +5,7 @@ toml = TOML.parsefile(projecttoml)
 datastructures_version = toml["version"]
 
 # Check for the appbundle file
-datafile = joinpath(pwd(), "appbundle", "datafile.txt")
+datafile = joinpath(@__DIR__, "appbundle", "datafile.txt")
 datafile_hash = if isfile(datafile)
     bytes2hex(open(SHA.sha1, datafile))
 end
