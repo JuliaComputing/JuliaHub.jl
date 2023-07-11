@@ -571,10 +571,17 @@ function extend_job(jobname::AbstractString, extension::Limit; auth::Authenticat
     r = _restcall(auth, :POST, ("juliaruncloud", "extend_job_time_limit"), payload)
     if r.status == 200
         response, json = _parse_response_json(r, Dict)
-        if get(response, "success", false) !== true
+        success = get(response, "success", nothing)
+        message = get(response, "message", "")
+        if success === true
+            return job(jobname; auth)
+        elseif success === false && startswith(message, "Invalid jobname")
+            # In some cases the endpoint returns a 200 with an error instead when
+            # the user is requesting a non-existent job.
+            throw(InvalidRequestError("$(jobname) does not exist"))
+        else
             throw(JuliaHubError("Unexpected JSON returned by the server\n$(json)"))
         end
-        return job(jobname; auth)
     elseif r.status == 403
         # Non-existing jobs make the endpoint return a 403
         @debug "403 from /juliaruncloud/extend_job_time_limit:\n$(r.body)"
