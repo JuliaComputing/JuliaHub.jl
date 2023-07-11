@@ -808,14 +808,14 @@ struct WorkloadConfig
     app::AbstractJobConfig
     compute::ComputeConfig
     # Runtime configuration:
-    name::Union{String, Nothing}
+    alias::Union{String, Nothing}
     env::Dict{String, String}
     project::Union{UUIDs.UUID, Nothing}
     timelimit::Dates.Hour
 
     function WorkloadConfig(
         app::AbstractJobConfig, compute::ComputeConfig;
-        name::Union{String, Nothing}=nothing,
+        alias::Union{String, Nothing}=nothing,
         env=(),
         project::Union{UUIDs.UUID, Nothing}=nothing,
         timelimit::Limit=_DEFAULT_WorkloadConfig_timelimit,
@@ -823,7 +823,7 @@ struct WorkloadConfig
         new(
             app,
             compute,
-            name,
+            alias,
             Dict(string(k) => v for (k, v) in pairs(env)),
             project,
             @_timelimit(timelimit),
@@ -839,7 +839,7 @@ function Base.show(io::IO, ::MIME"text/plain", jc::WorkloadConfig)
     _print_indented(io, io -> show(io, MIME"text/plain"(), jc.app); indent=2)
     println(io, "\ncompute:")
     _print_indented(io, io -> show(io, MIME"text/plain"(), jc.compute); indent=2)
-    isnothing(jc.name) || print(io, "\nname: $(jc.name)")
+    isnothing(jc.alias) || print(io, "\nalias: $(jc.alias)")
     print(io, "timelimit = ", jc.timelimit, ", ")
     print(io, "\nenv: ")
     if isempty(jc.env)
@@ -862,7 +862,7 @@ end
         elastic::Bool = false,
         process_per_node::Bool = true,
         # Runtime configuration keyword arguments
-        [name::AbstractString], [env], [project::Union{UUID, AbstractString}],
+        [alias::AbstractString], [env], [project::Union{UUID, AbstractString}],
         timelimit::Limit = Hour(1),
         # General keyword arguments
         dryrun::Bool = false,
@@ -887,7 +887,7 @@ via keyword arguments:
 **Runtime configuration.** These are used to set the [Runtime configuration](@ref jobs-runtime-config)
 of the job.
 
-* `name :: Union{AbstractString, Nothing}`: can be used to override the name of the job that gets displayed
+* `alias :: Union{AbstractString, Nothing}`: can be used to override the name of the job that gets displayed
   in the UI. Passing `nothing` is equivalent to omitting the argument.
 
 * `timelimit :: Limit`: sets the job's time limit (see [`Limit`](@ref) for valid values)
@@ -949,13 +949,19 @@ end
 function submit_job(
     app::AbstractJobConfig, compute::ComputeConfig;
     # Runtime configuration:
-    name::Union{AbstractString, Nothing}=nothing,
+    name::Union{AbstractString, Nothing}=nothing, # deprecated
+    alias::Union{AbstractString, Nothing}=nothing,
     env=(),
     project::Union{UUIDs.UUID, AbstractString, Nothing}=nothing,
     timelimit::Limit=_DEFAULT_WorkloadConfig_timelimit,
     # General submit_job arguments
     kwargs...,
 )
+    if !isnothing(name)
+        isnothing(alias) || throw(ArgumentError("alias and (deprecated) name can not both be set"))
+        @warn "The `name` argument to `submit_job` is deprecated and will be removed in 0.2.0"
+        alias = name
+    end
     project = if isa(project, AbstractString)
         project_uuid = tryparse(UUIDs.UUID, project)
         isnothing(project_uuid) &&
@@ -965,7 +971,7 @@ function submit_job(
         project
     end
     submit_job(
-        WorkloadConfig(app, compute; name, env, project, timelimit);
+        WorkloadConfig(app, compute; alias, env, project, timelimit);
         kwargs...,
     )
 end
@@ -983,17 +989,17 @@ function submit_job(
 
     # Merge the job name override into the env dictionary, if applicable.
     args::Dict = if haskey(c.env, "jobname")
-        if isnothing(c.name)
+        if isnothing(c.alias)
             @warn """
-            'jobname' environment variable override the job name in the UI. Use the 'name' argument
+            'jobname' environment variable overrides the job name in the UI. Use the 'alias' argument
             in submit_job instead to set the job name.
             """
             c.env
         else
             throw(ArgumentError("'jobname' environment variable can not be set if job name is set"))
         end
-    elseif !isnothing(c.name)
-        merge(c.env, Dict("jobname" => c.name))
+    elseif !isnothing(c.alias)
+        merge(c.env, Dict("jobname" => c.alias))
     else
         c.env
     end

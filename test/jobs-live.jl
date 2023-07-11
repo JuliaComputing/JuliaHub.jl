@@ -201,7 +201,7 @@ end
         ENV["RESULTS"] = JSON.json((; vs))
         """;
         ncpu=2, nnodes=3, process_per_node=false,
-        name="juliahubjl-$(TESTID)", env=Dict("FOO" => "bar"),
+        alias="juliahubjl-$(TESTID)", env=Dict("FOO" => "bar"),
         auth,
     )
     @test job.env["jobname"] == "juliahubjl-$(TESTID)"
