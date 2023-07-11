@@ -9,6 +9,26 @@ nodes = JuliaHub.nodespecs(; auth=auth)
     @test nodes == nodes2
 end
 
+USED_JOB_ALIASES = String[]
+function gen_jobalias(alias)
+    global TESTID, USED_JOB_ALIASES
+    alias in USED_JOB_ALIASES && error("job alias '$alias' already used")
+    return "JuliaHub.jl tests / $(TESTID) / $(alias)"
+end
+# A small wrapper around JuliaHub.submit_job, which sets a unique alias
+# for each job, and also prints an at-info message into the logs.
+function submit_test_job(args...; alias::AbstractString, kwargs...)
+    full_alias = gen_jobalias(alias)
+    try
+        job = JuliaHub.submit_job(args...; alias=full_alias, kwargs...)
+        @info "Submitted $(alias): $(job.id)" alias = full_alias job.status
+        return job, full_alias
+    catch
+        @error "Failed to submit job: $alias" args kwargs full_alias
+        rethrow()
+    end
+end
+
 jobs = JuliaHub.jobs(; limit=HIGH_JOB_LIMIT, auth=auth)
 num_jobs_prev = length(jobs)
 previous_last_job = nothing
@@ -79,10 +99,10 @@ function wait_submission(job::JuliaHub.Job; maxtime::Real=300)
 end
 
 @testset "[LIVE] JuliaHub.submit_job / simple" begin
-    job = JuliaHub.submit_job(
+    job, _ = submit_test_job(
         JuliaHub.script"@info 1+1; sleep(200)";
         ncpu=2, memory=8,
-        auth,
+        auth, alias="script-simple"
     )
     @test job isa JuliaHub.Job
     @test job.status ∈ ("Submitted", "Running")
@@ -140,12 +160,12 @@ end
 end
 
 @testset "[LIVE] JuliaHub.submit_job / failed" begin
-    job = JuliaHub.submit_job(
+    job, _ = submit_test_job(
         JuliaHub.script"""
         ENV["RESULTS"] = "{\\"x\\":42}"
         error("fail")
         """;
-        auth,
+        auth, alias="script-fail",
     )
     job = JuliaHub.wait_job(job)
     @test job.status == "Failed"
@@ -159,7 +179,7 @@ end
 end
 
 @testset "[LIVE] JuliaHub.submit_job / distributed" begin
-    job = JuliaHub.submit_job(
+    job, _ = submit_test_job(
         JuliaHub.script"""
         using Distributed, JSON
         @everywhere using Distributed
@@ -173,7 +193,7 @@ end
         ENV["RESULTS"] = JSON.json((; vs))
         """;
         nnodes=3,
-        auth,
+        auth, alias="distributed",
     )
     job = JuliaHub.wait_job(job)
     @test job.status == "Completed"
@@ -187,7 +207,7 @@ end
 end
 
 @testset "[LIVE] JuliaHub.submit_job / distributed-per-core" begin
-    job = JuliaHub.submit_job(
+    job, full_alias = submit_test_job(
         JuliaHub.script"""
         using Distributed, JSON
         @everywhere using Distributed
@@ -201,10 +221,11 @@ end
         ENV["RESULTS"] = JSON.json((; vs))
         """;
         ncpu=2, nnodes=3, process_per_node=false,
-        alias="juliahubjl-$(TESTID)", env=Dict("FOO" => "bar"),
-        auth,
+        env=Dict("FOO" => "bar"),
+        auth, alias="distributed-percore",
     )
-    @test job.env["jobname"] == "juliahubjl-$(TESTID)"
+    @test job.env["jobname"] == full_alias
+    @test job.alias == full_alias
     @test job.env["FOO"] == "bar"
     job = JuliaHub.wait_job(job)
     @test job.status == "Completed"
@@ -221,12 +242,12 @@ end
     # Test that the environment that the job runs in is exactly the one specified
     # by the manifest.
     job1_dir = joinpath(@__DIR__, "jobenvs", "job1")
-    job = JuliaHub.submit_job(
+    job, _ = submit_test_job(
         JuliaHub.script(
             joinpath(job1_dir, "script.jl");
             project_directory=job1_dir,
         );
-        auth
+        auth, alias="scripts-1",
     )
     job = JuliaHub.wait_job(job)
     @test job.status == "Completed"
@@ -241,12 +262,12 @@ end
 
     # This tests that if the Manifest.toml is not provided, it gets resolved
     # properly, including taking into account any [compat] sections in the Project.toml
-    job = JuliaHub.submit_job(
+    job, _ = submit_test_job(
         JuliaHub.script(;
             code=read(joinpath(job1_dir, "script.jl"), String),
             project=read(joinpath(job1_dir, "Project.toml"), String),
         );
-        auth,
+        auth, alias="scripts-2",
     )
     job = JuliaHub.wait_job(job)
     @test job.status == "Completed"
@@ -265,9 +286,9 @@ end
     # Note: the exact hash of the file may change if Git decides to change line endings
     # on e.g. Windows.
     datafile_hash = bytes2hex(open(SHA.sha1, joinpath(job1_dir, "datafile.txt")))
-    job = JuliaHub.submit_job(
+    job, _ = submit_test_job(
         JuliaHub.appbundle(job1_dir, "script.jl");
-        auth,
+        auth, alias="appbundle",
     )
     job = JuliaHub.wait_job(job)
     @test job.status == "Completed"
@@ -283,12 +304,12 @@ end
 
 @testset "[LIVE] Job output file access" begin
     job1_dir = joinpath(@__DIR__, "jobenvs", "job1")
-    job = JuliaHub.submit_job(
+    job, _ = submit_test_job(
         JuliaHub.script"""
         ENV["RESULTS_FILE"] = joinpath(@__DIR__, "output.txt")
         n = write(ENV["RESULTS_FILE"], "output-txt-content")
         @info "Wrote $(n) bytes"
-        """,
+        """; alias="output-file",
     )
     job = JuliaHub.wait_job(job)
     @test job.status == "Completed"
@@ -313,7 +334,7 @@ end
     @test String(take!(buf)) == "output-txt-content"
 
     # Job output with a tarball:
-    job = JuliaHub.submit_job(
+    job, _ = submit_test_job(
         JuliaHub.script"""
         odir = joinpath(@__DIR__, "output_files")
         mkdir(odir)
@@ -321,7 +342,7 @@ end
         write(joinpath(odir, "bar.txt"), "output-txt-content-2")
         @info "Wrote: odir"
         ENV["RESULTS_FILE"] = odir
-        """,
+        """; alias="output-file-tarball",
     )
     job = JuliaHub.wait_job(job)
     @test job.status == "Completed"
@@ -376,12 +397,13 @@ end
     if !isnothing(windows_batch_image)
         job1_dir = joinpath(@__DIR__, "jobenvs", "job-windows")
         datafile_hash = bytes2hex(open(SHA.sha1, joinpath(job1_dir, "datafile.txt")))
-        job = JuliaHub.submit_job(
+        job, full_alias = submit_test_job(
             JuliaHub.appbundle(job1_dir, "script.jl"; image=windows_batch_image);
-            auth
+            auth, alias="windows-batch",
         )
         job = JuliaHub.wait_job(job)
         @test job.status == "Completed"
+        @test job.alias == full_alias
         @test !isempty(job.results)
         let results = JSON.parse(job.results)
             @test results isa AbstractDict
