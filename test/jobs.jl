@@ -233,7 +233,7 @@ end
             @test jc.compute.nnodes_max == 1
             @test jc.compute.nnodes_min === nothing
             @test jc.timelimit == JuliaHub._DEFAULT_WorkloadConfig_timelimit
-            @test jc.name === nothing
+            @test jc.alias === nothing
             @test jc.project === nothing
             @test isempty(jc.env)
         end
@@ -244,7 +244,7 @@ end
         @test ns != ns_cheapest
         kwargs_cc = (; process_per_node = false, nnodes=(3, 10))
         kwargs_rt = (;
-            name = "test-job",
+            alias = "test-job",
             project = "e1d9d1d4-814c-4f0c-a3c1-5e063cd2b02b",
             env = Dict("MY_ARGUMENT" => "value"),
             timelimit = 5
@@ -256,7 +256,7 @@ end
             @test jc.compute.nnodes_max == 10
             @test jc.compute.nnodes_min === 3
             @test jc.timelimit === Dates.Hour(5)
-            @test jc.name == kwargs.name
+            @test jc.alias == kwargs.alias
             @test jc.project === UUIDs.UUID(kwargs.project)
             @test jc.env == kwargs.env
         end
@@ -267,7 +267,7 @@ end
             @test jc.compute.nnodes_max == 10
             @test jc.compute.nnodes_min === 3
             @test jc.timelimit === Dates.Hour(5)
-            @test jc.name == kwargs.name
+            @test jc.alias == kwargs.alias
             @test jc.project === UUIDs.UUID(kwargs.project)
             @test jc.env == kwargs.env
         end
@@ -276,8 +276,14 @@ end
         @test_throws MethodError JuliaHub.submit_job(s, cc; kwargs...)
         @test_throws ArgumentError JuliaHub.submit_job(s, timelimit=-20)
         @test_throws ArgumentError JuliaHub.submit_job(s, project="123")
-        @test_throws ArgumentError JuliaHub.submit_job(s; env = (; jobname = "foo"), name = "bar")
+        @test_throws ArgumentError JuliaHub.submit_job(s; env = (; jobname = "foo"), alias = "bar")
         @test_logs (:warn,) JuliaHub.submit_job(s; env = (; jobname = "foo"))
+        # DEPRECATED: test the name -> alias deprecation logic
+        @test_throws ArgumentError JuliaHub.submit_job(s, cc; name="foo", alias="bar")
+        let jc = @test_logs (:warn, "The `name` argument to `submit_job` is deprecated and will be removed in 0.2.0") JuliaHub.submit_job(s, cc; name="foo", dryrun=true)
+            @test jc isa JuliaHub.WorkloadConfig
+            @test jc.alias == "foo"
+        end
         # TODO: mocked tests that actually check that we submit the correct information
         # to the backend (e.g. by inspecting the returned Job object)
     end
