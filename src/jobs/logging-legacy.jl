@@ -321,7 +321,7 @@ function _job_logs_newer!(
         end
         # So to handle this case, we need to start fetching from the newest message and
         # go all the way back to the very first message.
-        _job_logs_legacy_fill_buffer!(buffer)
+        _job_logs_legacy_fill_buffer!(auth, buffer)
         # If the buffer is still empty, we no-op return again. This means that the job
         # still hasn't produced any logs.
         isempty(buffer._logs) && return nothing

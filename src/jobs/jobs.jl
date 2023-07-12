@@ -349,12 +349,13 @@ function job(id::AbstractString; throw::Bool=true, auth::Authentication=__auth__
     r.status == 200 || _throw_invalidresponse(r)
     job, json = _parse_response_json(r, Dict)
     details = get(job, "details") do
-        throw(JuliaHubError("Invalid JSON returned by the server:\n$(json)"))
+        Base.throw(JuliaHubError("Invalid JSON returned by the server:\n$(json)"))
     end
     if isempty(details)
         return _throw_or_nothing(; msg="Job '$(id)' does not exist.", throw)
     end
-    length(details) > 1 && throw(JuliaHubError("Invalid JSON returned by the server:\n$(json)"))
+    length(details) > 1 &&
+        Base.throw(JuliaHubError("Invalid JSON returned by the server:\n$(json)"))
     return Job(only(details))
 end
 

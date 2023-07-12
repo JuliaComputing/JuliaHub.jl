@@ -61,8 +61,11 @@ function Base.show(io::IO, log::JobLogMessage)
     print(io, "JobLogMessage(ZonedDateTime(\"$(log.timestamp)\"), \"$(log.message)\", ...)")
 end
 
-_print_log_list(logs::AbstractVector; kwargs...) = _print_log_list(stdout, logs; kwargs...)
-function _print_log_list(io::IO, logs::AbstractVector; all=false, nlines=_default_display_lines(io))
+_print_log_list(logs::Vector{JobLogMessage}; kwargs...) = _print_log_list(stdout, logs; kwargs...)
+function _print_log_list(
+    io::IO, logs::Vector{JobLogMessage}; all::Bool=false,
+    nlines::Integer=_default_display_lines(io)
+)
     @assert Base.all(x -> isa(x, JobLogMessage), logs) # note: kwarg shadows function
     @assert nlines >= 1
     isempty(logs) && return nothing
@@ -282,12 +285,7 @@ function job_logs_older!(
     auth::Authentication=__auth__(),
 )::AbstractJobLogsBuffer
     lock(buffer) do
-        # TODO: use multiple dispatch here
-        if _job_logging_api_version(auth, buffer._jobname) == _KafkaLogging()
-            _job_logs_kafka_older!(auth, buffer; count)
-        else
-            _job_logs_older!(auth, buffer; count)
-        end
+        _job_logs_older!(auth, buffer; count)
     end
     return buffer
 end
@@ -315,12 +313,7 @@ function job_logs_newer!(
     auth::Authentication=__auth__(),
 )::AbstractJobLogsBuffer
     lock(buffer) do
-        # TODO: use multiple dispatch here
-        if _job_logging_api_version(auth, buffer._jobname) == _KafkaLogging()
-            _job_logs_kafka_newer!(auth, buffer; count)
-        else
-            _job_logs_newer!(auth, buffer; count)
-        end
+        _job_logs_newer!(auth, buffer; count)
     end
     return buffer
 end

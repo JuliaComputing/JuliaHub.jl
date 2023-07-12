@@ -114,7 +114,7 @@ _job_logs_active_logs_view(b::KafkaLogsBuffer) = @view(b._logs[b._active_range])
 
 _kafka_next_offset(b::KafkaLogsBuffer) = isempty(b._logs) ? 0 : (last(b._logs)._offset + 1)
 
-function _job_logs_kafka_newer!(
+function _job_logs_newer!(
     auth::Authentication, b::KafkaLogsBuffer; count::Union{Integer, Nothing}=nothing
 )
     # If there is a streaming task running, then this will be a no-op
@@ -209,7 +209,7 @@ function _kafka_update_active_range!(b::KafkaLogsBuffer; start=nothing, stop=not
     return nothing
 end
 
-function _job_logs_kafka_older!(
+function _job_logs_older!(
     auth::Authentication, b::KafkaLogsBuffer; count::Union{Integer, Nothing}=nothing
 )
     @assert isnothing(count) || count > 0
