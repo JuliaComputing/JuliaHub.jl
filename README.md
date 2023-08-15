@@ -3,6 +3,7 @@
 [![Version][jh-version-img]][jh-version-url]
 [![][docs-stable-img]][docs-stable-url]
 [![][gha-img]][gha-url]
+[![PkgEval][pkgeval-img]][pkgeval-url]
 [![][codecov-img]][codecov-url]
 
 A Julia client for the [JuliaHub platform][juliahub-com] APIs.
@@ -56,6 +57,9 @@ If you are curious about changes and updates that new version have brought, see 
 [docs-stable-changelog-url]: CHANGELOG.md
 
 [gha-img]: https://github.com/JuliaComputing/JuliaHub.jl/workflows/CI/badge.svg
+
+[pkgeval-img]: https://juliaci.github.io/NanosoldierReports/pkgeval_badges/J/JuliaHub.svg
+[pkgeval-url]: https://juliaci.github.io/NanosoldierReports/pkgeval_badges/J/JuliaHub.html
 [gha-url]: https://github.com/JuliaComputing/JuliaHub.jl/actions?query=workflows/CI
 
 [codecov-img]: https://codecov.io/gh/JuliaComputing/JuliaHub.jl/branch/main/graph/badge.svg
