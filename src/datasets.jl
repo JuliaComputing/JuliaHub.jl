@@ -665,7 +665,7 @@ function _upload_dataset(upload_config, local_path)
         throw(JuliaHubError("Unknown upload type ($type) or vendor ($vendor)"))
     end
     mktemp() do rclone_conf_path, rclone_conf_io
-        Mocking.@mock _rclone() do rclone_exe  # This do block is unnecessary in 1.6
+        Mocking.@mock _rclone() do rclone_exe
             _write_rclone_config(rclone_conf_io, upload_config)
             close(rclone_conf_io)
 
@@ -979,5 +979,8 @@ function _assert_current_user(username::AbstractString, auth::Authentication; op
         throw(PermissionError("$op is only supported for the currently authenticated user"))
 end
 
-# Wrapping Rclone_jll.rclone here so that it could be mocked with Mockable
-_rclone(f::Function) = Rclone_jll.rclone(f)
+# Wrapping Rclone_jll.rclone here so that it could be mocked with Mocking.jl
+function _rclone(f::Function)
+    rclone_exe = Rclone_jll.rclone()
+    f(rclone_exe)
+end
