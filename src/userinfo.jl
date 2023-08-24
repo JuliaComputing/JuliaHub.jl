@@ -5,13 +5,11 @@ Base.@kwdef struct _JuliaHubInfo
     _userid::Union{Int, Nothing} = nothing
 end
 
-const _USERINFO_GQL = read(joinpath(@__DIR__, "userinfo.gql"), String)
-
-function _get_authenticated_user_legacy_gql_request(server::AbstractString, token::Secret)
+function _gql_request(server::AbstractString, token::Secret, query::AbstractString)
     query = Dict(
         "variables" => Dict(),
         "operationName" => nothing,
-        "query" => _USERINFO_GQL,
+        "query" => query,
     )
     query = JSON.json(query)
     headers = [
@@ -20,6 +18,14 @@ function _get_authenticated_user_legacy_gql_request(server::AbstractString, toke
     ]
     r = @_httpcatch HTTP.post("$server/v1/graphql", headers, query; status_exception=false)
     return _RESTResponse(r)
+end
+
+_gql_request(auth::Authentication, query::AbstractString) =
+    _gql_request(string(auth.server), auth.token, query)
+
+const _USERINFO_GQL = read(joinpath(@__DIR__, "userinfo.gql"), String)
+function _get_authenticated_user_legacy_gql_request(server::AbstractString, token::Secret)
+    _gql_request(server, token, _USERINFO_GQL)
 end
 
 function _get_authenticated_user_api_v1_request(server::AbstractString, token::Secret)
@@ -65,12 +71,3 @@ function _get_api_information(server::AbstractString, token::Secret)::_JuliaHubI
 end
 
 _get_api_information(auth::Authentication) = _get_api_information(string(auth.server), auth.token)
-
-function _get_user_groups(auth::Authentication)
-    r = HTTP.get(
-        _url(auth, "user", "groups"),
-        _authheaders(auth),
-    )
-    r.status == 200 && return JSON.parse(String(r.body))
-    _throw_invalidresponse(r)
-end

@@ -1,0 +1,29 @@
+# roles = ["default", "customer_admin"]
+
+query UserInfo {
+  users(limit: 1) {
+    id
+    name
+    firstname
+    emails {
+      email
+    }
+    groups: user_groups {
+      id: group_id
+      group {
+        name
+        group_id
+      }
+    }
+    username
+    roles {
+      role {
+        description
+        id
+        name
+      }
+    }
+    accepted_tos
+    survey_submitted_time
+  }
+}

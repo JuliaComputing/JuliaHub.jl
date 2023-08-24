@@ -1,3 +1,37 @@
+import HTTP, JSON, JuliaHub
+function _get_user_groups_rest(auth::JuliaHub.Authentication)
+    r = HTTP.get(
+        JuliaHub._url(auth, "user", "groups"),
+        JuliaHub._authheaders(auth),
+    )
+    r.status == 200 && return JSON.parse(String(r.body))
+    JuliaHub._throw_invalidresponse(r)
+end
+function _get_user_groups_gql(auth::JuliaHub.Authentication)
+    userinfo_gql = read(joinpath(@__DIR__, "userInfo.gql"), String)
+    r = JuliaHub._gql_request(auth, userinfo_gql)
+    r.status == 200 || error("Invalid response from GQL ($(r.status))\n$(r.body)")
+    user = only(r.json["data"]["users"])
+    [g["group"]["name"] for g in user["groups"]]
+end
+function _get_user_groups(auth::JuliaHub.Authentication)
+    rest_exception = try
+        _get_user_groups_rest(auth)
+    catch e
+        @debug "Failed to fetch user groups via REST API" exception = (e, catch_backtrace())
+        e, catch_backtrace()
+    end
+    try
+        _get_user_groups_gql(auth)
+    catch e
+        @error "Unable to determine valid user groups"
+        @error "> REST API failure" exception = rest_exception
+        @error "> GQL query failure" exception = (e, catch_backtrace())
+        return String[]
+    end
+end
+
+
 TESTDATA = joinpath(@__DIR__, "testdata")
 PREFIX = "JuliaHubTest_$(TESTID)"
 @info "Uploading test data with prefix: $PREFIX"
