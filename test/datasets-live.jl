@@ -8,6 +8,9 @@ function _get_user_groups_rest(auth::JuliaHub.Authentication)
     JuliaHub._throw_invalidresponse(r)
 end
 function _get_user_groups_gql(auth::JuliaHub.Authentication)
+    # Note: this query is newer than the one we use in src/userinfo.jl, and works
+    # with newer JuliaHub versions, whereas the other one specifically works with
+    # older versions.
     userinfo_gql = read(joinpath(@__DIR__, "userInfo.gql"), String)
     r = JuliaHub._gql_request(auth, userinfo_gql)
     r.status == 200 || error("Invalid response from GQL ($(r.status))\n$(r.body)")
