@@ -4,7 +4,7 @@ function _get_user_groups_rest(auth::JuliaHub.Authentication)
         JuliaHub._url(auth, "user", "groups"),
         JuliaHub._authheaders(auth),
     )
-    r.status == 200 && return JSON.parse(String(r.body))
+    r.status == 200 && return String.(JSON.parse(String(r.body)))
     JuliaHub._throw_invalidresponse(r)
 end
 function _get_user_groups_gql(auth::JuliaHub.Authentication)
@@ -12,17 +12,17 @@ function _get_user_groups_gql(auth::JuliaHub.Authentication)
     r = JuliaHub._gql_request(auth, userinfo_gql)
     r.status == 200 || error("Invalid response from GQL ($(r.status))\n$(r.body)")
     user = only(r.json["data"]["users"])
-    [g["group"]["name"] for g in user["groups"]]
+    String[g["group"]["name"] for g in user["groups"]]
 end
-function _get_user_groups(auth::JuliaHub.Authentication)
+function _get_user_groups(auth::JuliaHub.Authentication)::Vector{String}
     rest_exception = try
-        _get_user_groups_rest(auth)
+        return _get_user_groups_rest(auth)
     catch e
         @debug "Failed to fetch user groups via REST API" exception = (e, catch_backtrace())
         e, catch_backtrace()
     end
     try
-        _get_user_groups_gql(auth)
+        return _get_user_groups_gql(auth)
     catch e
         @error "Unable to determine valid user groups"
         @error "> REST API failure" exception = rest_exception
@@ -213,7 +213,8 @@ try
         "url" => nothing,
     )
     # Multi-item update
-    new_groups = string.(JuliaHub._get_user_groups(auth))
+    new_groups = _get_user_groups(auth)
+    @debug "Automatically determined user groups for update_dataset test" new_groups
     JuliaHub.update_dataset(
         dataset.name; auth, groups=new_groups, tags=["foo", "bar"], visibility="public"
     )
