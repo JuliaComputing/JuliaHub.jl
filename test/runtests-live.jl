@@ -55,4 +55,9 @@ JuliaHub.__AUTH__[] = auth
         @testset "JuliaHub Jobs" begin
             include("jobs-live.jl")
         end
+
+    is_enabled("jobs-windows") &&
+        @testset "JuliaHub Jobs" begin
+            include("jobs-windows-live.jl")
+        end
 end

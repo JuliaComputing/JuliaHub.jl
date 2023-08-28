@@ -35,15 +35,24 @@ end
 #
 # Pkg.test("JuliaHub", test_args=["jobs", "datasets"])
 #
-# Can pass --offline to disable live tests.
-function is_enabled(testname=nothing)
-    enabled_tests = filter(!startswith('-'), lowercase.(ARGS))
-    run_live_tests = "--live" in ARGS
+# Pass `--live` (without extra arguments) to enable all tests
+# (except windows batch ones).
+function is_enabled(testname=nothing; args=ARGS)
+    enabled_tests = filter(!startswith('-'), lowercase.(args))
+    run_live_tests = "--live" in args
     # If `testname` is not provided, we're calling this to check, in general,
     # if _any_ live tests are enabled (i.e. calling without an argument)
     isnothing(testname) && return run_live_tests
     # Check if the specified test set is enabled
-    if (isempty(enabled_tests) && run_live_tests) || (testname in enabled_tests)
+    if isempty(enabled_tests) && run_live_tests && (testname == "jobs-windows")
+        if get(ENV, "JULIAHUBJL_LIVE_WINDOWS_TESTS", nothing) == "true"
+            @info "Running test set: $(testname)"
+            return true
+        else
+            @warn "Skipping test set: $(testname) (windows tests disabled by default)"
+            return false
+        end
+    elseif (isempty(enabled_tests) && run_live_tests) || (testname in enabled_tests)
         @info "Running test set: $(testname)"
         return true
     else
@@ -60,6 +69,47 @@ function list_datasets_prefix(prefix, args...; kwargs...)
 end
 
 @testset "JuliaHub.jl" begin
+    # Just to make sure the logic within is_enabled() is correct.
+    @testset "is_enabled" begin
+        @test !is_enabled(; args=[])
+        @test is_enabled(; args=["--live"])
+
+        let args = ["datasets"]
+            @test_logs (:info,) @test is_enabled("datasets"; args)
+            @test_logs (:warn,) @test !is_enabled("jobs"; args)
+            @test_logs (:warn,) @test !is_enabled("jobs-windows"; args)
+        end
+        let args = ["--live"]
+            @test_logs (:info,) @test is_enabled("datasets"; args)
+            @test_logs (:info,) @test is_enabled("jobs"; args)
+            @test_logs (:warn,) @test !is_enabled("jobs-windows"; args)
+            withenv("JULIAHUBJL_LIVE_WINDOWS_TESTS" => "foo") do
+                @test_logs (:info,) @test is_enabled("datasets"; args)
+                @test_logs (:info,) @test is_enabled("jobs"; args)
+                @test_logs (:warn,) @test !is_enabled("jobs-windows"; args)
+            end
+            withenv("JULIAHUBJL_LIVE_WINDOWS_TESTS" => "true") do
+                @test_logs (:info,) @test is_enabled("datasets"; args)
+                @test_logs (:info,) @test is_enabled("jobs"; args)
+                @test_logs (:info,) @test is_enabled("jobs-windows"; args)
+            end
+        end
+        let args = ["datasets", "jobs"]
+            @test_logs (:info,) @test is_enabled("datasets"; args)
+            @test_logs (:info,) @test is_enabled("jobs"; args)
+            @test_logs (:warn,) @test !is_enabled("jobs-windows"; args)
+        end
+        let args = ["jobs-windows"]
+            @test_logs (:warn,) @test !is_enabled("datasets"; args)
+            @test_logs (:warn,) @test !is_enabled("jobs"; args)
+            @test_logs (:info,) @test is_enabled("jobs-windows"; args)
+        end
+        let args = ["jobs-windows", "datasets"]
+            @test_logs (:info,) @test is_enabled("datasets"; args)
+            @test_logs (:warn,) @test !is_enabled("jobs"; args)
+            @test_logs (:info,) @test is_enabled("jobs-windows"; args)
+        end
+    end
     # This set tests that we haven't accidentally added or removed any public-looking
     # functions (i.e. ones that are not prefixed by _ basically).
     @testset "Public API" begin
