@@ -71,43 +71,47 @@ end
 @testset "JuliaHub.jl" begin
     # Just to make sure the logic within is_enabled() is correct.
     @testset "is_enabled" begin
-        @test !is_enabled(; args=[])
-        @test is_enabled(; args=["--live"])
+        # We need to unset JULIAHUBJL_LIVE_WINDOWS_TESTS in case it is set in the
+        # actual enviornment.
+        withenv("JULIAHUBJL_LIVE_WINDOWS_TESTS" => nothing) do
+            @test !is_enabled(; args=[])
+            @test is_enabled(; args=["--live"])
 
-        let args = ["datasets"]
-            @test_logs (:info,) @test is_enabled("datasets"; args)
-            @test_logs (:warn,) @test !is_enabled("jobs"; args)
-            @test_logs (:warn,) @test !is_enabled("jobs-windows"; args)
-        end
-        let args = ["--live"]
-            @test_logs (:info,) @test is_enabled("datasets"; args)
-            @test_logs (:info,) @test is_enabled("jobs"; args)
-            @test_logs (:warn,) @test !is_enabled("jobs-windows"; args)
-            withenv("JULIAHUBJL_LIVE_WINDOWS_TESTS" => "foo") do
+            let args = ["datasets"]
+                @test_logs (:info,) @test is_enabled("datasets"; args)
+                @test_logs (:warn,) @test !is_enabled("jobs"; args)
+                @test_logs (:warn,) @test !is_enabled("jobs-windows"; args)
+            end
+            let args = ["--live"]
+                @test_logs (:info,) @test is_enabled("datasets"; args)
+                @test_logs (:info,) @test is_enabled("jobs"; args)
+                @test_logs (:warn,) @test !is_enabled("jobs-windows"; args)
+                withenv("JULIAHUBJL_LIVE_WINDOWS_TESTS" => "foo") do
+                    @test_logs (:info,) @test is_enabled("datasets"; args)
+                    @test_logs (:info,) @test is_enabled("jobs"; args)
+                    @test_logs (:warn,) @test !is_enabled("jobs-windows"; args)
+                end
+                withenv("JULIAHUBJL_LIVE_WINDOWS_TESTS" => "true") do
+                    @test_logs (:info,) @test is_enabled("datasets"; args)
+                    @test_logs (:info,) @test is_enabled("jobs"; args)
+                    @test_logs (:info,) @test is_enabled("jobs-windows"; args)
+                end
+            end
+            let args = ["datasets", "jobs"]
                 @test_logs (:info,) @test is_enabled("datasets"; args)
                 @test_logs (:info,) @test is_enabled("jobs"; args)
                 @test_logs (:warn,) @test !is_enabled("jobs-windows"; args)
             end
-            withenv("JULIAHUBJL_LIVE_WINDOWS_TESTS" => "true") do
-                @test_logs (:info,) @test is_enabled("datasets"; args)
-                @test_logs (:info,) @test is_enabled("jobs"; args)
+            let args = ["jobs-windows"]
+                @test_logs (:warn,) @test !is_enabled("datasets"; args)
+                @test_logs (:warn,) @test !is_enabled("jobs"; args)
                 @test_logs (:info,) @test is_enabled("jobs-windows"; args)
             end
-        end
-        let args = ["datasets", "jobs"]
-            @test_logs (:info,) @test is_enabled("datasets"; args)
-            @test_logs (:info,) @test is_enabled("jobs"; args)
-            @test_logs (:warn,) @test !is_enabled("jobs-windows"; args)
-        end
-        let args = ["jobs-windows"]
-            @test_logs (:warn,) @test !is_enabled("datasets"; args)
-            @test_logs (:warn,) @test !is_enabled("jobs"; args)
-            @test_logs (:info,) @test is_enabled("jobs-windows"; args)
-        end
-        let args = ["jobs-windows", "datasets"]
-            @test_logs (:info,) @test is_enabled("datasets"; args)
-            @test_logs (:warn,) @test !is_enabled("jobs"; args)
-            @test_logs (:info,) @test is_enabled("jobs-windows"; args)
+            let args = ["jobs-windows", "datasets"]
+                @test_logs (:info,) @test is_enabled("datasets"; args)
+                @test_logs (:warn,) @test !is_enabled("jobs"; args)
+                @test_logs (:info,) @test is_enabled("jobs-windows"; args)
+            end
         end
     end
     # This set tests that we haven't accidentally added or removed any public-looking
