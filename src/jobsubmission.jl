@@ -640,9 +640,18 @@ The following should be kept in mind about how appbundles are handled:
   Registered packages are installed via the package manager via the standard environment
   instantiation, and their source code is not included in the bundle directly.
 
-* When the JuliaHub job starts, the bundle is unpacked into the `appbundle/` directory (relative
-  the starting working directory). E.g. if you have a `mydata.dat` file in the bundled
-  directory, you can access it in the script at `joinpath("appbundle", "mydata.dat")`.
+* When the JuliaHub job starts, the bundle is unpacked and the job's starting working directory
+  is set to the `appbundle/` directory, and you can e.g. load the data from those files with
+  just `read("my-data.txt", String)`.
+
+  Note that `@__DIR__` points elsewhere and, relatedly, `include` in the main script should be
+  used with an absolute path (e.g. `include(joinpath(pwd(), "my-julia-file.jl"))`).
+
+  !!! compat "JuliaHub 6.2 and older"
+
+      On some older JuliaHub versions (6.2 and older), the working directory was set to the parent
+      directory of `appbundle/`, and so it was necessary to do `joinpath("appbundle", "mydata.dat")`
+      to load the code.
 """
 function appbundle end
 
