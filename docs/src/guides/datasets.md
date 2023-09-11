@@ -136,7 +136,7 @@ JuliaHub.upload_dataset("example-dataset", "local-file")
 ```
 
 The type of the dataset (`Blob` or `BlobTree`) depends on whether the uploaded object is a file or a directory.
-A directory will be store as a `BlobTree`-type dataset on JuliaHub.
+A directory will be stored as a `BlobTree`-type dataset on JuliaHub.
 
 ```@repl datasets
 JuliaHub.upload_dataset("example-blobtree", "local-directory")
