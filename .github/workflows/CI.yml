@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches:
-      - main
+      - mp/fork-live-tests
     tags: ["*"]
   pull_request:
 
