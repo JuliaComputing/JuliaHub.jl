@@ -21,7 +21,9 @@ struct _JobSubmission1
     # Job image configuration
     product_name::Union{String, Nothing}
     image::Union{String, Nothing}
-    #image_sha256::Union{String, Nothing} # TODO
+    image_sha256::Union{String, Nothing}
+    sysimage_build::Union{Bool, Nothing}
+    sysimage_manifest_sha::Union{String, Nothing}
     # Job hardware configuration
     node_class::String
     cpu::String
@@ -30,10 +32,10 @@ struct _JobSubmission1
     min_workers_required::Union{String, Nothing}
     isthreaded::String
     limit_type::String
-    limit_value::String
+    limit_value::Union{String, Nothing}
     # These values must be set in the request, but values are pretty much ignored
     # on the backend. Except in 6.0.
-    effective_time_limit::String
+    effective_time_limit::Union{String, Nothing}
 
     function _JobSubmission1(;
         # User code arguments
@@ -52,6 +54,9 @@ struct _JobSubmission1
         # Job image configuration
         product_name::Union{AbstractString, Nothing}=nothing,
         image::Union{AbstractString, Nothing}=nothing,
+        image_sha256::Union{AbstractString, Nothing}=nothing,
+        sysimage_build::Union{Bool, Nothing}=nothing,
+        sysimage_manifest_sha::Union{AbstractString, Nothing}=nothing,
         # Job hardware configuration
         node_class::AbstractString,
         cpu::Integer,
@@ -59,11 +64,16 @@ struct _JobSubmission1
         elastic::Union{Bool, Nothing}=nothing,
         min_workers_required::Union{Int, Nothing}=nothing,
         limit_type::AbstractString,
-        limit_value::Integer,
+        limit_value::Union{Integer, Nothing},
         isthreaded::Bool,
     )
         cpu > 0 || throw(ArgumentError("Invalid value for 'cpu': $cpu"))
-        limit_value > 0 || throw(ArgumentError("Invalid value for 'limit_value': $limit_value"))
+        if !(limit_type in ("time", "unlimited"))
+            throw(ArgumentError("Invalid limit_type: '$limit_type'"))
+        end
+        if !isnothing(limit_value) && limit_value <= 0
+            throw(ArgumentError("Invalid value for 'limit_value': $limit_value"))
+        end
         nworkers >= 0 || throw(ArgumentError("Invalid value for 'nworkers': $nworkers"))
         customcode && isnothing(usercode) &&
             throw(ArgumentError("If `customcode` is set, `usercode` must be set."))
@@ -78,6 +88,16 @@ struct _JobSubmission1
         if !isnothing(min_workers_required) && !(0 <= min_workers_required < nworkers)
             e = "Invalid `min_workers_required` ($min_workers_required) (`nworkers=$nworkers`)"
             throw(ArgumentError(e))
+        end
+        if !isnothing(image_sha256) && !_isvalid_image_sha256(image_sha256)
+            throw(ArgumentError("Invalid image_sha256: '$image_sha256'"))
+        end
+        if !isnothing(sysimage_manifest_sha) &&
+            isnothing(match(r"^[0-9a-f]{64}$", sysimage_manifest_sha))
+            throw(ArgumentError("Invalid sysimage_manifest_sha: '$sysimage_manifest_sha'"))
+        end
+        if (sysimage_build === true) && isnothing(sysimage_manifest_sha)
+            throw(ArgumentError("Must pass sysimage_manifest_sha if sysimage_build=true"))
         end
         # appbundle validation & processing
         if isnothing(appbundle)
@@ -104,6 +124,7 @@ struct _JobSubmission1
             )
             appbundle_upload_info = JSON.json(appbundle_upload_info)
         end
+        limit_value = isnothing(limit_value) ? nothing : string(limit_value)
         # Create the _JobSubmission1 object
         new(
             # User code & app configuration
@@ -117,14 +138,19 @@ struct _JobSubmission1
             appbundle, appbundle_upload_info,
             registry_name, package_name, branch_name, git_revision,
             # Job image configuration
-            product_name, image,
+            product_name, image, image_sha256, sysimage_build, sysimage_manifest_sha,
             # Compute configuration
             node_class, string(cpu),
             string(nworkers), _string_or_nothing(elastic), _string_or_nothing(min_workers_required),
             string(isthreaded),
-            limit_type, string(limit_value), string(limit_value),
+            limit_type, limit_value, limit_value,
         )
     end
+end
+
+# The image_sha256 value must be a string of the form `sha256:(SHA256 hash in hex)`
+function _isvalid_image_sha256(image_sha256::AbstractString)
+    return !isnothing(match(r"^sha256:[0-9a-f]{64}$", image_sha256))
 end
 
 _string_or_nothing(x) = isnothing(x) ? nothing : string(x)
@@ -305,6 +331,9 @@ end
 
 const _BatchJobEnvironment = Union{_ScriptEnvironment, _AppBundleEnvironment}
 
+const _DEFAULT_BatchJob_image = nothing
+const _DEFAULT_BatchJob_sysimage = false
+
 """
     struct BatchJob <: AbstractJobConfig
 
@@ -325,16 +354,34 @@ should be used instead:
 * [`appbundle`](@ref): for submitting more complex "appbundles" that include additional
   file, private or modified package dependencies etc.
 
+# Optional arguments
+
+* `image  :: Union{BatchImage, Nothing}`: can be used to specify which product's batch job image
+  will be used when running the job, by passing the appropriate [`BatchImage`](@ref) object
+  (see also: [`batchimage`](@ref) and [`batchimages`](@ref)). If set to `$(_DEFAULT_BatchJob_image)`
+  (the default), the job runs with the default Julia image.
+
+* `sysimage :: Bool`: if set to `true`, requests that a system image is built from the job's
+  `Manifest.toml` file before starting the job. Defaults to `$(_DEFAULT_BatchJob_sysimage)`.
+
+!!! compat "JuliaHub compatibility"
+
+    The `sysimage = true` option requires JuliaHub 6.3 to have an effect. When running against
+    older JuliaHub versions, it does not have an effect.
+
 # Constructors
 
 ```julia
-BatchJob(::BatchJob; [image::BatchImage]) -> BatchJob
+BatchJob(::BatchJob; [image::BatchImage], [sysimage::Bool]) -> BatchJob
 ```
 
-Construct a [`BatchJob`](@ref), but with a different batch image ([`BatchImage`](@ref)).
-This is the only constructor that is part of the public API. It is particularly useful when
-used in in combination with the [`@script_str`](@ref) string macro, to be able to specify
-the job image when using the string macro:
+Construct a [`BatchJob`](@ref), but override some of the optional arguments documented above.
+When the argument is omitted, the value from the underlying [`BatchJob`](@ref) object is used.
+This is the only constructor that is part of the public API.
+
+This method is particularly useful when used in in combination with the [`@script_str`](@ref)
+string macro, to be able to specify the job image or trigger a sysimage build. For example,
+the following snippet will set a different batch image for the script-type job:
 
 ```julia
 JuliaHub.BatchJob(
@@ -349,17 +396,37 @@ struct BatchJob <: AbstractJobConfig
     environment::_BatchJobEnvironment
     code::String
     image::Union{BatchImage, Nothing}
+    sysimage::Bool
+    sysimage_manifest_sha::Union{String, Nothing}
 
+    # Private constructor
     function BatchJob(
         environment::_BatchJobEnvironment, code::String;
-        image::Union{BatchImage, Nothing}=nothing
+        image::Union{BatchImage, Nothing}=_DEFAULT_BatchJob_image,
+        sysimage::Bool=_DEFAULT_BatchJob_sysimage,
+        sysimage_manifest_sha::Union{AbstractString, Nothing}=nothing,
     )
-        new(environment, code, image)
+        # This can happen if the user constructs a script-type job without passing the manifest,
+        # and then tries to enable sysimage (either in `script` or later with `BatchJob`).
+        if sysimage && isnothing(sysimage_manifest_sha)
+            throw(ArgumentError("Unable to construct a batch job without a Manifest.toml"))
+        end
+        new(environment, code, image, sysimage, sysimage_manifest_sha)
     end
+
+    # Public constructor
     function BatchJob(
-        batch::BatchJob; image::Union{BatchImage, Nothing}=nothing
+        batch::BatchJob;
+        image::Union{BatchImage, Nothing, Missing}=missing,
+        sysimage::Union{Bool, Missing}=missing,
     )
-        new(batch.environment, batch.code, image)
+        new(
+            batch.environment,
+            batch.code,
+            ismissing(image) ? batch.image : image,
+            ismissing(sysimage) ? batch.sysimage : sysimage,
+            batch.sysimage_manifest_sha,
+        )
     end
 end
 
@@ -421,7 +488,7 @@ defined in code.
 ```julia
 script(
     scriptfile::AbstractString;
-    [project_directory::AbstractString], [image::BatchImage]
+    [project_directory::AbstractString], [image::BatchImage], [sysimage::Bool]
 ) -> BatchJob
 ```
 
@@ -434,7 +501,7 @@ via `image`.
 script(;
     code::AbstractString,
     [project::AbstractString], [manifest::AbstractString], [artifacts::AbstractString],
-    [image::BatchImage]
+    [image::BatchImage], [sysimage::Bool]
 ) -> BatchJob
 ```
 
@@ -445,13 +512,18 @@ The `code` keyword argument is mandatory and will specify contents of the Julia 
 gets executed on the server. The Julia project environment can be specified by passing the
 contents of the TOML files via the corresponding arguments (`project`, `manifest`, `artifacts`).
 The job image can be specified via `image`.
+
+!!! note "Optional arguments"
+
+    See [`BatchJob`](@ref) for a more thorough description of the optional arguments.
 """
 function script end
 
 function script(
     scriptfile::AbstractString;
     project_directory::Union{AbstractString, Nothing}=nothing,
-    image::Union{BatchImage, Nothing}=nothing,
+    image::Union{BatchImage, Nothing}=_DEFAULT_BatchJob_image,
+    sysimage::Bool=_DEFAULT_BatchJob_sysimage,
 )
     isfile(scriptfile) || throw(ArgumentError("Invalid `scriptfile`: $(scriptfile)"))
     code = read(scriptfile, String)
@@ -462,7 +534,7 @@ function script(
             throw(ArgumentError("Invalid `project_directory`: $(project_directory)"))
         _load_project_env(project_directory)
     end
-    return BatchJob(_ScriptEnvironment(; project, manifest, artifacts), code; image)
+    return BatchJob(_ScriptEnvironment(; project, manifest, artifacts), code; image, sysimage)
 end
 
 function script(;
@@ -470,9 +542,16 @@ function script(;
     project::Union{AbstractString, Nothing}=nothing,
     manifest::Union{AbstractString, Nothing}=nothing,
     artifacts::Union{AbstractString, Nothing}=nothing,
-    image::Union{BatchImage, Nothing}=nothing,
+    image::Union{BatchImage, Nothing}=_DEFAULT_BatchJob_image,
+    sysimage::Bool=_DEFAULT_BatchJob_sysimage,
 )
-    return BatchJob(_ScriptEnvironment(; project, manifest, artifacts), code; image)
+    return BatchJob(
+        _ScriptEnvironment(; project, manifest, artifacts),
+        code;
+        image,
+        sysimage,
+        sysimage_manifest_sha=isnothing(manifest) ? nothing : bytes2hex(SHA.sha2_256(manifest)),
+    )
 end
 
 function _load_project_env(d::AbstractString)
@@ -540,6 +619,8 @@ appbundle instead (see [`appbundle`](@ref)).
         )
     )
     ```
+
+    You can also use this pattern to set the `sysimage` option.
 """
 macro script_str(s, suffix="")
     if suffix == "noenv"
@@ -599,11 +680,11 @@ end
 """
     JuliaHub.appbundle(
         directory::AbstractString, codefile::AbstractString;
-        [image::BatchImage]
+        [image::BatchImage], [sysimage::Bool]
     ) -> BatchJob
     JuliaHub.appbundle(
         directory::AbstractString;
-        code::AbstractString, [image::BatchImage]
+        code::AbstractString, [image::BatchImage], [sysimage::Bool]
     ) -> BatchJob
 
 Construct an appbundle-type JuliaHub batch job configuration. An appbundle is a directory containing a Julia environment
@@ -625,6 +706,8 @@ JuliaHub.AppBundle(
     \"""
 )
 ```
+
+See [`BatchJob`](@ref) for a description of the optional arguments.
 
 # Extended help
 
@@ -658,7 +741,8 @@ function appbundle end
 function appbundle(
     bundle_directory::AbstractString;
     code::AbstractString,
-    image::Union{BatchImage, Nothing}=nothing,
+    image::Union{BatchImage, Nothing}=_DEFAULT_BatchJob_image,
+    sysimage::Bool=_DEFAULT_BatchJob_sysimage,
 )
     _check_packagebundler_dir(bundle_directory)
     # The maximum size of appbundles is 2 GiB
@@ -668,10 +752,12 @@ function appbundle(
         smallenough || throw(AppBundleSizeError(sz, _APPBUNDLE_MAX_SIZE))
     end
     bundle_tar_path = tempname()
-    _PackageBundler.bundle(
+    sysimage_manifest_sha = _PackageBundler.bundle(
         bundle_directory; output=bundle_tar_path, force=true, allownoenv=true, verbose=false
     )
-    return BatchJob(_AppBundleEnvironment(bundle_tar_path), code; image)
+    return BatchJob(
+        _AppBundleEnvironment(bundle_tar_path), code; image, sysimage, sysimage_manifest_sha
+    )
 end
 
 function appbundle(bundle_directory::AbstractString, codefile::AbstractString; kwargs...)
@@ -767,15 +853,29 @@ struct ApplicationJob <: AbstractJobConfig
 end
 
 """
+    struct Unlimited
+
+An instance of this type can be passed as the [`timelimit`] option to [`submit_job`](@ref) to start
+jobs that run indefinitely, until killed manually.
+
+```julia
+JuliaHub.submit_job(..., timelimit = JuliaHub.Unlimited())
+```
+"""
+struct Unlimited end
+
+"""
     JuliaHub.Limit
 
 Type-constraint on JuliaHub job `timelimit` arguments in [`submit_job`](@ref).
 
-The job time limit can either be a time period (an instance of `Dates.Period`), or an `Integer`,
-which will be interpreted as the number of hours. Only integer number of hours are accepted, and
-fractional hours get rounded up to the next full integer number of hours.
+The job time limit can either be a time period (an instance of `Dates.Period`), an `Integer`,
+(interpreted as the number of hours), or [`JuliaHub.Unlimited()`](@ref JuliaHub.Unlimited).
+
+Only an integer number of hours are accepted by JuliaHub, and fractional hours from get rounded up
+to the next full integer number of hours (e.g. `Dates.Minute(90)` will be interpreted as 2 hours).
 """
-const Limit = Union{Dates.Period, Integer}
+const Limit = Union{Dates.Period, Integer, Unlimited}
 
 # Internal function to convert ::Limit objects to a unified representation as
 # Dates.Hour objects.
@@ -793,6 +893,7 @@ function _timelimit(period::Dates.Period; var::Symbol)
     return _timelimit(period_rounded; var)
 end
 _timelimit(value::Integer; var::Symbol) = _timelimit(Dates.Hour(value); var)
+_timelimit(value::Unlimited; var::Symbol) = value
 # Convenience macro for timelimit() that passes var= along automatically.
 #
 #   @_timelimit(foo) == _timelimit(foo; var=:foo)
@@ -820,7 +921,8 @@ struct WorkloadConfig
     alias::Union{String, Nothing}
     env::Dict{String, String}
     project::Union{UUIDs.UUID, Nothing}
-    timelimit::Dates.Hour
+    timelimit::Union{Dates.Hour, Unlimited}
+    sysimage::Bool
 
     function WorkloadConfig(
         app::AbstractJobConfig, compute::ComputeConfig;
@@ -828,6 +930,7 @@ struct WorkloadConfig
         env=(),
         project::Union{UUIDs.UUID, Nothing}=nothing,
         timelimit::Limit=_DEFAULT_WorkloadConfig_timelimit,
+        sysimage::Bool=false,
     )
         new(
             app,
@@ -836,6 +939,7 @@ struct WorkloadConfig
             Dict(string(k) => v for (k, v) in pairs(env)),
             project,
             @_timelimit(timelimit),
+            sysimage,
         )
     end
 end
@@ -923,6 +1027,10 @@ of the job.
   ```julia
   JuliaHub.submit_job(::WorkloadConfig; [auth::Authentication])
   ```
+
+!!! compat "JuliaHub compatibility"
+
+    The `timelimit = JuliaHub.Unlimited()` argument requires JuliaHub 6.3+.
 """
 function submit_job end
 
@@ -1015,11 +1123,16 @@ function submit_job(
 
     projectid = isnothing(c.project) ? nothing : string(c.project)
 
+    limit_type, limit_value = if isa(c.timelimit, Unlimited)
+        "unlimited", nothing
+    else
+        "time", _nhours(c.timelimit)
+    end
+
     submission = _JobSubmission1(;
         compute..., app...,
         projectid, args,
-        limit_type="time",
-        limit_value=_nhours(c.timelimit)
+        limit_type, limit_value,
     )
     jobname = _submit_job(auth, submission)
     return job(jobname; auth)
@@ -1064,13 +1177,24 @@ function _job_submit_args(
             end
             batch.image._cpu_image_key
         end
-        (; product_name=batch.image.product, image)
+        image_args = (; product_name=batch.image.product, image)
+        # If present, also pass image_sha256 along
+        if isnothing(batch.image._image_sha256)
+            image_args
+        else
+            (; image_args..., image_sha256=batch.image._image_sha256)
+        end
+    else
+        (;)
+    end
+    sysimage_args = if batch.sysimage
+        (; sysimage_build=true, sysimage_manifest_sha=batch.sysimage_manifest_sha)
     else
         (;)
     end
     return (;
         _job_submit_args(auth, workload, batch, batch.environment, _JobSubmission1; kwargs...)...,
-        image_args...,
+        image_args..., sysimage_args...,
     )
 end
 
