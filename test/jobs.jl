@@ -336,6 +336,7 @@ end
         @test_throws ArgumentError JuliaHub.extend_job("jr-cnp3trdmy1", Dates.Hour(0))
         @test_throws ArgumentError JuliaHub.extend_job("jr-cnp3trdmy1", -10)
         @test_throws ArgumentError JuliaHub.extend_job("jr-cnp3trdmy1", Dates.Hour(-10))
+        @test_throws ArgumentError JuliaHub.extend_job("jr-cnp3trdmy1", JuliaHub.Unlimited())
     end
 end
 

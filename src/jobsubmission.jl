@@ -878,7 +878,7 @@ to the next full integer number of hours (e.g. `Dates.Minute(90)` will be interp
 const Limit = Union{Dates.Period, Integer, Unlimited}
 
 # Internal function to convert ::Limit objects to a unified representation as
-# Dates.Hour objects.
+# Dates.Hour objects. Unlimited() values stay Unlimited.
 function _timelimit(value::Dates.Hour; var::Symbol)
     if value <= Dates.Hour(0)
         throw(ArgumentError("Invalid `$(var)` value: $value"))

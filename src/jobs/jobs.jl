@@ -552,7 +552,8 @@ end
 Extends the time limit of the job referred to by the [job reference `ref`](@ref JobReference) by
 `extension` (`Dates.Period`, or `Integer` number of hours). Returns an updated [`Job`](@ref) object.
 
-See [`Limit`](@ref) for more information on how the `extension` argument is interpreted.
+See [`Limit`](@ref) for more information on how the `extension` argument is interpreted. Note that
+[`Unlimited`](@ref) is not allowed as `extension`.
 
 See also: [`Job`](@ref).
 """
@@ -562,6 +563,9 @@ extend_job(job::Job, extension::Limit; auth::Authentication=__auth__()) =
     extend_job(job.id, extension; auth=auth)
 
 function extend_job(jobname::AbstractString, extension::Limit; auth::Authentication=__auth__())
+    if extension isa Unlimited
+        throw(ArgumentError("extension argument to extend_job can not be Unlimited"))
+    end
     payload = JSON.json(
         Dict(
             "jobname" => jobname,
