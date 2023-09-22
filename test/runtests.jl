@@ -140,7 +140,7 @@ end
             :WorkloadConfig, :JobFile, :JobLogMessage, :JobReference, :JobStatus,
             :JuliaHub, :JuliaHubConnectionError, :JuliaHubError,
             :JuliaHubException,
-            :Limit, :NodeSpec, :PackageApp, :PackageJob,
+            :Limit, :NodeSpec, :PackageApp, :PackageJob, :Unlimited,
             :PermissionError, :script, :Secret, :UserApp,
             :application, :applications, :authenticate,
             :batchimage, :batchimages,
