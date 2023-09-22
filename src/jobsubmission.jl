@@ -1128,9 +1128,9 @@ function _job_submit_args(
     kwargs...,
 )
     return (;
-        appType=appjob.app.apptype,
+        appType=appjob.app._apptype,
         customcode=false,
         # `jr_uuid` is set to associate the running job with the application icon in the UI
-        args=Dict("jobname" => appjob.app.name, "jr_uuid" => appjob.app.apptype),
+        args=Dict("jobname" => appjob.app.name, "jr_uuid" => appjob.app._apptype),
     )
 end
