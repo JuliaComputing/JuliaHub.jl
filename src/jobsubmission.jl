@@ -22,7 +22,7 @@ struct _JobSubmission1
     product_name::Union{String, Nothing}
     image::Union{String, Nothing}
     image_sha256::Union{String, Nothing}
-    sysimage_build::Union{Bool, Nothing}
+    sysimage_build::Union{String, Nothing}
     sysimage_manifest_sha::Union{String, Nothing}
     # Job hardware configuration
     node_class::String
@@ -41,7 +41,7 @@ struct _JobSubmission1
         # User code arguments
         appType::Union{AbstractString, Nothing}=nothing,
         args::Dict,
-        projectid::Union{String, Nothing},
+        projectid::Union{AbstractString, Nothing},
         customcode::Bool, usercode::Union{AbstractString, Nothing}=nothing,
         projecttoml::Union{AbstractString, Nothing}=nothing,
         manifesttoml::Union{AbstractString, Nothing}=nothing,
@@ -138,7 +138,7 @@ struct _JobSubmission1
             appbundle, appbundle_upload_info,
             registry_name, package_name, branch_name, git_revision,
             # Job image configuration
-            product_name, image, image_sha256, sysimage_build, sysimage_manifest_sha,
+            product_name, image, image_sha256, string(sysimage_build), sysimage_manifest_sha,
             # Compute configuration
             node_class, string(cpu),
             string(nworkers), _string_or_nothing(elastic), _string_or_nothing(min_workers_required),
@@ -319,16 +319,24 @@ struct _ScriptEnvironment
         new(project, manifest, artifacts)
     end
 end
+_sysimage_manifest_sha(e::_ScriptEnvironment) =
+    isnothing(e.manifest_toml) ? nothing : bytes2hex(SHA.sha2_256(e.manifest_toml))
 
 struct _AppBundleEnvironment
     tarball_path::String
+    manifest_sha256::Union{String, Nothing}
 
-    function _AppBundleEnvironment(path::AbstractString)
+    function _AppBundleEnvironment(
+        path::AbstractString; manifest_sha256::Union{AbstractString, Nothing}
+    )
         isfile(path) || throw(ArgumentError("Tarball does not exist: $(path)"))
-        new(path)
+        new(path, manifest_sha256)
     end
 end
+_sysimage_manifest_sha(e::_AppBundleEnvironment) = e.manifest_sha256
 
+# Note: if this is extended, _sysimage_manifest_sha must be implemented for the
+# new _BatchJobEnvironment.
 const _BatchJobEnvironment = Union{_ScriptEnvironment, _AppBundleEnvironment}
 
 const _DEFAULT_BatchJob_image = nothing
@@ -397,37 +405,33 @@ struct BatchJob <: AbstractJobConfig
     code::String
     image::Union{BatchImage, Nothing}
     sysimage::Bool
-    sysimage_manifest_sha::Union{String, Nothing}
 
     # Private constructor
     function BatchJob(
         environment::_BatchJobEnvironment, code::String;
         image::Union{BatchImage, Nothing}=_DEFAULT_BatchJob_image,
         sysimage::Bool=_DEFAULT_BatchJob_sysimage,
-        sysimage_manifest_sha::Union{AbstractString, Nothing}=nothing,
     )
         # This can happen if the user constructs a script-type job without passing the manifest,
         # and then tries to enable sysimage (either in `script` or later with `BatchJob`).
-        if sysimage && isnothing(sysimage_manifest_sha)
-            throw(ArgumentError("Unable to construct a batch job without a Manifest.toml"))
+        if sysimage && isnothing(_sysimage_manifest_sha(environment))
+            throw(ArgumentError("Unable to construct a sysimage batch job without a Manifest.toml"))
         end
-        new(environment, code, image, sysimage, sysimage_manifest_sha)
+        new(environment, code, image, sysimage)
     end
+end
 
-    # Public constructor
-    function BatchJob(
-        batch::BatchJob;
-        image::Union{BatchImage, Nothing, Missing}=missing,
-        sysimage::Union{Bool, Missing}=missing,
+# Public constructor
+function BatchJob(
+    batch::BatchJob;
+    image::Union{BatchImage, Nothing, Missing}=missing,
+    sysimage::Union{Bool, Missing}=missing,
+)
+    return BatchJob(
+        batch.environment, batch.code;
+        image=ismissing(image) ? batch.image : image,
+        sysimage=ismissing(sysimage) ? batch.sysimage : sysimage,
     )
-        new(
-            batch.environment,
-            batch.code,
-            ismissing(image) ? batch.image : image,
-            ismissing(sysimage) ? batch.sysimage : sysimage,
-            batch.sysimage_manifest_sha,
-        )
-    end
 end
 
 function Base.show(io::IO, ::MIME"text/plain", batch::BatchJob)
@@ -435,6 +439,9 @@ function Base.show(io::IO, ::MIME"text/plain", batch::BatchJob)
     print(io, "\ncode = ", '"'^3, '\n', batch.code)
     print(io, '"'^3)
     _batchcompute_env_show(io, batch.environment)
+    if batch.sysimage
+        print(io, "\nsysimage = ", _sysimage_manifest_sha(batch.environment))
+    end
 end
 
 function _batchcompute_env_show(io::IO, script_env::_ScriptEnvironment)
@@ -545,13 +552,7 @@ function script(;
     image::Union{BatchImage, Nothing}=_DEFAULT_BatchJob_image,
     sysimage::Bool=_DEFAULT_BatchJob_sysimage,
 )
-    return BatchJob(
-        _ScriptEnvironment(; project, manifest, artifacts),
-        code;
-        image,
-        sysimage,
-        sysimage_manifest_sha=isnothing(manifest) ? nothing : bytes2hex(SHA.sha2_256(manifest)),
-    )
+    return BatchJob(_ScriptEnvironment(; project, manifest, artifacts), code; image, sysimage)
 end
 
 function _load_project_env(d::AbstractString)
@@ -752,12 +753,10 @@ function appbundle(
         smallenough || throw(AppBundleSizeError(sz, _APPBUNDLE_MAX_SIZE))
     end
     bundle_tar_path = tempname()
-    sysimage_manifest_sha = _PackageBundler.bundle(
+    manifest_sha256 = _PackageBundler.bundle(
         bundle_directory; output=bundle_tar_path, force=true, allownoenv=true, verbose=false
     )
-    return BatchJob(
-        _AppBundleEnvironment(bundle_tar_path), code; image, sysimage, sysimage_manifest_sha
-    )
+    return BatchJob(_AppBundleEnvironment(bundle_tar_path; manifest_sha256), code; image, sysimage)
 end
 
 function appbundle(bundle_directory::AbstractString, codefile::AbstractString; kwargs...)
@@ -1188,7 +1187,11 @@ function _job_submit_args(
         (;)
     end
     sysimage_args = if batch.sysimage
-        (; sysimage_build=true, sysimage_manifest_sha=batch.sysimage_manifest_sha)
+        sysimage_manifest_sha = _sysimage_manifest_sha(batch.environment)
+        if isnothing(sysimage_manifest_sha)
+            throw(InvalidRequestError("Manifest.toml must be provided for a sysimage job"))
+        end
+        (; sysimage_build=true, sysimage_manifest_sha)
     else
         (;)
     end
