@@ -4,7 +4,7 @@ _DOCS_apps_experimental = """
 !!! compat "Experimental API"
 
     Applications-related APIs are experimental, and may be changed or removed
-    without noticed.
+    without notice.
 """
 
 # Internal object to store registry information
