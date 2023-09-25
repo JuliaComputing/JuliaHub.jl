@@ -46,15 +46,15 @@ A list of these node specifications can be obtained with the [`nodespecs`](@ref)
 ```jldoctest
 julia> JuliaHub.nodespecs()
 9-element Vector{JuliaHub.NodeSpec}:
- JuliaHub.nodespec(#= m6: 3.5 GHz Intel Xeon Platinum 8375C, 0.33/hr =#; ncpu=4, memory=16, gpu=false)
- JuliaHub.nodespec(#= m6: 3.5 GHz Intel Xeon Platinum 8375C, 0.65/hr =#; ncpu=8, memory=32, gpu=false)
- JuliaHub.nodespec(#= m6: 3.5 GHz Intel Xeon Platinum 8375C, 2.4/hr =#; ncpu=32, memory=128, gpu=false)
- JuliaHub.nodespec(#= r6: 3.5 GHz Intel Xeon Platinum 8375C, 0.22/hr =#; ncpu=2, memory=16, gpu=false)
- JuliaHub.nodespec(#= r6: 3.5 GHz Intel Xeon Platinum 8375C, 0.42/hr =#; ncpu=4, memory=32, gpu=false)
- JuliaHub.nodespec(#= m6: 3.5 GHz Intel Xeon Platinum 8375C, 0.17/hr =#; ncpu=2, memory=8, gpu=false)
- JuliaHub.nodespec(#= r6: 3.5 GHz Intel Xeon Platinum 8375C, 1.3/hr =#; ncpu=8, memory=64, gpu=false)
- JuliaHub.nodespec(#= p2: Intel Xeon E5-2686 v4 (Broadwell), 1.4/hr =#; ncpu=4, memory=61, gpu=true)
- JuliaHub.nodespec(#= p3: Intel Xeon E5-2686 v4 (Broadwell), 4.5/hr =#; ncpu=8, memory=61, gpu=true)
+ JuliaHub.nodespec(#= m6: 3.5 GHz Intel Xeon Platinum 8375C, 0.33/hr =#; ncpu=4, memory=16, ngpu=false, exactmatch=true)
+ JuliaHub.nodespec(#= m6: 3.5 GHz Intel Xeon Platinum 8375C, 0.65/hr =#; ncpu=8, memory=32, ngpu=false, exactmatch=true)
+ JuliaHub.nodespec(#= m6: 3.5 GHz Intel Xeon Platinum 8375C, 2.4/hr =#; ncpu=32, memory=128, ngpu=false, exactmatch=true)
+ JuliaHub.nodespec(#= r6: 3.5 GHz Intel Xeon Platinum 8375C, 0.22/hr =#; ncpu=2, memory=16, ngpu=false, exactmatch=true)
+ JuliaHub.nodespec(#= r6: 3.5 GHz Intel Xeon Platinum 8375C, 0.42/hr =#; ncpu=4, memory=32, ngpu=false, exactmatch=true)
+ JuliaHub.nodespec(#= m6: 3.5 GHz Intel Xeon Platinum 8375C, 0.17/hr =#; ncpu=2, memory=8, ngpu=false, exactmatch=true)
+ JuliaHub.nodespec(#= r6: 3.5 GHz Intel Xeon Platinum 8375C, 1.3/hr =#; ncpu=8, memory=64, ngpu=false, exactmatch=true)
+ JuliaHub.nodespec(#= p2: Intel Xeon E5-2686 v4 (Broadwell), 1.4/hr =#; ncpu=4, memory=61, ngpu=true, exactmatch=true)
+ JuliaHub.nodespec(#= p3: Intel Xeon E5-2686 v4 (Broadwell), 4.5/hr =#; ncpu=8, memory=61, ngpu=true, exactmatch=true)
 ```
 
 While you can manually index into the list returned by [`nodespecs`](@ref), that is generally inconvenient.
