@@ -259,8 +259,15 @@ end
 
 function Base.show(io::IO, c::ComputeConfig)
     print(io, typeof(c), "(", c.node, "; ")
-    print(io, "nnodes = ", c.nnodes, ", ")
-    print(io, "process_per_node = ", c.process_per_node)
+    print(io, "nnodes = ")
+    if !isnothing(c.nnodes_min)
+        print(io, "(", c.nnodes_min, ", ", c.nnodes_max, ")")
+    else
+        print(io, c.nnodes_max)
+    end
+    print(io, ", ")
+    print(io, "process_per_node = ", c.process_per_node, ", ")
+    print(io, "elastic = ", c.elastic)
     print(io, ")")
 end
 

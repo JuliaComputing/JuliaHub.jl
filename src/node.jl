@@ -55,7 +55,7 @@ end
 function Base.show(io::IO, node::NodeSpec)
     print(io, "JuliaHub.nodespec(")
     print(io, "#= $(node.nodeClass): $(node.desc), $(node.priceHr)/hr =#")
-    print(io, "; ncpu=$(node.vcores), memory=$(node.mem), gpu=$(node.hasGPU))")
+    print(io, "; ncpu=$(node.vcores), memory=$(node.mem), ngpu=$(node.hasGPU), exactmatch=true)")
 end
 
 function Base.show(io::IO, ::MIME"text/plain", node::NodeSpec)
