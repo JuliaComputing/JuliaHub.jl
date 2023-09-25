@@ -1015,7 +1015,7 @@ function submit_job(
     else
         c.env
     end
-    merge!(args, get(app, :args, Dict()))
+    args = merge(get(app, :args, Dict()), args)
 
     projectid = isnothing(c.project) ? nothing : string(c.project)
 
