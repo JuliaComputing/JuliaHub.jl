@@ -4,7 +4,7 @@ _DOCS_apps_experimental = """
 !!! compat "Experimental API"
 
     Applications-related APIs are experimental, and may be changed or removed
-    without noticed.
+    without notice.
 """
 
 # Internal object to store registry information
@@ -21,11 +21,13 @@ struct _RegistryInfo
     end
 end
 
-function _api_registries(auth::Authentication)
+function _api_registries(auth::Authentication)::Vector{_RegistryInfo}
     r = _restcall(auth, :GET, "app", "packages", "registries")
     json, _ = _parse_response_json(r, Dict)
     _json_check_success(json; var="app/packages/registries")
     registries = _json_get(json, "registries", Vector; var="app/packages/registries")
+    # Note: this broadcast can return Any[] if `registries` is empty, hence
+    # the need for a return type.
     return _RegistryInfo.(registries; var="app/packages/registries")
 end
 

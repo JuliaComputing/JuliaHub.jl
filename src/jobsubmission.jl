@@ -817,9 +817,9 @@ struct PackageJob <: AbstractJobConfig
     args::Dict
 
     PackageJob(app::PackageApp; args::Dict=Dict()) =
-        new(app, app.name, app.registry.name, string(app.uuid), args)
+        new(app, app.name, app._registry.name, string(app.uuid), args)
     PackageJob(app::UserApp; args::Dict=Dict()) =
-        new(app, app.name, nothing, app.repository, args)
+        new(app, app.name, nothing, app._repository, args)
 end
 
 function _check_packagebundler_dir(bundlepath::AbstractString)
@@ -1241,10 +1241,10 @@ function _job_submit_args(
     return (;
         appType="userapp",
         customcode=false,
-        package_name=packagejob.id,
+        package_name=packagejob.name,
         registry_name=packagejob.registry,
         args=merge(
-            Dict("jobname" => packagejob.id, "jr_uuid" => packagejob.jr_uuid),
+            Dict("jobname" => packagejob.name, "jr_uuid" => packagejob.jr_uuid),
             packagejob.args
         ),
     )
@@ -1255,9 +1255,9 @@ function _job_submit_args(
     kwargs...,
 )
     return (;
-        appType=appjob.app.apptype,
+        appType=appjob.app._apptype,
         customcode=false,
         # `jr_uuid` is set to associate the running job with the application icon in the UI
-        args=Dict("jobname" => appjob.app.name, "jr_uuid" => appjob.app.apptype),
+        args=Dict("jobname" => appjob.app.name, "jr_uuid" => appjob.app._apptype),
     )
 end
