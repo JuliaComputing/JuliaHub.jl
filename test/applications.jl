@@ -22,3 +22,19 @@ end
         @test JuliaHub.application(:default, "no-such-app"; throw=false) === nothing
     end
 end
+
+TEST_SUBMIT_APPS = [
+    (:default, "Pluto", JuliaHub.DefaultApp),
+    (:package, "RegisteredPackageApp", JuliaHub.PackageApp),
+    (:user, "ExampleApp.jl", JuliaHub.UserApp),
+]
+@testset "Submit app: :$cat / $apptype" for (cat, name, apptype) in TEST_SUBMIT_APPS
+    Mocking.apply(mocking_patch) do
+        app = JuliaHub.application(cat, name)
+        @test isa(app, apptype)
+        @test app.name == name
+        j = JuliaHub.submit_job(app)
+        @test j isa JuliaHub.Job
+        @test j.status == "Completed"
+    end
+end
