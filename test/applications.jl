@@ -23,6 +23,19 @@ end
     end
 end
 
+@testset "Empty user/registered apps" begin
+    MOCK_JULIAHUB_STATE[:app_packages_registries] = []
+    MOCK_JULIAHUB_STATE[:app_applications_info] = []
+    MOCK_JULIAHUB_STATE[:app_applications_myapps] = []
+    Mocking.apply(mocking_patch) do
+        @test length(JuliaHub.applications()) == 4
+        @test length(JuliaHub.applications(:default)) == 4
+        @test length(JuliaHub.applications(:package)) == 0
+        @test length(JuliaHub.applications(:user)) == 0
+    end
+    empty!(MOCK_JULIAHUB_STATE)
+end
+
 TEST_SUBMIT_APPS = [
     (:default, "Pluto", JuliaHub.DefaultApp),
     (:package, "RegisteredPackageApp", JuliaHub.PackageApp),
