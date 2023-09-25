@@ -203,14 +203,16 @@ function _restcall_mocked(method, url, headers, payload; query)
             ],
         ) |> jsonresponse(200)
     elseif (method == :GET) && endswith(url, "app/packages/registries")
-        Dict(
-            "success" => true, "message" => "",
-            "registries" => [
+        packages_registries = get(MOCK_JULIAHUB_STATE, :app_packages_registries) do
+            [
                 #! format: off
                 Dict("name" => "General", "uuid" => "23338594-aafe-5451-b93e-139f81909106", "id" => 1),
                 Dict("name" => "JuliaComputingRegistry", "uuid" => "bbcd6645-47a4-41f8-a415-d8fc8421bd34", "id" => 266),
                 #! format: on
-            ],
+            ]
+        end
+        Dict(
+            "success" => true, "message" => "", "registries" => packages_registries
         ) |> jsonresponse(200)
     elseif (method == :GET) && endswith(url, "app/applications/default")
         r = if apiv >= v"0.0.1"
@@ -251,27 +253,33 @@ function _restcall_mocked(method, url, headers, payload; query)
         end
         r |> jsonresponse(200)
     elseif (method == :GET) && endswith(url, "app/applications/info")
-        Any[
-            Dict(
-                "name" => "RegisteredPackageApp",
-                "uuid" => "db8b4d46-bfad-4aa5-a5f8-40df1e9542e5",
-                "registrymap" => Any[Dict("status" => true, "id" => "1")],
-            ),
-            Dict(
-                "name" => "CustomDashboardApp",
-                "uuid" => "539b0f2a-a771-427e-a3ea-5fa1ee615c0c",
-                "registrymap" => Any[Dict("status" => true, "id" => "266")],
-            ),
-        ] |> jsonresponse(200)
+        applications_info = get(MOCK_JULIAHUB_STATE, :app_applications_info) do
+            Any[
+                Dict(
+                    "name" => "RegisteredPackageApp",
+                    "uuid" => "db8b4d46-bfad-4aa5-a5f8-40df1e9542e5",
+                    "registrymap" => Any[Dict("status" => true, "id" => "1")],
+                ),
+                Dict(
+                    "name" => "CustomDashboardApp",
+                    "uuid" => "539b0f2a-a771-427e-a3ea-5fa1ee615c0c",
+                    "registrymap" => Any[Dict("status" => true, "id" => "266")],
+                ),
+            ]
+        end
+        applications_info |> jsonresponse(200)
     elseif (method == :GET) && endswith(url, "app/applications/myapps")
-        #! format: off
-        Any[
-            Dict(
-                "name" => "ExampleApp.jl",
-                "repourl" => "https://github.com/JuliaHubExampleOrg/ExampleApp.jl",
-            ),
-        ] |> jsonresponse(200)
-        #! format: on
+        applications_myapps = get(MOCK_JULIAHUB_STATE, :app_applications_myapps) do
+            #! format: off
+            Any[
+                Dict(
+                    "name" => "ExampleApp.jl",
+                    "repourl" => "https://github.com/JuliaHubExampleOrg/ExampleApp.jl",
+                ),
+            ]
+            #! format: on
+        end
+        applications_myapps |> jsonresponse(200)
     elseif (method == :POST) && endswith(url, "juliaruncloud/submit_job")
         jobname = "jr-xf4tslavut"
         Dict("message" => "", "success" => true, "jobname" => jobname) |> jsonresponse(200)
