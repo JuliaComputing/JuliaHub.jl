@@ -4,7 +4,7 @@ DEFAULT_IDE_NAME = get(ENV, "JULIAHUBJL_LIVE_IDE_NAME", "Julia IDE")
 
 @testset "[LIVE] Application job" begin
     default_ide = JuliaHub.application(:default, DEFAULT_IDE_NAME)
-    job, _ = submit_test_job(default_ide, auth; alias=DEFAULT_IDE_NAME)
+    job, _ = submit_test_job(default_ide; auth, alias=DEFAULT_IDE_NAME)
     @test occursin(DEFAULT_IDE_NAME, job.alias)
     job = wait_submission(job)
     @test job.status == "Running"
