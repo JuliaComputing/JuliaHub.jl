@@ -222,7 +222,7 @@ configuration and the cluster topology.
 
 See also: [`submit_job`](@ref).
 
-## Constructors
+# Constructors
 
 ```julia
 JuliaHub.ComputeConfig(
@@ -805,6 +805,30 @@ end
 
 [`AbstractJobConfig`](@ref) that wraps a [`PackageApp`](@ref) or [`UserApp`](@ref).
 This is primarily used internally and should rarely be constructed explicitly.
+
+# Constructors
+
+```julia
+JuliaHub.PackageJob(app::Union{JuliaHub.PackageApp,JuliaHub.UserApp}; [sysimage::Bool = false])
+```
+
+Can be used to construct a [`PackageApp`](@ref) or [`UserApp`](@ref) based job, but allows for some
+job parameters to be overridden. Currently, only support the enabling of a system image based job
+by setting `sysimage = true`.
+
+```jldoctest; setup = :(Main.MOCK_JULIAHUB_STATE[:jobs] = Dict("jr-xf4tslavut" => Dict("status" => "Submitted","files" => [],"outputs" => "")))
+julia> app = JuliaHub.application(:package, "RegisteredPackageApp")
+PackageApp
+ name: RegisteredPackageApp
+ uuid: db8b4d46-bfad-4aa5-a5f8-40df1e9542e5
+ registry: General (23338594-aafe-5451-b93e-139f81909106)
+
+julia> JuliaHub.submit_job(JuliaHub.PackageJob(app; sysimage = true))
+JuliaHub.Job: jr-xf4tslavut (Submitted)
+ submitted: 2023-03-15T07:56:50.974+00:00
+ started:   2023-03-15T07:56:51.251+00:00
+ finished:  2023-03-15T07:56:59.000+00:00
+```
 """
 struct PackageJob <: AbstractJobConfig
     _app::Union{PackageApp, UserApp}
