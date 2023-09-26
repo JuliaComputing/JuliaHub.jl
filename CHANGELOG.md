@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
-* Fixed the submission of application-type jobs. (#31, #32, #33)
+* Fixed the submission of application-type jobs. (#31, #32, #33, #35)
 * `JuliaHub.applications()` no longer throws a type error when the user has no registered and user applications. (#33)
 
 ## Version v0.1.4 - 2023-08-21
