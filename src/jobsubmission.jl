@@ -96,9 +96,6 @@ struct _JobSubmission1
             isnothing(match(r"^[0-9a-f]{64}$", sysimage_manifest_sha))
             throw(ArgumentError("Invalid sysimage_manifest_sha: '$sysimage_manifest_sha'"))
         end
-        if (sysimage_build === true) && isnothing(sysimage_manifest_sha)
-            throw(ArgumentError("Must pass sysimage_manifest_sha if sysimage_build=true"))
-        end
         # appbundle validation & processing
         if isnothing(appbundle)
             isnothing(appbundle_upload_info) || throw(
@@ -815,11 +812,12 @@ struct PackageJob <: AbstractJobConfig
     registry::Union{String, Nothing}
     jr_uuid::String
     args::Dict
+    sysimage::Bool
 
-    PackageJob(app::PackageApp; args::Dict=Dict()) =
-        new(app, app.name, app._registry.name, string(app.uuid), args)
-    PackageJob(app::UserApp; args::Dict=Dict()) =
-        new(app, app.name, nothing, app._repository, args)
+    PackageJob(app::PackageApp; args::Dict=Dict(), sysimage::Bool=_DEFAULT_BatchJob_sysimage) =
+        new(app, app.name, app._registry.name, string(app._uuid), args, sysimage)
+    PackageJob(app::UserApp; args::Dict=Dict(), sysimage::Bool=_DEFAULT_BatchJob_sysimage) =
+        new(app, app.name, nothing, app._repository, args, sysimage)
 end
 
 function _check_packagebundler_dir(bundlepath::AbstractString)
@@ -1257,6 +1255,8 @@ function _job_submit_args(
             Dict("jobname" => packagejob.name, "jr_uuid" => packagejob.jr_uuid),
             packagejob.args
         ),
+        # Just in case, we want to omit sysimage_build altogether when it is not requested.
+        sysimage_build=packagejob.sysimage ? true : nothing,
     )
 end
 
