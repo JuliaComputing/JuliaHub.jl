@@ -3,6 +3,7 @@
 struct _JobSubmission1
     # User code & app configuration
     appType::Union{String, Nothing} # defaults to 'batch'
+    appArgs::Union{String, Nothing}
     args::String
     projectid::Union{String, Nothing}
     ## batch jobs
@@ -40,6 +41,7 @@ struct _JobSubmission1
     function _JobSubmission1(;
         # User code arguments
         appType::Union{AbstractString, Nothing}=nothing,
+        appArgs::Union{Dict, Nothing}=nothing,
         args::Dict,
         projectid::Union{AbstractString, Nothing},
         customcode::Bool, usercode::Union{AbstractString, Nothing}=nothing,
@@ -122,10 +124,11 @@ struct _JobSubmission1
             appbundle_upload_info = JSON.json(appbundle_upload_info)
         end
         limit_value = isnothing(limit_value) ? nothing : string(limit_value)
+        appArgs = isnothing(appArgs) ? nothing : JSON.json(appArgs)
         # Create the _JobSubmission1 object
         new(
             # User code & app configuration
-            appType, args, projectid,
+            appType, appArgs, args, projectid,
             ## batch job configuration
             string(customcode),
             usercode,
@@ -1155,6 +1158,7 @@ function submit_job(
     else
         c.env
     end
+    args = merge(get(app, :args, Dict()), args)
 
     projectid = isnothing(c.project) ? nothing : string(c.project)
 
@@ -1290,6 +1294,7 @@ function _job_submit_args(
 )
     return (;
         appType=appjob.app._apptype,
+        appArgs=Dict("authentication" => true, "authorization" => "me"),
         customcode=false,
         # `jr_uuid` is set to associate the running job with the application icon in the UI
         args=Dict("jobname" => appjob.app.name, "jr_uuid" => appjob.app._apptype),
