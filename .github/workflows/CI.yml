@@ -119,12 +119,7 @@ jobs:
       - name: Set up documentation environment
         run: |
           using Pkg
-          # TODO: remove docs manifest once Documenter 1.0 is released
-          #Pkg.add([
-          #  PackageSpec(name="Documenter", rev="master"),
-          #  PackageSpec(url="https://github.com/JuliaDocs/DocumenterMermaid.jl.git")
-          #])
-          #Pkg.develop(path=".")
+          Pkg.develop(path=".")
           Pkg.instantiate()
         shell: julia --color=yes --project=docs/ {0}
       - name: Build & deploy the documentation
@@ -148,11 +143,7 @@ jobs:
       - name: Set up documentation environment
         run: |
           using Pkg
-          #Pkg.add([
-          #  PackageSpec(name="Documenter", rev="master"),
-          #  PackageSpec(url="https://github.com/JuliaDocs/DocumenterMermaid.jl.git")
-          #])
-          #Pkg.develop(path=".")
+          Pkg.develop(path=".")
           Pkg.instantiate()
         shell: julia --color=yes --project=docs/ {0}
       - name: Check doctests
