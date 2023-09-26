@@ -3,6 +3,7 @@
 struct _JobSubmission1
     # User code & app configuration
     appType::Union{String, Nothing} # defaults to 'batch'
+    appArgs::Union{String, Nothing}
     args::String
     projectid::Union{String, Nothing}
     ## batch jobs
@@ -38,6 +39,7 @@ struct _JobSubmission1
     function _JobSubmission1(;
         # User code arguments
         appType::Union{AbstractString, Nothing}=nothing,
+        appArgs::Union{Dict, Nothing}=nothing,
         args::Dict,
         projectid::Union{String, Nothing},
         customcode::Bool, usercode::Union{AbstractString, Nothing}=nothing,
@@ -104,10 +106,11 @@ struct _JobSubmission1
             )
             appbundle_upload_info = JSON.json(appbundle_upload_info)
         end
+        appArgs = isnothing(appArgs) ? nothing : JSON.json(appArgs)
         # Create the _JobSubmission1 object
         new(
             # User code & app configuration
-            appType, args, projectid,
+            appType, appArgs, args, projectid,
             ## batch job configuration
             string(customcode),
             usercode,
@@ -732,9 +735,9 @@ struct PackageJob <: AbstractJobConfig
     args::Dict
 
     PackageJob(app::PackageApp; args::Dict=Dict()) =
-        new(app, app.name, app.registry.name, string(app.uuid), args)
+        new(app, app.name, app._registry.name, string(app.uuid), args)
     PackageJob(app::UserApp; args::Dict=Dict()) =
-        new(app, app.name, nothing, app.repository, args)
+        new(app, app.name, nothing, app._repository, args)
 end
 
 function _check_packagebundler_dir(bundlepath::AbstractString)
@@ -1012,6 +1015,7 @@ function submit_job(
     else
         c.env
     end
+    args = merge(get(app, :args, Dict()), args)
 
     projectid = isnothing(c.project) ? nothing : string(c.project)
 
@@ -1114,10 +1118,10 @@ function _job_submit_args(
     return (;
         appType="userapp",
         customcode=false,
-        package_name=packagejob.id,
+        package_name=packagejob.name,
         registry_name=packagejob.registry,
         args=merge(
-            Dict("jobname" => packagejob.id, "jr_uuid" => packagejob.jr_uuid),
+            Dict("jobname" => packagejob.name, "jr_uuid" => packagejob.jr_uuid),
             packagejob.args
         ),
     )
@@ -1128,9 +1132,10 @@ function _job_submit_args(
     kwargs...,
 )
     return (;
-        appType=appjob.app.apptype,
+        appType=appjob.app._apptype,
+        appArgs=Dict("authentication" => true, "authorization" => "me"),
         customcode=false,
         # `jr_uuid` is set to associate the running job with the application icon in the UI
-        args=Dict("jobname" => appjob.app.name, "jr_uuid" => appjob.app.apptype),
+        args=Dict("jobname" => appjob.app.name, "jr_uuid" => appjob.app._apptype),
     )
 end
