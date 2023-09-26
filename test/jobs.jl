@@ -149,24 +149,45 @@ end
     end
 end
 
+# This testset uses the show(::IO, ::JuliaHub.ComputeConfig) representation of ComputeConfig,
+# makes sure it parses, and then also makes sure it parses into the same object (i.e. all
+# fields are restored accurately).
+function ComputeConfig_eval_tests(cc::JuliaHub.ComputeConfig)
+    cc_expr = Meta.parse(string(cc))
+    @test cc_expr.head == :call
+    @test cc_expr.args[1] == :(JuliaHub.ComputeConfig)
+    @test cc_expr.args[3].head == :call
+    # Indirectly, we're also testing the parsing of the nodespec() function
+    cc_eval = Mocking.apply(mocking_patch) do
+        eval(cc_expr)
+    end
+    @test cc_eval isa JuliaHub.ComputeConfig
+    for fieldname in fieldnames(JuliaHub.ComputeConfig)
+        @test getfield(cc_eval, fieldname) == getfield(cc, fieldname)
+    end
+end
+
 @testset "JuliaHub.ComputeConfig" begin
     let cc = JuliaHub.ComputeConfig(ns_cheapest)
         @test cc.nnodes_max === 1
         @test cc.nnodes_min === nothing
         @test cc.process_per_node === true
         @test cc.elastic === false
+        ComputeConfig_eval_tests(cc)
     end
     let cc = JuliaHub.ComputeConfig(ns_cheapest; nnodes = 5, elastic=true)
         @test cc.nnodes_max === 5
         @test cc.nnodes_min === nothing
         @test cc.process_per_node === true
         @test cc.elastic === true
+        ComputeConfig_eval_tests(cc)
     end
     let cc = JuliaHub.ComputeConfig(ns_cheapest; nnodes = (10, 20))
         @test cc.nnodes_max === 20
         @test cc.nnodes_min === 10
         @test cc.process_per_node === true
         @test cc.elastic === false
+        ComputeConfig_eval_tests(cc)
     end
     @test_throws ArgumentError JuliaHub.ComputeConfig(ns_cheapest; nnodes=-20)
     @test_throws ArgumentError JuliaHub.ComputeConfig(ns_cheapest; nnodes=(-5, 3))
