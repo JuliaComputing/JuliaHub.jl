@@ -921,7 +921,8 @@ struct WorkloadConfig
     env::Dict{String, String}
     project::Union{UUIDs.UUID, Nothing}
     timelimit::Union{Dates.Hour, Unlimited}
-    sysimage::Bool
+    # internal, undocumented, may be removed an any point, not part of the public API:
+    _image_sha256::Union{String, Nothing}
 
     function WorkloadConfig(
         app::AbstractJobConfig, compute::ComputeConfig;
@@ -929,8 +930,16 @@ struct WorkloadConfig
         env=(),
         project::Union{UUIDs.UUID, Nothing}=nothing,
         timelimit::Limit=_DEFAULT_WorkloadConfig_timelimit,
-        sysimage::Bool=false,
+        # internal, undocumented, may be removed an any point, not part of the public API:
+        _image_sha256::Union{AbstractString, Nothing}=nothing,
     )
+        if !isnothing(_image_sha256) && !_isvalid_image_sha256(_image_sha256)
+            Base.throw(
+                ArgumentError(
+                    "Invalid _image_sha256 value: '$_image_sha256', expected 'sha256:\$(hash)'"
+                ),
+            )
+        end
         new(
             app,
             compute,
@@ -938,7 +947,7 @@ struct WorkloadConfig
             Dict(string(k) => v for (k, v) in pairs(env)),
             project,
             @_timelimit(timelimit),
-            sysimage,
+            _image_sha256,
         )
     end
 end
@@ -962,6 +971,9 @@ function Base.show(io::IO, ::MIME"text/plain", jc::WorkloadConfig)
         end
     end
     isnothing(jc.project) || print(io, "\nproject: $(jc.project)")
+    if !isnothing(jc._image_sha256)
+        print(io, "\n_image_sha256: ", jc._image_sha256)
+    end
 end
 
 """
@@ -1070,6 +1082,8 @@ function submit_job(
     env=(),
     project::Union{UUIDs.UUID, AbstractString, Nothing}=nothing,
     timelimit::Limit=_DEFAULT_WorkloadConfig_timelimit,
+    # internal, undocumented, may be removed an any point, not part of the public API:
+    _image_sha256::Union{AbstractString, Nothing}=nothing,
     # General submit_job arguments
     kwargs...,
 )
@@ -1087,8 +1101,8 @@ function submit_job(
         project
     end
     submit_job(
-        WorkloadConfig(app, compute; alias, env, project, timelimit);
-        kwargs...,
+        WorkloadConfig(app, compute; alias, env, project, timelimit, _image_sha256);
+        kwargs...
     )
 end
 
@@ -1132,6 +1146,8 @@ function submit_job(
         compute..., app...,
         projectid, args,
         limit_type, limit_value,
+        # if present in WorkloadConfig, we also pass image_sha256 along
+        image_sha256=c._image_sha256,
     )
     jobname = _submit_job(auth, submission)
     return job(jobname; auth)
@@ -1176,13 +1192,7 @@ function _job_submit_args(
             end
             batch.image._cpu_image_key
         end
-        image_args = (; product_name=batch.image.product, image)
-        # If present, also pass image_sha256 along
-        if isnothing(batch.image._image_sha256)
-            image_args
-        else
-            (; image_args..., image_sha256=batch.image._image_sha256)
-        end
+        (; product_name=batch.image.product, image)
     else
         (;)
     end

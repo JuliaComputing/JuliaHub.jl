@@ -18,25 +18,12 @@ Base.@kwdef struct BatchImage
     _cpu_image_key::Union{String, Nothing}
     _gpu_image_key::Union{String, Nothing}
     _is_product_default::Bool
-    _image_sha256::Union{String, Nothing} = nothing
 end
-# Internal constructor to override the undocumented _image_sha256 parameter
-BatchImage(image::BatchImage, _image_sha256::AbstractString) = BatchImage(;
-    product=image.product,
-    image=image.image,
-    _cpu_image_key=image._cpu_image_key,
-    _gpu_image_key=image._gpu_image_key,
-    _is_product_default=image._is_product_default,
-    _image_sha256,
-)
 
 function Base.show(io::IO, image::BatchImage)
     print(io, "JuliaHub.batchimage(")
     print(io, '"', image.product, "\", ")
     print(io, '"', image.image, '"')
-    if !isnothing(image._image_sha256)
-        print(io, ", _image_sha256 = \"", image._image_sha256, '"')
-    end
     print(io, ")")
 end
 
@@ -46,9 +33,6 @@ function Base.show(io::IO, ::MIME"text/plain", image::BatchImage)
     print(io, '\n', " image: ", image.image)
     isnothing(image._cpu_image_key) || print(io, "\n CPU image: ", image._cpu_image_key)
     isnothing(image._gpu_image_key) || print(io, "\n GPU image: ", image._gpu_image_key)
-    if !isnothing(image._image_sha256)
-        print(io, '\n', " _image_sha256: ", image._image_sha256)
-    end
 end
 
 # This value is used in BatchImages objects when running against older JuliaHub
@@ -133,23 +117,11 @@ function batchimage(
     product::AbstractString,
     image::AbstractString;
     throw::Bool=true,
-    _image_sha256::Union{AbstractString, Nothing}=nothing, # internal, undocumented, may be removed an any point, not part of public API
     auth::Authentication=__auth__(),
 )
-    if !isnothing(_image_sha256) && !_isvalid_image_sha256(_image_sha256)
-        Base.throw(
-            ArgumentError(
-                "Invalid _image_sha256 value: '$_image_sha256', expected 'sha256:\$(hash)'"
-            ),
-        )
-    end
     images = batchimages(; auth)
     for i in images
-        if (i.product == product) && (i.image == image)
-            # If the user passed the internal, undocumented _image_sha256, we need to
-            # override it in the returned BatchImage object. But generally we just return i.
-            return isnothing(_image_sha256) ? i : BatchImage(i, _image_sha256)
-        end
+        i.product == product && i.image == image && return i
     end
     return _throw_or_nothing(;
         msg="No such (product, image) combination '($(product), $(image))'", throw
