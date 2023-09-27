@@ -39,6 +39,7 @@ end
         @test s.environment.artifacts_toml === nothing
         @test s.sysimage === false
     end
+    manifest_sha = bytes2hex(SHA.sha256(read(jobfile("Manifest.toml"))))
     let s = JuliaHub.script(
             jobfile("script.jl");
             project_directory=jobfile(),
@@ -49,7 +50,7 @@ end
         @test s.environment.manifest_toml == read(jobfile("Manifest.toml"), String)
         @test s.environment.artifacts_toml === nothing
         @test s.sysimage === true
-        @test JuliaHub._sysimage_manifest_sha(s.environment) == "e066dbebe85bb0a0ed79356a81ddc2223974f784cea3f512cea615a2d5731b0e"
+        @test JuliaHub._sysimage_manifest_sha(s.environment) == manifest_sha
     end
 
     withproject(jobfile("Project.toml")) do
@@ -66,7 +67,7 @@ end
         @test s.environment.manifest_toml == read(jobfile("Manifest.toml"), String)
         @test s.environment.artifacts_toml === nothing
         @test s.sysimage === true
-        @test JuliaHub._sysimage_manifest_sha(s.environment) == "e066dbebe85bb0a0ed79356a81ddc2223974f784cea3f512cea615a2d5731b0e"
+        @test JuliaHub._sysimage_manifest_sha(s.environment) == manifest_sha
     end
 
     withproject(jobfile("Project.toml")) do
