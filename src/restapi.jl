@@ -82,11 +82,14 @@ end
 # _restcall calls _rest_request_mockable which calls _rest_request_http. The reason for this
 # indirection is that the signature of _rest_request_mockable is extremely simple and therefore
 # each to hook into with Mockable.
+const _RESTCALL_DEBUG = Base.RefValue(false)
+
 function _restcall(
     auth::Authentication, method::Symbol, url::NTuple{N, AbstractString}, payload;
     query=nothing, headers=nothing, hasura=false,
 ) where {N}
     url = JuliaHub._url(auth, url...)
+    _RESTCALL_DEBUG[] && @debug "$(method) $(url)" headers payload query
     fullheaders = JuliaHub._authheaders(auth; hasura)
     isnothing(headers) || append!(fullheaders, headers)
     return Mocking.@mock _rest_request_mockable(method, url, fullheaders, payload; query)

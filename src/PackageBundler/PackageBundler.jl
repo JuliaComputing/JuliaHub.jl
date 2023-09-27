@@ -7,6 +7,7 @@ using Printf
 using UUIDs
 using Tar
 using Glob
+import SHA
 
 include("utils.jl")
 
@@ -44,7 +45,7 @@ else
 end
 
 """
-    bundle(dir; output = "",  force=false, allownoenv=false, verbose = true)
+    bundle(dir; output = "",  force=false, allownoenv=false, verbose = true) -> String
 
 Creates a `.tar` file with the contents of `dir` as well as
 any packages that are either tracked by path (developed) outside
@@ -55,8 +56,12 @@ be made available by adding it to `DEPOT_PATH`.
 
 `.git` and [globs](https://en.wikipedia.org/wiki/Glob_(programming)) listed in
 `.juliabundleignore` are excluded form the bundle.
+
+Returns the hex-encoded SHA256 of the `Manifest.toml` file that is packed into the appbundle.
+The return value is used when requesting a sysimage build, in which case we have to pass the
+manifest's hash with the submit request.
 """
-function bundle(dir; output="", force=false, allownoenv=false, verbose=true)
+function bundle(dir; output="", force=false, allownoenv=false, verbose=true)::String
     if !isdir(dir)
         error("'$(dir)' is not a directory")
     end
@@ -112,6 +117,7 @@ function bundle(dir; output="", force=false, allownoenv=false, verbose=true)
         end
     end
     Pkg.Types.write_manifest(manifest, bundle_manifest)
+    manifest_sha = bytes2hex(open(SHA.sha2_256, bundle_manifest))
     verbose && prettyprint("Archiving", "into $(repr(abspath(output_tar)))")
 
     Tar.create(path_filterer(tmp_dir), tmp_dir, output_tar)
@@ -123,7 +129,7 @@ To run code on another machine:
 - Upload `$(output_tar)` to the machine and unpack it
 - Run `julia --project=$(name) -e 'push!(DEPOT_PATH, "$name/.bundle/depot"); import Pkg; Pkg.instantiate(); include("$name/main.jl"); main()'`""",
     )
-    return nothing
+    return manifest_sha
 end
 
 function bundle_packages(ctx, dir, packages_tracked_pkg_server; verbose=true)

@@ -20,24 +20,37 @@ end
         @test s.environment.project_toml == "name=1"
         @test s.environment.manifest_toml === nothing
         @test s.environment.artifacts_toml === nothing
+        @test s.sysimage === false
+    end
+    let s = JuliaHub.script(; code="1", manifest="name=1", sysimage=true)
+        @test s.code == "1"
+        @test s.environment.manifest_toml === "name=1"
+        @test s.sysimage === true
+        @test JuliaHub._sysimage_manifest_sha(s.environment) == "b3be53dd7b40e92821b39188b37a70bb81d47d1db3818703744544efece3538c"
     end
     @test_throws ArgumentError JuliaHub.script(; code="1", project=".")
     @test_throws ArgumentError JuliaHub.script(; code="1", artifacts=".")
+    @test_throws ArgumentError JuliaHub.script(; code="1", project="name=1", sysimage=true)
 
     let s = JuliaHub.script(jobfile("script.jl"))
         @test s.code == read(jobfile("script.jl"), String)
         @test s.environment.project_toml === nothing
         @test s.environment.manifest_toml === nothing
         @test s.environment.artifacts_toml === nothing
+        @test s.sysimage === false
     end
+    manifest_sha = bytes2hex(SHA.sha256(read(jobfile("Manifest.toml"))))
     let s = JuliaHub.script(
             jobfile("script.jl");
             project_directory=jobfile(),
+            sysimage = true,
         )
         @test s.code == read(jobfile("script.jl"), String)
         @test s.environment.project_toml == read(jobfile("Project.toml"), String)
         @test s.environment.manifest_toml == read(jobfile("Manifest.toml"), String)
         @test s.environment.artifacts_toml === nothing
+        @test s.sysimage === true
+        @test JuliaHub._sysimage_manifest_sha(s.environment) == manifest_sha
     end
 
     withproject(jobfile("Project.toml")) do
@@ -46,6 +59,15 @@ end
         @test s.environment.project_toml == read(jobfile("Project.toml"), String)
         @test s.environment.manifest_toml == read(jobfile("Manifest.toml"), String)
         @test s.environment.artifacts_toml === nothing
+        @test s.sysimage === false
+
+        s = JuliaHub.BatchJob(s, sysimage=true)
+        @test s.code == "test()"
+        @test s.environment.project_toml == read(jobfile("Project.toml"), String)
+        @test s.environment.manifest_toml == read(jobfile("Manifest.toml"), String)
+        @test s.environment.artifacts_toml === nothing
+        @test s.sysimage === true
+        @test JuliaHub._sysimage_manifest_sha(s.environment) == manifest_sha
     end
 
     withproject(jobfile("Project.toml")) do
@@ -54,6 +76,7 @@ end
         @test s.environment.project_toml === nothing
         @test s.environment.manifest_toml === nothing
         @test s.environment.artifacts_toml === nothing
+        @test s.sysimage === false
     end
 end
 
@@ -67,6 +90,13 @@ end
     bundle = JuliaHub.appbundle(jobfile(); code="test()")
     @test isfile(bundle.environment.tarball_path)
     @test bundle.code == "test()"
+    @test bundle.sysimage === false
+
+    bundle = JuliaHub.appbundle(jobfile(); code="test()", sysimage=true)
+    @test isfile(bundle.environment.tarball_path)
+    @test bundle.code == "test()"
+    @test bundle.sysimage === true
+    @test JuliaHub._sysimage_manifest_sha(bundle.environment) == "e066dbebe85bb0a0ed79356a81ddc2223974f784cea3f512cea615a2d5731b0e"
 
     mktempdir() do path
         bigfile_path = joinpath(path, "bigfile")
@@ -282,12 +312,13 @@ end
             @test jc.env == kwargs.env
         end
         cc = JuliaHub.ComputeConfig(ns; kwargs_cc...)
+        kwargs_rt = (; kwargs_rt..., timelimit = JuliaHub.Unlimited())
         let jc = JuliaHub.submit_job(s, cc; kwargs_rt..., dryrun = true)
             @test jc.compute.node == ns
             @test jc.compute.process_per_node === false
             @test jc.compute.nnodes_max == 10
             @test jc.compute.nnodes_min === 3
-            @test jc.timelimit === Dates.Hour(5)
+            @test jc.timelimit === JuliaHub.Unlimited()
             @test jc.alias == kwargs.alias
             @test jc.project === UUIDs.UUID(kwargs.project)
             @test jc.env == kwargs.env
@@ -357,6 +388,7 @@ end
         @test_throws ArgumentError JuliaHub.extend_job("jr-cnp3trdmy1", Dates.Hour(0))
         @test_throws ArgumentError JuliaHub.extend_job("jr-cnp3trdmy1", -10)
         @test_throws ArgumentError JuliaHub.extend_job("jr-cnp3trdmy1", Dates.Hour(-10))
+        @test_throws ArgumentError JuliaHub.extend_job("jr-cnp3trdmy1", JuliaHub.Unlimited())
     end
 end
 

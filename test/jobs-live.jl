@@ -165,8 +165,9 @@ end
         ENV["RESULTS"] = "{\\"x\\":42}"
         error("fail")
         """;
-        auth, alias="script-fail",
+        auth, alias="script-fail", timelimit=JuliaHub.Unlimited(),
     )
+    @test job._json["limit_type"] == "unlimited"
     job = JuliaHub.wait_job(job)
     @test job.status == "Failed"
     # Even though the job failed, any RESULTS set before the error are still stored
@@ -374,5 +375,27 @@ end
     finally
         rm(tmp_tarball_path; force=true)
         rm(tmp; recursive=true, force=true)
+    end
+end
+
+@testset "[LIVE] JuliaHub.submit_job / sysimage" begin
+    job, _ = submit_test_job(
+        JuliaHub.appbundle(
+            joinpath(@__DIR__, "jobenvs", "sysimage"),
+            "script.jl";
+            sysimage=true,
+        ); auth, alias="sysimage",
+    )
+    job = JuliaHub.wait_job(job)
+    @test job.status == "Completed"
+    @test job._json["sysimage_build"] === true
+    @test !isempty(job.results)
+    let results = JSON.parse(job.results)
+        @test results isa AbstractDict
+        @test results["in_sysimage"] === true
+        @test results["loaded_modules_before_import"] === true
+        @test results["loaded_modules_after_import"] === true
+        @test results["domath"] == 5
+        @test results["hello"] == "Hello, Sysimage"
     end
 end

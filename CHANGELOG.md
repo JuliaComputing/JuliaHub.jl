@@ -4,6 +4,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## UNRELEASED
 
+### Added
+
+* The job submission APIs now support jobs with no time limit, and also can be used to submit jobs that trigger system image builds. (#28)
+
 ### Fixed
 
 * Fixed the submission of application-type jobs. (#31, #32, #33, #35)
