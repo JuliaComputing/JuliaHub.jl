@@ -5,11 +5,10 @@ function JobLogMessage(::_KafkaLogging, json::Dict)
     # The timestamps in Kafka logs are in milliseconds
     value = _get_json(json, "value", Dict)
     timestamp = _ms_utc2localtz(_get_json(value, "timestamp", Int))
-    log = _get_json(value, "log", Dict)
-    message = _get_json(log, "message", String)
-    metadata = _get_json_or(log, "metadata", Dict, Dict{String, Any}())
-    keywords = _get_json_or(log, "keywords", Dict, Dict{String, Any}())
-    stream = _get_json_or(log, "stream", String, nothing)
+    message = _get_json(value, "message", String)
+    metadata = _get_json_or(value, "metadata", Dict, Dict{String, Any}())
+    keywords = _get_json_or(value, "keywords", Dict, Dict{String, Any}())
+    stream = _get_json_or(value, "stream", String, nothing)
     JobLogMessage(;
         _offset=offset, timestamp, message, _metadata=metadata, _keywords=keywords,
         _legacy_eventId=nothing, _kafka_stream=stream, _json=json,
@@ -479,7 +478,9 @@ end
 
 function _kafka_is_last_message(json::Dict)
     value = _get_json_or(json, "value", Dict, Dict())
-    return get(value, "meta", nothing) == "bottom"
+    _meta = _get_json_or(value, "_meta", Bool, false)
+    _end = get(value, "end", nothing)
+    return _meta && (_end == "bottom")
 end
 
 function _get_job_logs_kafka_restcall(
