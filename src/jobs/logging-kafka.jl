@@ -144,10 +144,13 @@ function _job_logs_newer!(
         timeout=_KAFKA_DEFAULT_GET_TIMEOUT
     )
     job_is_done && (b._found_last = true)
-    # If the returned list of logs is empty, we check if we can still update the cursor
-    # maybe before returning.
+    # If the returned list of logs is empty, we check if we can still maybe update the
+    # cursor before returning. If `count` is set, then we should only reach this point
+    # when the `count` value is bigger than the number of logs available in the buffer.
+    # Hence we can safely declare the active range to go all the way to the end of the
+    # buffer.
     if isempty(logs) && (b._active_range.stop < length(b._logs))
-        @assert b._active_range.stop + count > length(b._logs)
+        @assert isnothing(count) || (b._active_range.stop + count > length(b._logs))
         b._active_range = (b._active_range.start):length(b._logs)
         _job_logs_kafka_notify_cb(b)
         return nothing
