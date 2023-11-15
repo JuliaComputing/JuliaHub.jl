@@ -147,7 +147,8 @@ end
     job_killed = JuliaHub.kill_job(job; auth)
     @test job_killed isa JuliaHub.Job
     @test job_killed.id == job.id
-    @test job_killed.status ∉ ("Running", "Submitted")
+    # On 6.4+, killing a job doesn't immediately change its status
+    #@test job_killed.status ∉ ("Running", "Submitted")
     # Wait a bit more and then make sure that the job is stopped
     @debug "Sleeping for 30s: $(job.id)"
     sleep(30)
