@@ -38,19 +38,35 @@ previous_last_job = nothing
     products = unique(image.product for image in allimages)
     @test !isempty(products)
     @test "standard-batch" in products
+    n_single_default_image_tests = 0
     for product in products
         nimages_for_product = sum(image.product == product for image in allimages)
         @test nimages_for_product > 0
         images = JuliaHub.batchimages(product; auth)
         @test length(images) == nimages_for_product
         # Test default image for a product
-        image = JuliaHub.batchimage(product; auth)
-        @test image.product == product
-        product_default_image = only(
-            filter(i -> i.product == product && i._is_product_default, allimages)
-        )
-        @test image.image == product_default_image.image
+        default_images = filter(i -> i.product == product && i._is_product_default, allimages)
+        @test length(default_images) > 0 # this assumes that every image has a default image
+        if length(default_images) == 1
+            image = JuliaHub.batchimage(product; auth)
+            @test image.product == product
+            product_default_image = only(
+                filter(i -> i.product == product && i._is_product_default, allimages)
+            )
+            @test image.image == product_default_image.image
+            # We want to make sure that this branch gets tested, and having multiple default
+            # images for several products is a major configuration problem, so we'd expect that
+            # at least a few products are configured correctly.
+            n_single_default_image_tests += 1
+        else
+            # It can happen that a product declares multiple default images. That's likely a
+            # configuration error, but we don't want the tests to fail because of it.
+            # And, in fact, it allows us to sorta test the error handling here.
+            @warn "Multiple default images for product: $(product)" default_images
+            @test_throws Exception JuliaHub.batchimage(product; auth)
+        end
     end
+    @test n_single_default_image_tests > 0
     let default_image = JuliaHub.batchimage(; auth)
         standard_default_image = only(
             filter(i -> i.product == "standard-batch" && i._is_product_default, allimages)
