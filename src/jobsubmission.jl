@@ -955,6 +955,7 @@ struct WorkloadConfig
     timelimit::Union{Dates.Hour, Unlimited}
     # internal, undocumented, may be removed an any point, not part of the public API:
     _image_sha256::Union{String, Nothing}
+    _image::Union{String, Nothing}
 
     function WorkloadConfig(
         app::AbstractJobConfig, compute::ComputeConfig;
@@ -964,6 +965,7 @@ struct WorkloadConfig
         timelimit::Limit=_DEFAULT_WorkloadConfig_timelimit,
         # internal, undocumented, may be removed an any point, not part of the public API:
         _image_sha256::Union{AbstractString, Nothing}=nothing,
+        _image::Union{AbstractString, Nothing}=nothing,
     )
         if !isnothing(_image_sha256) && !_isvalid_image_sha256(_image_sha256)
             Base.throw(
@@ -980,6 +982,7 @@ struct WorkloadConfig
             project,
             @_timelimit(timelimit),
             _image_sha256,
+            _image,
         )
     end
 end
@@ -1003,6 +1006,9 @@ function Base.show(io::IO, ::MIME"text/plain", jc::WorkloadConfig)
         end
     end
     isnothing(jc.project) || print(io, "\nproject: $(jc.project)")
+    if !isnothing(jc._image)
+        print(io, "\n_image: ", jc._image)
+    end
     if !isnothing(jc._image_sha256)
         print(io, "\n_image_sha256: ", jc._image_sha256)
     end
@@ -1115,6 +1121,7 @@ function submit_job(
     project::Union{UUIDs.UUID, AbstractString, Nothing}=nothing,
     timelimit::Limit=_DEFAULT_WorkloadConfig_timelimit,
     # internal, undocumented, may be removed an any point, not part of the public API:
+    _image::Union{AbstractString, Nothing}=nothing,
     _image_sha256::Union{AbstractString, Nothing}=nothing,
     # General submit_job arguments
     kwargs...,
@@ -1133,8 +1140,8 @@ function submit_job(
         project
     end
     submit_job(
-        WorkloadConfig(app, compute; alias, env, project, timelimit, _image_sha256);
-        kwargs...
+        WorkloadConfig(app, compute; alias, env, project, timelimit, _image_sha256, _image);
+        kwargs...,
     )
 end
 
@@ -1173,6 +1180,12 @@ function submit_job(
         "unlimited", nothing
     else
         "time", _nhours(c.timelimit)
+    end
+
+    # If the user passed the undocumented _image keyword argument to submit_job, we'll override
+    # the image argument from the application config (or set it).
+    if !isnothing(c._image)
+        app = (; app..., image=c._image)
     end
 
     submission = _JobSubmission1(;
