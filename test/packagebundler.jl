@@ -14,7 +14,8 @@ if !isdir(joinpath(pkg1, ".git"))
     touch(joinpath(pkg1, ".git", "test"))
 end
 
-@testset let bundle = "bundle.standard"
+@testset "bundle.standard" begin
+    bundle = "bundle.standard"
     bundle_env = joinpath(pkg1, bundle)
     out = tempname()
     JuliaHub._PackageBundler.bundle(
@@ -53,7 +54,8 @@ end
     @test !isfile(joinpath(dir, bundle, ".bundle", "dev", "Pkg1", "README.md")) # in .juliabundleignore
 end
 
-@testset let bundle = "bundle.noproject-throw"
+@testset "bundle.noproject-throw" begin
+    bundle = "bundle.noproject-throw"
     bundle_env = joinpath(pkg1, bundle)
     out = tempname()
     @test_throws "Could not find project at" JuliaHub._PackageBundler.bundle(
@@ -64,7 +66,8 @@ end
     )
 end
 
-@testset let bundle = "bundle.noproject"
+@testset "bundle.noproject" begin
+    bundle = "bundle.noproject"
     bundle_env = joinpath(pkg1, bundle)
     out = tempname()
     JuliaHub._PackageBundler.bundle(
@@ -106,7 +109,8 @@ end
 
 # This test does not include any of the `Pkg*` packages as dependencies (since we can't
 # resolve them based on the Project.toml alone).
-@testset let bundle = "bundle.nomanifest"
+@testset "bundle.nomanifest" begin
+    bundle = "bundle.nomanifest"
     bundle_env = joinpath(pkg1, bundle)
     out = tempname()
     JuliaHub._PackageBundler.bundle(
@@ -147,7 +151,8 @@ end
     @test !isfile(joinpath(dir, bundle, ".bundle", "dev", "Pkg1", "README.md")) # in .juliabundleignore
 end
 
-@testset let bundle = "bundle.noenv-throw"
+@testset "bundle.noenv-throw" begin
+    bundle = "bundle.noenv-throw"
     bundle_env = joinpath(pkg1, bundle)
     out = tempname()
     @test_throws "Could not find project at" JuliaHub._PackageBundler.bundle(
@@ -158,7 +163,8 @@ end
     )
 end
 
-@testset let bundle = "bundle.noenv"
+@testset "bundle.noenv" begin
+    bundle = "bundle.noenv"
     bundle_env = joinpath(pkg1, bundle)
     out = tempname()
     @test_logs (:warn,) JuliaHub._PackageBundler.bundle(
