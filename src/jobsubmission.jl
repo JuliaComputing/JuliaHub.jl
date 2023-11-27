@@ -723,7 +723,9 @@ The following should be kept in mind about how appbundles are handled:
 
 * The bundler looks for a Julia environment (i.e. `Project.toml` and/or `Manifest.toml` files)
   at the root of the directory. If the environment does not exist (i.e. the files are missing),
-  one is created.
+  the missing files are created. If the manifest is missing, then the environment is re-instantiated
+  from scratch based on the contents of `Project.toml`. The generated files will also be left
+  in the user-provided directory `directory`.
 
 * Development dependencies of the environment (i.e. packages added with `pkg> develop` or
   `Pkg.develop()`) are also bundled up into the archive that gets submitted to JuliaHub
