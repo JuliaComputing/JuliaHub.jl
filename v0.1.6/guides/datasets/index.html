@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Datasets · JuliaHub.jl</title><meta name="title" content="Datasets · JuliaHub.jl"/><meta property="og:title" content="Datasets · JuliaHub.jl"/><meta property="twitter:title" content="Datasets · JuliaHub.jl"/><meta name="description" content="Documentation for JuliaHub.jl."/><meta property="og:description" content="Documentation for JuliaHub.jl."/><meta property="twitter:description" content="Documentation for JuliaHub.jl."/><meta property="og:url" content="https://help.juliahub.com/julia-api/stable/guides/datasets/"/><meta property="twitter:url" content="https://help.juliahub.com/julia-api/stable/guides/datasets/"/><link rel="canonical" href="https://help.juliahub.com/julia-api/stable/guides/datasets/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">JuliaHub.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../getting-started/">Getting Started</a></li><li><span class="tocitem">Guides</span><ul><li><a class="tocitem" href="../authentication/">Authentication</a></li><li class="is-active"><a class="tocitem" href>Datasets</a><ul class="internal"><li><a class="tocitem" href="#Accessing-datasets"><span>Accessing datasets</span></a></li><li><a class="tocitem" href="#Create,-update,-or-replace"><span>Create, update, or replace</span></a></li><li><a class="tocitem" href="#Bulk-updates"><span>Bulk updates</span></a></li></ul></li><li><a class="tocitem" href="../jobs/">Jobs</a></li></ul></li><li><span class="tocitem">Reference</span><ul><li><a class="tocitem" href="../../reference/authentication/">Authentication</a></li><li><a class="tocitem" href="../../reference/job-submission/">Job submission</a></li><li><a class="tocitem" href="../../reference/jobs/">Jobs</a></li><li><a class="tocitem" href="../../reference/datasets/">Datasets</a></li><li><a class="tocitem" href="../../reference/exceptions/">Exceptions</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Guides</a></li><li class="is-active"><a href>Datasets</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Datasets</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/JuliaComputing/JuliaHub.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/JuliaComputing/JuliaHub.jl/blob/main/docs/src/guides/datasets.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="guide-datasets"><a class="docs-heading-anchor" href="#guide-datasets">Datasets</a><a id="guide-datasets-1"></a><a class="docs-heading-anchor-permalink" href="#guide-datasets" title="Permalink"></a></h1><p>JuliaHub.jl offers a programmatic way to work with your JuliaHub datasets, and this section demonstrates a few common workflows you can use with these APIs.</p><ul><li><a href="#Accessing-datasets">Accessing datasets</a></li><li><a href="#Create,-update,-or-replace">Create, update, or replace</a></li><li><a href="#Bulk-updates">Bulk updates</a></li></ul><p>See the <a href="../../reference/datasets/">datasets reference page</a> for a detailed reference of the datasets-related functionality.</p><h2 id="Accessing-datasets"><a class="docs-heading-anchor" href="#Accessing-datasets">Accessing datasets</a><a id="Accessing-datasets-1"></a><a class="docs-heading-anchor-permalink" href="#Accessing-datasets" title="Permalink"></a></h2><p>The <a href="../../reference/datasets/#JuliaHub.datasets"><code>datasets</code></a> function can be use to list all the datasets owned by the currently authenticated user, returning an array of <a href="../../reference/datasets/#JuliaHub.Dataset"><code>Dataset</code></a> objects.</p><pre><code class="language-julia-repl hljs">julia&gt; JuliaHub.datasets()
+2-element Vector{JuliaHub.Dataset}:
+ JuliaHub.dataset((&quot;username&quot;, &quot;example-dataset&quot;))
+ JuliaHub.dataset((&quot;username&quot;, &quot;blobtree/example&quot;))</code></pre><p>If you know the name of the dataset, you can also directly access it with the <a href="../../reference/datasets/#JuliaHub.dataset"><code>dataset</code></a> function, and you can access the dataset metadata via the properties of the <a href="../../reference/datasets/#JuliaHub.Dataset"><code>Dataset</code></a> object.</p><pre><code class="language-julia-repl hljs">julia&gt; ds = JuliaHub.dataset(&quot;example-dataset&quot;)
+Dataset: example-dataset (Blob)
+ owner: username
+ description: An example dataset
+ versions: 2
+ size: 388 bytes
+ tags: tag1, tag2
+
+julia&gt; ds.owner
+&quot;username&quot;
+
+julia&gt; ds.description
+&quot;An example dataset&quot;
+
+julia&gt; ds.size
+388</code></pre><p>If you want to work with dataset that you do not own but is shared with you in JuliaHub, you can pass <code>shared=true</code> to <a href="../../reference/datasets/#JuliaHub.datasets"><code>datasets</code></a>, or specify the username.</p><pre><code class="language-julia-repl hljs">julia&gt; JuliaHub.datasets(shared=true)
+3-element Vector{JuliaHub.Dataset}:
+ JuliaHub.dataset((&quot;username&quot;, &quot;example-dataset&quot;))
+ JuliaHub.dataset((&quot;anotheruser&quot;, &quot;publicdataset&quot;))
+ JuliaHub.dataset((&quot;username&quot;, &quot;blobtree/example&quot;))
+
+julia&gt; JuliaHub.datasets(&quot;anotheruser&quot;)
+1-element Vector{JuliaHub.Dataset}:
+ JuliaHub.dataset((&quot;anotheruser&quot;, &quot;publicdataset&quot;))
+
+julia&gt; JuliaHub.dataset((&quot;anotheruser&quot;, &quot;publicdataset&quot;))
+Dataset: publicdataset (Blob)
+ owner: anotheruser
+ description: An example dataset
+ versions: 1
+ size: 57 bytes
+ tags: tag1, tag2</code></pre><p>Finally, JuliaHub.jl can also be used to download to your local machine with the <a href="../../reference/datasets/#JuliaHub.download_dataset"><code>download_dataset</code></a> function.</p><pre><code class="language-julia-repl hljs">julia&gt; JuliaHub.download_dataset(&quot;example-dataset&quot;, &quot;mydata&quot;)
+Transferred:       86.767 KiB / 86.767 KiB, 100%, 0 B/s, ETA -
+Transferred:            1 / 1, 100%
+Elapsed time:         2.1s
+&quot;/home/username/my-project/mydata&quot;</code></pre><p>As datasets can have multiple versions, the <a href="../../reference/datasets/#JuliaHub.Dataset"><code>.versions</code> property of <code>Dataset</code></a> can be used to see information about the individual versions (represented with <a href="../../reference/datasets/#JuliaHub.DatasetVersion"><code>DatasetVersion</code></a> objects). When downloading, you can also specify the version you wish to download (with the default being the newest version).</p><pre><code class="language-julia-repl hljs">julia&gt; ds.versions
+2-element Vector{JuliaHub.DatasetVersion}:
+ JuliaHub.DatasetVersion(dataset = (&quot;username&quot;, &quot;example-dataset&quot;), version = 1)
+ JuliaHub.DatasetVersion(dataset = (&quot;username&quot;, &quot;example-dataset&quot;), version = 2)
+
+julia&gt; ds.versions[1]
+DatasetVersion: example-dataset @ v1
+ owner: username
+ timestamp: 2022-10-13T01:39:42.963-04:00
+ size: 57 bytes
+
+julia&gt; JuliaHub.download_dataset(&quot;example-dataset&quot;, &quot;mydata&quot;, version=ds.versions[1].id)
+Transferred:       86.767 KiB / 86.767 KiB, 100%, 0 B/s, ETA -
+Transferred:            1 / 1, 100%
+Elapsed time:         2.1s
+&quot;/home/username/my-project/mydata&quot;
+</code></pre><p>The dataset version are sorted with oldest first. To explicitly access the newest dataset, you can use the <code>last</code> function on the <code>.versions</code> property.</p><pre><code class="language-julia-repl hljs">julia&gt; last(ds.versions)
+DatasetVersion: example-dataset @ v2
+ owner: username
+ timestamp: 2022-10-14T01:39:43.237-04:00
+ size: 331 bytes
+</code></pre><div class="admonition is-success"><header class="admonition-header">Tip: DataSets.jl</header><div class="admonition-body"><p>In JuliaHub jobs and Cloud IDEs you can also use the <a href="https://github.com/JuliaComputing/DataSets.jl">DataSets.jl</a> package to access and work with datasets. See the <a href="https://help.juliahub.com/juliahub/stable/tutorials/datasets_intro/">help.julialang.org section on datasets</a> for more information.</p></div></div><h2 id="Create,-update,-or-replace"><a class="docs-heading-anchor" href="#Create,-update,-or-replace">Create, update, or replace</a><a id="Create,-update,-or-replace-1"></a><a class="docs-heading-anchor-permalink" href="#Create,-update,-or-replace" title="Permalink"></a></h2><p>The <a href="../../reference/datasets/#JuliaHub.upload_dataset"><code>upload_dataset</code></a> function can be used to programmatically create new datasets on JuliaHub.</p><pre><code class="language-julia-repl hljs" style="display:block;">julia&gt; JuliaHub.upload_dataset(&quot;example-dataset&quot;, &quot;local-file&quot;)</code><code class="nohighlight hljs ansi" style="display:block;">Transferred:       86.767 KiB / 86.767 KiB, 100%, 0 B/s, ETA -
+Transferred:            1 / 1, 100%
+Elapsed time:         2.1s
+<span class="sgr1">Dataset:</span> example-dataset (Blob)
+ owner: username
+ description: An example dataset
+ versions: 2
+ size: 388 bytes
+ tags: tag1, tag2</code></pre><p>The type of the dataset (<code>Blob</code> or <code>BlobTree</code>) depends on whether the uploaded object is a file or a directory. A directory will be stored as a <code>BlobTree</code>-type dataset on JuliaHub.</p><pre><code class="language-julia-repl hljs" style="display:block;">julia&gt; JuliaHub.upload_dataset(&quot;example-blobtree&quot;, &quot;local-directory&quot;)</code><code class="nohighlight hljs ansi" style="display:block;">Transferred:       86.767 KiB / 86.767 KiB, 100%, 0 B/s, ETA -
+Transferred:            1 / 1, 100%
+Elapsed time:         2.1s
+<span class="sgr1">Dataset:</span> example-blobtree (BlobTree)
+ owner: username
+ description: An example dataset
+ versions: 1
+ size: 57 bytes
+ tags: tag1, tag2</code></pre><p>The <code>create</code>, <code>update</code>, and <code>replace</code> options control how <a href="../../reference/datasets/#JuliaHub.upload_dataset"><code>upload_dataset</code></a> behaves with respect to existing datasets. By default, the function only creates brand new datasets, and trying to upload a dataset that already exists will fail with an error.</p><pre><code class="language-julia-repl hljs" style="display:block;">julia&gt; JuliaHub.upload_dataset(&quot;example-dataset&quot;, &quot;local-file&quot;)</code><code class="nohighlight hljs ansi" style="display:block;">ERROR: InvalidRequestError: Dataset &#39;example-dataset&#39; for user &#39;username&#39; already exists, but update=false and replace=false.</code></pre><p>This behavior can be overridden by setting <code>update=true</code>, which will then upload a new version of a dataset if it already exists. This is useful for jobs and workflows that are meant to be re-run, updating the dataset each time they run.</p><pre><code class="language-julia-repl hljs" style="display:block;">julia&gt; JuliaHub.upload_dataset(&quot;example-dataset&quot;, &quot;local-file&quot;; update=true)</code><code class="nohighlight hljs ansi" style="display:block;">Transferred:       86.767 KiB / 86.767 KiB, 100%, 0 B/s, ETA -
+Transferred:            1 / 1, 100%
+Elapsed time:         2.1s
+<span class="sgr1">Dataset:</span> example-dataset (Blob)
+ owner: username
+ description: An example dataset
+ versions: 2
+ size: 388 bytes
+ tags: tag1, tag2</code></pre><p>The <code>replace=true</code> option can be used to erase earlier versions of a dataset. This will delete all information about the existing dataset and is a destructive, non-recoverable action. This may also lead to the dataset type being changed.</p><pre><code class="language-julia-repl hljs" style="display:block;">julia&gt; JuliaHub.upload_dataset(&quot;example-dataset&quot;, &quot;local-file&quot;; replace=true)</code><code class="nohighlight hljs ansi" style="display:block;">Transferred:       86.767 KiB / 86.767 KiB, 100%, 0 B/s, ETA -
+Transferred:            1 / 1, 100%
+Elapsed time:         2.1s
+<span class="sgr1">Dataset:</span> example-dataset (Blob)
+ owner: username
+ description: An example dataset
+ versions: 2
+ size: 388 bytes
+ tags: tag1, tag2</code></pre><h2 id="Bulk-updates"><a class="docs-heading-anchor" href="#Bulk-updates">Bulk updates</a><a id="Bulk-updates-1"></a><a class="docs-heading-anchor-permalink" href="#Bulk-updates" title="Permalink"></a></h2><p>You can also use the package to perform bulk updates or deletions of datasets. The following example, adds a new tag to all the datasets where the name matches a particular pattern.</p><pre><code class="language-julia hljs"># Find all the datasets that have names that start with &#39;my-analysis-&#39;
+myanalysis_datasets = filter(
+    dataset -&gt; startswith(dataset.name, r&quot;my-analysis-.*&quot;),
+    JuliaHub.datasets()
+)
+# .. and now add a &#39;new-tag&#39; tag to each of them
+for dataset in myanalysis_datasets
+    @info &quot;Updating&quot; dataset
+    # Note: tags = ... overrides the whole list, so you need to manually retain
+    # old tags.
+    new_tags = [dataset.tags..., &quot;new-tag&quot;]
+    JuliaHub.update_dataset(dataset, tags = new_tags)
+end</code></pre><p>While this example shows the <a href="../../reference/datasets/#JuliaHub.update_dataset"><code>update_dataset</code></a>, for example, the <a href="../../reference/datasets/#JuliaHub.delete_dataset"><code>delete_dataset</code></a> function could be used in the same way.</p><script type="module">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+mermaid.initialize({
+    startOnLoad: true,
+    theme: "neutral"
+});
+</script></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../authentication/">« Authentication</a><a class="docs-footer-nextpage" href="../jobs/">Jobs »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.0.1 on <span class="colophon-date" title="Monday 27 November 2023 09:20">Monday 27 November 2023</span>. Using Julia version 1.9.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
