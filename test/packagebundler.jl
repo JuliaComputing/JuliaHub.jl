@@ -58,7 +58,8 @@ end
     bundle = "bundle.noproject-throw"
     bundle_env = joinpath(pkg1, bundle)
     out = tempname()
-    @test_throws "Could not find project at" JuliaHub._PackageBundler.bundle(
+    expected_error = (VERSION > v"1.8") ? "Could not find project at" : ErrorException
+    @test_throws expected_error JuliaHub._PackageBundler.bundle(
         bundle_env;
         output=out,
         verbose=false,
@@ -113,7 +114,7 @@ end
     bundle = "bundle.nomanifest"
     bundle_env = joinpath(pkg1, bundle)
     out = tempname()
-    JuliaHub._PackageBundler.bundle(
+    @test_logs (:warn,) JuliaHub._PackageBundler.bundle(
         bundle_env;
         output=out,
         verbose=false,
@@ -155,7 +156,8 @@ end
     bundle = "bundle.noenv-throw"
     bundle_env = joinpath(pkg1, bundle)
     out = tempname()
-    @test_throws "Could not find project at" JuliaHub._PackageBundler.bundle(
+    expected_error = (VERSION > v"1.8") ? "Could not find project at" : ErrorException
+    @test_throws expected_error JuliaHub._PackageBundler.bundle(
         bundle_env;
         output=out,
         verbose=false,
@@ -206,7 +208,8 @@ end
     @test !isfile(joinpath(dir, bundle, ".bundle", "dev", "Pkg1", "README.md")) # in .juliabundleignore
 end
 
-@testset let bundle = "bundle.standard"
+@testset "bundle.standard (relative path)" begin
+    bundle = "bundle.standard"
     bundle_env = joinpath(pkg1, bundle)
     out = tempname()
     cd(bundle_env) do
