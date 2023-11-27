@@ -2,6 +2,13 @@
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Version v0.1.6 - 2023-11-27
+
+### Fixed
+
+* `JuliaHub.appbundle`, when it has to generate a `Projec.toml` file, now correctly includes it in the appbundle tarball. (#44)
+* `JuliaHub.appbundle` now works with relative paths such as `"."`. (#44)
+
 ## Version v0.1.5 - 2023-09-27
 
 ### Added
