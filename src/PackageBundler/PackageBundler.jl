@@ -62,6 +62,9 @@ The return value is used when requesting a sysimage build, in which case we have
 manifest's hash with the submit request.
 """
 function bundle(dir; output="", force=false, allownoenv=false, verbose=true)::String
+    # We'll normalize the path passed by the user, in case they pass a relative path
+    # like `.`
+    dir = abspath(dir)
     if !isdir(dir)
         error("'$(dir)' is not a directory")
     end

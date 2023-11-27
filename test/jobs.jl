@@ -109,6 +109,13 @@ end
         @test_throws JuliaHub.AppBundleSizeError JuliaHub.appbundle(path; code="")
         rm(bigfile_path, force=true)
     end
+
+    # Testing relative paths to the appbundle directory
+    cd(jobfile()) do
+        bundle = JuliaHub.appbundle(".", "script.jl")
+        @test isfile(bundle.environment.tarball_path)
+        @test bundle.code == read(jobfile("script.jl"), String)
+    end
 end
 
 # We'll re-use this further down in job submission tests.

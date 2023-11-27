@@ -199,3 +199,16 @@ end
     @test !isfile(joinpath(dir, bundle, ".bundle", "dev", "Pkg1", ".git", "test")) # always ignored
     @test !isfile(joinpath(dir, bundle, ".bundle", "dev", "Pkg1", "README.md")) # in .juliabundleignore
 end
+
+@testset let bundle = "bundle.standard"
+    bundle_env = joinpath(pkg1, bundle)
+    out = tempname()
+    cd(bundle_env) do
+        JuliaHub._PackageBundler.bundle(
+            ".";
+            output=out,
+            verbose=false,
+        )
+    end
+    @test isfile(out)
+end
