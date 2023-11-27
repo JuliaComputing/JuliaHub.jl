@@ -74,12 +74,11 @@ function bundle(dir; output="", force=false, allownoenv=false, verbose=true)::St
             error("file '$output_tar' already exists")
         end
     end
-    tmp_dir = mktempdir()
-    output_dir = joinpath(tmp_dir, name)
-    cp(dir, output_dir; follow_symlinks=true)
 
     packages_tracked_pkg_server = find_packages_tracked_pkg_server()
 
+    # This step may modify the user's bundle directory (`dir`) by creating a Project.toml
+    # and Manifest.toml, if either or both are missing.
     ctx = create_pkg_context(dir, allownoenv)
     if isempty(ctx.env.manifest)
         @warn "No Manifest available. Resolving environment."
@@ -90,6 +89,11 @@ function bundle(dir; output="", force=false, allownoenv=false, verbose=true)::St
         ctx = create_pkg_context(dir, allownoenv)
     end
 
+    # We'll copy the files we want to bundle to a temporary directory. We then
+    # add the depot and such, and finally tar all that up.
+    tmp_dir = mktempdir()
+    output_dir = joinpath(tmp_dir, name)
+    cp(dir, output_dir; follow_symlinks=true)
     bundle_dir = joinpath(output_dir, ".bundle")
     mkpath(bundle_dir)
     # Bundle artifacts
