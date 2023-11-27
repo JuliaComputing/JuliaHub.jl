@@ -1,0 +1,22 @@
+# This file is machine-generated - editing it directly is not advised
+
+julia_version = "1.7.1"
+manifest_format = "2.0"
+project_hash = "8aa8902f5725df756a200ded26d78d775619a452"
+
+[[deps.Pkg1]]
+deps = ["Pkg2", "Pkg3"]
+path = ".."
+uuid = "0d733eb5-97ac-4a4a-9738-0f33664ba196"
+version = "0.1.0"
+
+[[deps.Pkg2]]
+deps = ["Pkg3"]
+path = "../../Pkg2"
+uuid = "df0ae394-da6f-45d5-857b-fe46f2dd6ae6"
+version = "0.1.0"
+
+[[deps.Pkg3]]
+path = "../../Pkg3"
+uuid = "8e8c87e8-d389-41a9-b801-d72778e29757"
+version = "0.1.0"
