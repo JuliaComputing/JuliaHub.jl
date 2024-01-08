@@ -150,8 +150,13 @@ end
     # On 6.4+, killing a job doesn't immediately change its status
     #@test job_killed.status ∉ ("Running", "Submitted")
     # Wait a bit more and then make sure that the job is stopped
-    @debug "Sleeping for 30s: $(job.id)"
-    sleep(30)
+    for t in [10, 20, 60, 180]
+        @debug "Sleeping for $(t)s: $(job.id)"
+        sleep(t)
+        if JuliaHub.job(job_killed).status ∉ ("Running", "Submitted")
+            break
+        end
+    end
     job_killed = JuliaHub.job(job_killed) # test default auth=
     @test job_killed.status == "Stopped"
     # wait for the logger task to finish, if hasn't already
