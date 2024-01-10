@@ -151,7 +151,7 @@ end
     #@test job_killed.status ∉ ("Running", "Submitted")
     # Wait a bit more and then make sure that the job is stopped
     for t in [10, 20, 60, 180]
-        @debug "Sleeping for $(t)s: $(job.id)"
+        @info "Sleeping for $(t)s, waiting for job to be killed: $(job.id)"
         sleep(t)
         if JuliaHub.job(job_killed).status ∉ ("Running", "Submitted")
             break
