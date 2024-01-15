@@ -312,7 +312,7 @@ function datasets(
     auth::Authentication=__auth__(),
 )
     datasets, _ = try
-        _get_datasets(; auth)
+        _get_datasets(auth)
     catch e
         e isa JuliaHubException && rethrow(e)
         e isa JuliaHubError && rethrow(e)
@@ -320,21 +320,43 @@ function datasets(
             JuliaHubError("Error while retrieving datasets from the server", e, catch_backtrace()),
         )
     end
-    shared || filter!(datasets) do dataset
-        dataset["owner"]["username"] == username
+    # It might happen that some of the elements of the `datasets` array can not be parsed for some reason,
+    # and the Dataset() constructor will throw. Rather than having `datasets` throw an error (as we would
+    # normally do for invalid backend responses), in this case we handle the situation more gracefully,
+    # and just filter out the invalid elements (and print a warning to the user -- it's still an unusual
+    # situation and should be reported). This is because we also re-use `JuliaHub.datasets` in
+    # `JuliaHub.dataset` when fetching the information for just one dataset, and unconditionally throwing
+    # would mean that `JuliaHub.dataset` can break due an issue with an unrelated dataset.
+    n_erroneous_datasets = 0
+    datasets = map(datasets) do dataset
+        try
+            # We also use the `nothing` method for filtering out datasets that are not owned by the
+            # current `username` if `shared = false`.
+            if !shared && (dataset["owner"]["username"] != username)
+                return nothing
+            end
+            return Dataset(dataset)
+        catch e
+            @debug "Invalid dataset in GET /datasets response" dataset exception = (
+                e, catch_backtrace()
+            )
+            n_erroneous_datasets += true
+            return nothing
+        end
     end
-    return try
-        Dataset.(datasets)
-    catch e
-        throw(JuliaHubError("Unable to parse the response from the server", e, catch_backtrace()))
+    @show n_erroneous_datasets
+    if n_erroneous_datasets > 0
+        @warn "The JuliaHub GET /datasets response had $(n_erroneous_datasets) erroneous dataset(s)."
     end
+    # We'll filter down to just Dataset objects, and enforce type-stability on the array type here.
+    return Dataset[ds for ds in datasets if isa(ds, Dataset)]
 end
 
 function datasets(; auth::Authentication=__auth__(), kwargs...)
     datasets(auth.username; auth, kwargs...)
 end
 
-function _get_datasets(; writable=false, auth)
+function _get_datasets(auth::Authentication; writable=false)
     url_path = writable ? ("user", "datasets") : ("datasets",)
     r = _restcall(auth, :GET, url_path, nothing)
     r.status == 200 || _throw_invalidresponse(r; msg="Unable to fetch datasets.")

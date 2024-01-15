@@ -104,6 +104,33 @@ end
             @test ds.description == "An example dataset"
             @test isempty(ds.versions)
         end
+
+        empty!(MOCK_JULIAHUB_STATE)
+        MOCK_JULIAHUB_STATE[:datasets_erroneous] = ["erroneous_dataset"]
+        let datasets = @test_nowarn JuliaHub.datasets()
+            @test length(datasets) == 2
+        end
+        let datasets = @test_logs (
+                :warn,
+                "The JuliaHub GET /datasets response had 1 erroneous dataset(s)."
+            ) JuliaHub.datasets(; shared=true)
+            @test length(datasets) == 3
+        end
+        let ds = @test_logs (
+                :warn,
+                "The JuliaHub GET /datasets response had 1 erroneous dataset(s)."
+            ) JuliaHub.dataset("example-dataset")
+            @test ds isa JuliaHub.Dataset
+        end
+        let ds = @test_logs (
+                :warn,
+                "The JuliaHub GET /datasets response had 1 erroneous dataset(s)."
+            ) JuliaHub.dataset("example-dataset")
+            @test ds isa JuliaHub.Dataset
+            @test ds.owner == "username"
+            @test ds.name == "example-dataset"
+        end
+        @test_throws JuliaHub.InvalidRequestError JuliaHub.dataset("erroneous_dataset")
     end
 end
 
