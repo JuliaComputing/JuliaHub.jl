@@ -344,7 +344,6 @@ function datasets(
             return nothing
         end
     end
-    @show n_erroneous_datasets
     if n_erroneous_datasets > 0
         @warn "The JuliaHub GET /datasets response had $(n_erroneous_datasets) erroneous dataset(s)."
     end
