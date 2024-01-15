@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
-* `JuliaHub.datasets` and `JuliaHub.dataset` now handle problematic backend responses more gracefully. (#??)
+* `JuliaHub.datasets` and `JuliaHub.dataset` now handle problematic backend responses more gracefully. (#46)
 
 ## Version v0.1.6 - 2023-11-27
 
