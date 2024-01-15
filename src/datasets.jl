@@ -340,7 +340,7 @@ function datasets(
             @debug "Invalid dataset in GET /datasets response" dataset exception = (
                 e, catch_backtrace()
             )
-            n_erroneous_datasets += true
+            n_erroneous_datasets += 1
             return nothing
         end
     end
