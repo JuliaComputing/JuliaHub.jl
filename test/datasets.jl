@@ -106,7 +106,10 @@ end
         end
 
         MOCK_JULIAHUB_STATE[:datasets_erroneous] = ["erroneous_dataset"]
-        err_ds_warn = (:warn, "The JuliaHub GET /datasets response contains erroneous datasets. Omitting 1 entries.")
+        err_ds_warn = (
+            :warn,
+            "The JuliaHub GET /datasets response contains erroneous datasets. Omitting 1 entries.",
+        )
         let datasets = @test_nowarn JuliaHub.datasets()
             @test length(datasets) == 2
         end
