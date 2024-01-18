@@ -384,6 +384,22 @@ function _restcall_mocked(method, url, headers, payload; query)
                 ),
             )
         end
+        for dataset in get(MOCK_JULIAHUB_STATE, :datasets_erroneous, String[])
+            push!(datasets,
+                Dict(
+                    "id" => string(uuidhash(dataset)),
+                    "name" => dataset,
+                    "owner" => Dict(
+                        "username" => nothing,
+                        "type" => "User",
+                    ),
+                    "type" => occursin("blobtree", dataset) ? "BlobTree" : "Blob",
+                    "visibility" => occursin("public", dataset) ? "public" : "private",
+                    versions_json(dataset)...,
+                    shared...,
+                ),
+            )
+        end
         datasets |> jsonresponse(200)
     elseif (method == :DELETE) && endswith(url, DATASET_REGEX)
         dataset = URIs.unescapeuri(match(DATASET_REGEX, url)[1])
