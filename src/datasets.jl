@@ -345,7 +345,7 @@ function datasets(
         end
     end
     if n_erroneous_datasets > 0
-        @warn "The JuliaHub GET /datasets response had $(n_erroneous_datasets) erroneous dataset(s)."
+        @warn "The JuliaHub GET /datasets response contains erroneous dataset(s). Omitting $(n_erroneous_datasets) entries."
     end
     # We'll filter down to just Dataset objects, and enforce type-stability on the array type here.
     return Dataset[ds for ds in datasets if isa(ds, Dataset)]
