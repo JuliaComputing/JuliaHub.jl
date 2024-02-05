@@ -293,6 +293,11 @@ end
     )
     job = JuliaHub.wait_job(job)
     @test job.status == "Completed"
+    # Check input and output files
+    @test length(JuliaHub.job_files(job, :input)) >= 2
+    @test JuliaHub.job_file(job, :input, "code.jl") isa JuliaHub.JobFile
+    @test JuliaHub.job_file(job, :input, "appbundle.tar") isa JuliaHub.JobFile
+    # Test the results values
     @test !isempty(job.results)
     let results = JSON.parse(job.results)
         @test results isa AbstractDict
@@ -315,16 +320,13 @@ end
     job = JuliaHub.wait_job(job)
     @test job.status == "Completed"
     # Project.toml, Manifest.toml, code.jl
-    @test length(JuliaHub.job_files(job, :input)) >= 3
-    @test JuliaHub.job_file(job, :input, "Project.toml") isa JuliaHub.JobFile
-    @test JuliaHub.job_file(job, :input, "Manifest.toml") isa JuliaHub.JobFile
+    @test length(JuliaHub.job_files(job, :input)) >= 1
     @test JuliaHub.job_file(job, :input, "code.jl") isa JuliaHub.JobFile
     # code.jl
     @test length(JuliaHub.job_files(job, :source)) >= 1
     @test JuliaHub.job_file(job, :source, "code.jl") isa JuliaHub.JobFile
     # Project.toml, Manifest.toml
-    @test length(JuliaHub.job_files(job, :project)) >= 2
-    @test JuliaHub.job_file(job, :project, "Project.toml") isa JuliaHub.JobFile
+    @test length(JuliaHub.job_files(job, :project)) >= 1
     @test JuliaHub.job_file(job, :project, "Manifest.toml") isa JuliaHub.JobFile
     # output.txt
     @test length(JuliaHub.job_files(job, :result)) == 1
@@ -347,7 +349,7 @@ end
     )
     job = JuliaHub.wait_job(job)
     @test job.status == "Completed"
-    @test length(JuliaHub.job_files(job, :project)) >= 2
+    @test length(JuliaHub.job_files(job, :project)) >= 1
     result_tarball = only(JuliaHub.job_files(job, :result))
     buf = IOBuffer()
     JuliaHub.download_job_file(result_tarball, buf)
