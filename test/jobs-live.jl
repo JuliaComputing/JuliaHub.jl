@@ -116,7 +116,7 @@ end
 
 @testset "[LIVE] JuliaHub.submit_job / simple" begin
     job, _ = submit_test_job(
-        JuliaHub.script"@info 1+1; sleep(200)";
+        JuliaHub.script"@info 1+1; sleep(200)"noenv;
         ncpu=2, memory=8,
         auth, alias="script-simple"
     )
@@ -186,7 +186,7 @@ end
         JuliaHub.script"""
         ENV["RESULTS"] = "{\\"x\\":42}"
         error("fail")
-        """;
+        """noenv;
         auth, alias="script-fail", timelimit=JuliaHub.Unlimited(),
     )
     @test job._json["limit_type"] == "unlimited"
@@ -203,18 +203,7 @@ end
 
 @testset "[LIVE] JuliaHub.submit_job / distributed" begin
     job, _ = submit_test_job(
-        JuliaHub.script"""
-        using Distributed, JSON
-        @everywhere using Distributed
-        @everywhere fn() = (myid(), strip(read(`hostname`, String)))
-        fs = [i => remotecall(fn, i) for i in workers()]
-        vs = map(fs) do (i, future)
-            myid, hostname = fetch(future)
-            @info "$i: $myid, $hostname"
-            (; myid, hostname)
-        end
-        ENV["RESULTS"] = JSON.json((; vs))
-        """;
+        JuliaHub.appbundle(joinpath(@__DIR__, "jobenvs", "job-dist"), "script.jl");
         nnodes=3,
         auth, alias="distributed",
     )
@@ -231,18 +220,7 @@ end
 
 @testset "[LIVE] JuliaHub.submit_job / distributed-per-core" begin
     job, full_alias = submit_test_job(
-        JuliaHub.script"""
-        using Distributed, JSON
-        @everywhere using Distributed
-        @everywhere fn() = (myid(), strip(read(`hostname`, String)))
-        fs = [i => remotecall(fn, i) for i in workers()]
-        vs = map(fs) do (i, future)
-            myid, hostname = fetch(future)
-            @info "$i: $myid, $hostname"
-            (; myid, hostname)
-        end
-        ENV["RESULTS"] = JSON.json((; vs))
-        """;
+        JuliaHub.appbundle(joinpath(@__DIR__, "jobenvs", "job-dist"), "script.jl");
         ncpu=2, nnodes=3, process_per_node=false,
         env=Dict("FOO" => "bar"),
         auth, alias="distributed-percore",
@@ -315,6 +293,11 @@ end
     )
     job = JuliaHub.wait_job(job)
     @test job.status == "Completed"
+    # Check input and output files
+    @test length(JuliaHub.job_files(job, :input)) >= 2
+    @test JuliaHub.job_file(job, :input, "code.jl") isa JuliaHub.JobFile
+    @test JuliaHub.job_file(job, :input, "appbundle.tar") isa JuliaHub.JobFile
+    # Test the results values
     @test !isempty(job.results)
     let results = JSON.parse(job.results)
         @test results isa AbstractDict
@@ -332,21 +315,18 @@ end
         ENV["RESULTS_FILE"] = joinpath(@__DIR__, "output.txt")
         n = write(ENV["RESULTS_FILE"], "output-txt-content")
         @info "Wrote $(n) bytes"
-        """; alias="output-file",
+        """noenv; alias="output-file",
     )
     job = JuliaHub.wait_job(job)
     @test job.status == "Completed"
     # Project.toml, Manifest.toml, code.jl
-    @test length(JuliaHub.job_files(job, :input)) >= 3
-    @test JuliaHub.job_file(job, :input, "Project.toml") isa JuliaHub.JobFile
-    @test JuliaHub.job_file(job, :input, "Manifest.toml") isa JuliaHub.JobFile
+    @test length(JuliaHub.job_files(job, :input)) >= 1
     @test JuliaHub.job_file(job, :input, "code.jl") isa JuliaHub.JobFile
     # code.jl
     @test length(JuliaHub.job_files(job, :source)) >= 1
     @test JuliaHub.job_file(job, :source, "code.jl") isa JuliaHub.JobFile
     # Project.toml, Manifest.toml
-    @test length(JuliaHub.job_files(job, :project)) >= 2
-    @test JuliaHub.job_file(job, :project, "Project.toml") isa JuliaHub.JobFile
+    @test length(JuliaHub.job_files(job, :project)) >= 1
     @test JuliaHub.job_file(job, :project, "Manifest.toml") isa JuliaHub.JobFile
     # output.txt
     @test length(JuliaHub.job_files(job, :result)) == 1
@@ -365,11 +345,11 @@ end
         write(joinpath(odir, "bar.txt"), "output-txt-content-2")
         @info "Wrote: odir"
         ENV["RESULTS_FILE"] = odir
-        """; alias="output-file-tarball",
+        """noenv; alias="output-file-tarball",
     )
     job = JuliaHub.wait_job(job)
     @test job.status == "Completed"
-    @test length(JuliaHub.job_files(job, :project)) >= 2
+    @test length(JuliaHub.job_files(job, :project)) >= 1
     result_tarball = only(JuliaHub.job_files(job, :result))
     buf = IOBuffer()
     JuliaHub.download_job_file(result_tarball, buf)

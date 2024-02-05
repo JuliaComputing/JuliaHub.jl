@@ -96,7 +96,7 @@ end
     @test isfile(bundle.environment.tarball_path)
     @test bundle.code == "test()"
     @test bundle.sysimage === true
-    @test JuliaHub._sysimage_manifest_sha(bundle.environment) == "e066dbebe85bb0a0ed79356a81ddc2223974f784cea3f512cea615a2d5731b0e"
+    @test JuliaHub._sysimage_manifest_sha(bundle.environment) == "631fc619c1d04e525872df2779fa95a0dc47edd9558af629af88c493daa6300d"
 
     mktempdir() do path
         bigfile_path = joinpath(path, "bigfile")
