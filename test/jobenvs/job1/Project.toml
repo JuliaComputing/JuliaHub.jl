@@ -3,5 +3,7 @@ DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 
 [compat]
-DataStructures = "=0.17.0"
+# Note: this should be resolved to exactly 0.17.0 in Manifest.toml
+# for the tests to pass.
+DataStructures = "0.17.0"
 JSON = "0.21"
