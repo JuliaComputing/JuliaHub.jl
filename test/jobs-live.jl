@@ -186,7 +186,7 @@ end
         JuliaHub.script"""
         ENV["RESULTS"] = "{\\"x\\":42}"
         error("fail")
-        """;
+        """noenv;
         auth, alias="script-fail", timelimit=JuliaHub.Unlimited(),
     )
     @test job._json["limit_type"] == "unlimited"
@@ -203,18 +203,7 @@ end
 
 @testset "[LIVE] JuliaHub.submit_job / distributed" begin
     job, _ = submit_test_job(
-        JuliaHub.script"""
-        using Distributed, JSON
-        @everywhere using Distributed
-        @everywhere fn() = (myid(), strip(read(`hostname`, String)))
-        fs = [i => remotecall(fn, i) for i in workers()]
-        vs = map(fs) do (i, future)
-            myid, hostname = fetch(future)
-            @info "$i: $myid, $hostname"
-            (; myid, hostname)
-        end
-        ENV["RESULTS"] = JSON.json((; vs))
-        """;
+        JuliaHub.appbundle(joinpath(@__DIR__, "jobenvs", "job-dist"), "script.jl");
         nnodes=3,
         auth, alias="distributed",
     )
@@ -231,18 +220,7 @@ end
 
 @testset "[LIVE] JuliaHub.submit_job / distributed-per-core" begin
     job, full_alias = submit_test_job(
-        JuliaHub.script"""
-        using Distributed, JSON
-        @everywhere using Distributed
-        @everywhere fn() = (myid(), strip(read(`hostname`, String)))
-        fs = [i => remotecall(fn, i) for i in workers()]
-        vs = map(fs) do (i, future)
-            myid, hostname = fetch(future)
-            @info "$i: $myid, $hostname"
-            (; myid, hostname)
-        end
-        ENV["RESULTS"] = JSON.json((; vs))
-        """;
+        JuliaHub.appbundle(joinpath(@__DIR__, "jobenvs", "job-dist"), "script.jl");
         ncpu=2, nnodes=3, process_per_node=false,
         env=Dict("FOO" => "bar"),
         auth, alias="distributed-percore",
