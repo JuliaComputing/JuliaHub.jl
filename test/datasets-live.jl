@@ -83,7 +83,7 @@ try
     JuliaHub.upload_dataset(
         (auth.username, blobname), joinpath(TESTDATA, "hi.txt"); create=false, update=true
     )
-    datasets, _ = JuliaHub._get_datasets(; auth)
+    datasets, _ = JuliaHub._get_datasets(auth)
     blob_dataset_json = only(filter(d -> d["name"] == blobname, datasets))
     @test length(blob_dataset_json["versions"]) == 2
 
@@ -100,7 +100,7 @@ try
     @test tree_dataset.dtype == "BlobTree"
 
     JuliaHub.upload_dataset(treename, TESTDATA; auth, create=false, update=true)
-    datasets, _ = JuliaHub._get_datasets(; auth)
+    datasets, _ = JuliaHub._get_datasets(auth)
     tree_dataset_json = only(filter(d -> d["name"] == treename, datasets))
     @test length(tree_dataset_json["versions"]) == 2
 

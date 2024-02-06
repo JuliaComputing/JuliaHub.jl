@@ -6,6 +6,8 @@ on:
       - main
     tags: ["*"]
   pull_request:
+  schedule:
+    - cron: '0 0 * * 1' # runs 00:00 UTC on every Monday
 
 concurrency:
   # Skip intermediate builds: always.

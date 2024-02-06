@@ -38,19 +38,35 @@ previous_last_job = nothing
     products = unique(image.product for image in allimages)
     @test !isempty(products)
     @test "standard-batch" in products
+    n_single_default_image_tests = 0
     for product in products
         nimages_for_product = sum(image.product == product for image in allimages)
         @test nimages_for_product > 0
         images = JuliaHub.batchimages(product; auth)
         @test length(images) == nimages_for_product
         # Test default image for a product
-        image = JuliaHub.batchimage(product; auth)
-        @test image.product == product
-        product_default_image = only(
-            filter(i -> i.product == product && i._is_product_default, allimages)
-        )
-        @test image.image == product_default_image.image
+        default_images = filter(i -> i.product == product && i._is_product_default, allimages)
+        @test length(default_images) > 0 # this assumes that every image has a default image
+        if length(default_images) == 1
+            image = JuliaHub.batchimage(product; auth)
+            @test image.product == product
+            product_default_image = only(
+                filter(i -> i.product == product && i._is_product_default, allimages)
+            )
+            @test image.image == product_default_image.image
+            # We want to make sure that this branch gets tested, and having multiple default
+            # images for several products is a major configuration problem, so we'd expect that
+            # at least a few products are configured correctly.
+            n_single_default_image_tests += 1
+        else
+            # It can happen that a product declares multiple default images. That's likely a
+            # configuration error, but we don't want the tests to fail because of it.
+            # And, in fact, it allows us to sorta test the error handling here.
+            @warn "Multiple default images for product: $(product)" default_images
+            @test_throws Exception JuliaHub.batchimage(product; auth)
+        end
     end
+    @test n_single_default_image_tests > 0
     let default_image = JuliaHub.batchimage(; auth)
         standard_default_image = only(
             filter(i -> i.product == "standard-batch" && i._is_product_default, allimages)
@@ -100,7 +116,7 @@ end
 
 @testset "[LIVE] JuliaHub.submit_job / simple" begin
     job, _ = submit_test_job(
-        JuliaHub.script"@info 1+1; sleep(200)";
+        JuliaHub.script"@info 1+1; sleep(200)"noenv;
         ncpu=2, memory=8,
         auth, alias="script-simple"
     )
@@ -131,10 +147,16 @@ end
     job_killed = JuliaHub.kill_job(job; auth)
     @test job_killed isa JuliaHub.Job
     @test job_killed.id == job.id
-    @test job_killed.status ∉ ("Running", "Submitted")
+    # On 6.4+, killing a job doesn't immediately change its status
+    #@test job_killed.status ∉ ("Running", "Submitted")
     # Wait a bit more and then make sure that the job is stopped
-    @debug "Sleeping for 30s: $(job.id)"
-    sleep(30)
+    for t in [10, 20, 60, 180]
+        @info "Sleeping for $(t)s, waiting for job to be killed: $(job.id)"
+        sleep(t)
+        if JuliaHub.job(job_killed).status ∉ ("Running", "Submitted")
+            break
+        end
+    end
     job_killed = JuliaHub.job(job_killed) # test default auth=
     @test job_killed.status == "Stopped"
     # wait for the logger task to finish, if hasn't already
@@ -164,7 +186,7 @@ end
         JuliaHub.script"""
         ENV["RESULTS"] = "{\\"x\\":42}"
         error("fail")
-        """;
+        """noenv;
         auth, alias="script-fail", timelimit=JuliaHub.Unlimited(),
     )
     @test job._json["limit_type"] == "unlimited"
@@ -181,18 +203,7 @@ end
 
 @testset "[LIVE] JuliaHub.submit_job / distributed" begin
     job, _ = submit_test_job(
-        JuliaHub.script"""
-        using Distributed, JSON
-        @everywhere using Distributed
-        @everywhere fn() = (myid(), strip(read(`hostname`, String)))
-        fs = [i => remotecall(fn, i) for i in workers()]
-        vs = map(fs) do (i, future)
-            myid, hostname = fetch(future)
-            @info "$i: $myid, $hostname"
-            (; myid, hostname)
-        end
-        ENV["RESULTS"] = JSON.json((; vs))
-        """;
+        JuliaHub.appbundle(joinpath(@__DIR__, "jobenvs", "job-dist"), "script.jl");
         nnodes=3,
         auth, alias="distributed",
     )
@@ -209,18 +220,7 @@ end
 
 @testset "[LIVE] JuliaHub.submit_job / distributed-per-core" begin
     job, full_alias = submit_test_job(
-        JuliaHub.script"""
-        using Distributed, JSON
-        @everywhere using Distributed
-        @everywhere fn() = (myid(), strip(read(`hostname`, String)))
-        fs = [i => remotecall(fn, i) for i in workers()]
-        vs = map(fs) do (i, future)
-            myid, hostname = fetch(future)
-            @info "$i: $myid, $hostname"
-            (; myid, hostname)
-        end
-        ENV["RESULTS"] = JSON.json((; vs))
-        """;
+        JuliaHub.appbundle(joinpath(@__DIR__, "jobenvs", "job-dist"), "script.jl");
         ncpu=2, nnodes=3, process_per_node=false,
         env=Dict("FOO" => "bar"),
         auth, alias="distributed-percore",
@@ -293,6 +293,11 @@ end
     )
     job = JuliaHub.wait_job(job)
     @test job.status == "Completed"
+    # Check input and output files
+    @test length(JuliaHub.job_files(job, :input)) >= 2
+    @test JuliaHub.job_file(job, :input, "code.jl") isa JuliaHub.JobFile
+    @test JuliaHub.job_file(job, :input, "appbundle.tar") isa JuliaHub.JobFile
+    # Test the results values
     @test !isempty(job.results)
     let results = JSON.parse(job.results)
         @test results isa AbstractDict
@@ -310,21 +315,18 @@ end
         ENV["RESULTS_FILE"] = joinpath(@__DIR__, "output.txt")
         n = write(ENV["RESULTS_FILE"], "output-txt-content")
         @info "Wrote $(n) bytes"
-        """; alias="output-file",
+        """noenv; alias="output-file",
     )
     job = JuliaHub.wait_job(job)
     @test job.status == "Completed"
     # Project.toml, Manifest.toml, code.jl
-    @test length(JuliaHub.job_files(job, :input)) >= 3
-    @test JuliaHub.job_file(job, :input, "Project.toml") isa JuliaHub.JobFile
-    @test JuliaHub.job_file(job, :input, "Manifest.toml") isa JuliaHub.JobFile
+    @test length(JuliaHub.job_files(job, :input)) >= 1
     @test JuliaHub.job_file(job, :input, "code.jl") isa JuliaHub.JobFile
     # code.jl
     @test length(JuliaHub.job_files(job, :source)) >= 1
     @test JuliaHub.job_file(job, :source, "code.jl") isa JuliaHub.JobFile
     # Project.toml, Manifest.toml
-    @test length(JuliaHub.job_files(job, :project)) >= 2
-    @test JuliaHub.job_file(job, :project, "Project.toml") isa JuliaHub.JobFile
+    @test length(JuliaHub.job_files(job, :project)) >= 1
     @test JuliaHub.job_file(job, :project, "Manifest.toml") isa JuliaHub.JobFile
     # output.txt
     @test length(JuliaHub.job_files(job, :result)) == 1
@@ -343,11 +345,11 @@ end
         write(joinpath(odir, "bar.txt"), "output-txt-content-2")
         @info "Wrote: odir"
         ENV["RESULTS_FILE"] = odir
-        """; alias="output-file-tarball",
+        """noenv; alias="output-file-tarball",
     )
     job = JuliaHub.wait_job(job)
     @test job.status == "Completed"
-    @test length(JuliaHub.job_files(job, :project)) >= 2
+    @test length(JuliaHub.job_files(job, :project)) >= 1
     result_tarball = only(JuliaHub.job_files(job, :result))
     buf = IOBuffer()
     JuliaHub.download_job_file(result_tarball, buf)
