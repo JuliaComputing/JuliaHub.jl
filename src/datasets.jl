@@ -495,6 +495,8 @@ If a dataset already exists, then these fields are updated as if [`update_datase
 
 The function will throw an `ArgumentError` for invalid argument combinations.
 
+Use the `progress` keyword argument to suppress upload progress from being printed.
+
 !!! note
     Presently, it is only possible to upload datasets for the currently authenticated user.
 """
