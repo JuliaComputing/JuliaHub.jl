@@ -680,7 +680,7 @@ function _open_dataset_version(name; auth::Authentication=__auth__())::_RESTResp
     _restcall(auth, :POST, "user", "datasets", name, "versions")
 end
 
-function _upload_dataset(upload_config, local_path; progress=true)
+function _upload_dataset(upload_config, local_path; progress::Bool)
     type = upload_config["upload_type"]
     vendor = upload_config["vendor"]
     if type != "S3" || vendor != "aws"
