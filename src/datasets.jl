@@ -503,6 +503,7 @@ function upload_dataset end
 @_authuser function upload_dataset(
     dsref::_DatasetRefTuple,
     local_path::AbstractString;
+    progress::Bool=true,
     # Operation type
     create::Bool=true,
     update::Bool=false,
@@ -604,7 +605,7 @@ function upload_dataset end
     end
     # Upload the actual data
     try
-        _upload_dataset(upload_config, local_path)
+        _upload_dataset(upload_config, local_path; progress)
     catch e
         throw(JuliaHubError("Data upload failed", e, catch_backtrace()))
     end
@@ -679,7 +680,7 @@ function _open_dataset_version(name; auth::Authentication=__auth__())::_RESTResp
     _restcall(auth, :POST, "user", "datasets", name, "versions")
 end
 
-function _upload_dataset(upload_config, local_path)
+function _upload_dataset(upload_config, local_path; progress=true)
     type = upload_config["upload_type"]
     vendor = upload_config["vendor"]
     if type != "S3" || vendor != "aws"
@@ -704,13 +705,20 @@ function _upload_dataset(upload_config, local_path)
             #   --s3-upload-cutoff 1M --s3-chunk-size 5M
 
             # FIXME: remove `--s3-no-head` once policies are figured out (again)
+            args = [
+                "--s3-no-check-bucket",
+                "--s3-no-head",
+                "--no-check-dest",
+            ]
+
+            if progress
+                pushfirst!(args, "--progress")
+            end
+
             run(```
                 $rclone_exe copyto $local_path "juliahub_remote:$remote_path"
                 --config $rclone_conf_path
-                --progress
-                --s3-no-check-bucket
-                --s3-no-head
-                --no-check-dest
+                $args
                 ```)
         end
     end
