@@ -83,9 +83,14 @@ function nodespecs(; auth::Authentication=__auth__())
         try
             json = JSON.parse(String(r.body))
             if json["success"]
-                return [
+                nodes = [
                     NodeSpec(n) for n in json["node_specs"]
                 ]
+                # We'll sort the list using the same logic that _nodespec_smallest uses, so that
+                # the result would not depend in backend response ordering. But whether the list
+                # is sort, or based on what criteria is not documented, and is considered to be
+                # an implementation detail.
+                return sort(nodes; by = _nodespec_cmp_by)
             end
         catch err
             throw(JuliaHubError("Unexpected answer received."))
@@ -177,9 +182,9 @@ end
 function _nodespec_smallest(
     nodes::Vector{NodeSpec}; ncpu::Integer, memory::Integer, gpu::Bool, throw::Bool
 )
-    # Node's hourly price is just used to disambiguate if there are two nodes that are
-    # otherwise equal (in terms of GPU, CPU and memory numbers).
-    nodes = sort(nodes; by=n -> (n.hasGPU, n.vcores, n.mem, n.priceHr))
+    # Note: while JuliaHub.nodespecs() does return a sorted list, we can not assume that
+    # here, since the user can pass their own list which might not be sorted.
+    nodes = sort(nodes; by = _nodespec_cmp_by)
     idx = findfirst(nodes) do n
         # !gpu || n.hasGPU <=> gpu => n.hasGPU
         (!gpu || n.hasGPU) && (n.vcores >= ncpu) && (n.mem >= memory)
@@ -193,3 +198,8 @@ function _nodespec_smallest(
         return nodes[idx]
     end
 end
+
+# This representation of a NodeSpec is used when comparing them to find the "smallest".
+# Node's hourly price is just used to disambiguate if there are two nodes that are
+# otherwise equal (in terms of GPU, CPU and memory numbers).
+_nodespec_cmp_by(n::NodeSpec) = (n.hasGPU, n.vcores, n.mem, n.priceHr)
