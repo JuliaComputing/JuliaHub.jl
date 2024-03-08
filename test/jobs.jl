@@ -120,10 +120,12 @@ end
 
 # We'll re-use this further down in job submission tests.
 ns_cheapest = Mocking.apply(mocking_patch) do
+    empty!(MOCK_JULIAHUB_STATE)
     JuliaHub.nodespec()
 end
 
 @testset "JuliaHub.nodespec/s()" begin
+    empty!(MOCK_JULIAHUB_STATE)
     @testset "Cheapest" begin
         @test ns_cheapest.hasGPU === false
         @test ns_cheapest.vcores == 2
@@ -184,6 +186,85 @@ end
         @test_throws JuliaHub.InvalidRequestError JuliaHub.nodespec(; ngpu=10, throw=true)
         @test @test_logs (:warn,) JuliaHub.nodespec(; ngpu=10, throw=false) === nothing
     end
+
+    # Check that we ignore bad price information, and match node based on the GPU, CPU, and memory (in that order)
+    MOCK_JULIAHUB_STATE[:nodespecs] = [
+        #! format: off
+        #  class,   gpu,  cpu,   mem, price,                                desc,  ?, memdisp,     ?,     ?, id
+        [   "c1", false,  1.0,  16.0,  3.00, "3.5 GHz Intel Xeon Platinum 8375C", "",     "4", 90.50, 87.90,  2],
+        [   "c2", false,  2.0,   8.0,  2.00, "3.5 GHz Intel Xeon Platinum 8375C", "",     "4", 95.10, 92.10,  3],
+        [   "c8", false,  8.0,   4.0,  1.00, "3.5 GHz Intel Xeon Platinum 8375C", "",     "4", 98.50, 93.90,  4],
+        #! format: on
+    ]
+    Mocking.apply(mocking_patch) do
+        let n = JuliaHub.nodespec()
+            @test_broken n.nodeClass == "c1"
+            @test_broken n._id == 2
+            @test_broken n.vcores == 1
+            @test_broken n.mem == 16
+            @test !n.hasGPU
+        end
+        let n = JuliaHub.nodespec(; ncpu=2)
+            @test_broken n.nodeClass == "c2"
+            @test_broken n._id == 3
+            @test_broken n.vcores == 2
+            @test_broken n.mem == 8
+            @test !n.hasGPU
+        end
+    end
+    # Cheap GPU node gets de-prioritised:
+    push!(
+        MOCK_JULIAHUB_STATE[:nodespecs],
+        #! format: off
+        #  class,   gpu,  cpu,   mem, price,                                desc,  ?, memdisp,     ?,     ?, id
+        [ "c1g1",  true,  1.0,  16.0,  0.00, "3.5 GHz Intel Xeon Platinum 8375C", "",     "4", 90.50, 87.90,  5],
+        #! format: on
+    )
+    Mocking.apply(mocking_patch) do
+        let n = JuliaHub.nodespec()
+            @test_broken n.nodeClass == "c1"
+            @test_broken n._id == 2
+            @test n.vcores == 1
+            @test n.mem == 16
+            @test_broken !n.hasGPU
+        end
+    end
+    # Low memory gets prioritized:
+    push!(
+        MOCK_JULIAHUB_STATE[:nodespecs],
+        #! format: off
+        #  class,   gpu,  cpu,   mem, price,                                desc,  ?, memdisp,     ?,     ?, id
+        [ "c1m1", false,  1.0,   1.0, 99.99, "3.5 GHz Intel Xeon Platinum 8375C", "",     "4", 90.50, 87.90,  6],
+        #! format: on
+    )
+    Mocking.apply(mocking_patch) do
+        let n = JuliaHub.nodespec()
+            @test_broken n.nodeClass == "c1m1"
+            @test_broken n._id == 6
+            @test n.vcores == 1
+            @test_broken n.mem == 1
+            @test_broken !n.hasGPU
+        end
+    end
+    # However, for identical nodespecs, we disambiguate based on price:
+    MOCK_JULIAHUB_STATE[:nodespecs] = [
+        #! format: off
+        # class,   gpu,  cpu,   mem, price,                                desc,  ?, memdisp,     ?,     ?, id
+        [  "a1", false,  1.0,   1.0,  2.00, "3.5 GHz Intel Xeon Platinum 8375C", "",     "4", 90.50, 87.90,  2],
+        [  "a2", false,  1.0,   1.0,  1.00, "3.5 GHz Intel Xeon Platinum 8375C", "",     "4", 95.10, 92.10,  3],
+        [  "a3", false,  1.0,   1.0,  2.00, "3.5 GHz Intel Xeon Platinum 8375C", "",     "4", 98.50, 93.90,  4],
+        #! format: on
+    ]
+    Mocking.apply(mocking_patch) do
+        let n = JuliaHub.nodespec()
+            @test n._id == 3
+            @test n.nodeClass == "a2"
+            @test n.vcores == 1
+            @test n.mem == 1
+            @test !n.hasGPU
+        end
+    end
+    empty!(MOCK_JULIAHUB_STATE)
 end
 
 # This testset uses the show(::IO, ::JuliaHub.ComputeConfig) representation of ComputeConfig,
