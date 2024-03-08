@@ -198,17 +198,17 @@ end
     ]
     Mocking.apply(mocking_patch) do
         let n = JuliaHub.nodespec()
-            @test_broken n.nodeClass == "c1"
-            @test_broken n._id == 2
-            @test_broken n.vcores == 1
-            @test_broken n.mem == 16
+            @test n.nodeClass == "c1"
+            @test n._id == 2
+            @test n.vcores == 1
+            @test n.mem == 16
             @test !n.hasGPU
         end
         let n = JuliaHub.nodespec(; ncpu=2)
-            @test_broken n.nodeClass == "c2"
-            @test_broken n._id == 3
-            @test_broken n.vcores == 2
-            @test_broken n.mem == 8
+            @test n.nodeClass == "c2"
+            @test n._id == 3
+            @test n.vcores == 2
+            @test n.mem == 8
             @test !n.hasGPU
         end
     end
@@ -222,11 +222,11 @@ end
     )
     Mocking.apply(mocking_patch) do
         let n = JuliaHub.nodespec()
-            @test_broken n.nodeClass == "c1"
-            @test_broken n._id == 2
+            @test n.nodeClass == "c1"
+            @test n._id == 2
             @test n.vcores == 1
             @test n.mem == 16
-            @test_broken !n.hasGPU
+            @test !n.hasGPU
         end
     end
     # Low memory gets prioritized:
@@ -239,11 +239,11 @@ end
     )
     Mocking.apply(mocking_patch) do
         let n = JuliaHub.nodespec()
-            @test_broken n.nodeClass == "c1m1"
-            @test_broken n._id == 6
+            @test n.nodeClass == "c1m1"
+            @test n._id == 6
             @test n.vcores == 1
-            @test_broken n.mem == 1
-            @test_broken !n.hasGPU
+            @test n.mem == 1
+            @test !n.hasGPU
         end
     end
     # However, for identical nodespecs, we disambiguate based on price:
