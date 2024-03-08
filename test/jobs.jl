@@ -258,7 +258,7 @@ end
             @test n.hasGPU
         end
         # Test sorting of JuliaHub.nodespecs()
-        @test [n.nodeClass for n in JuliaHub.nodespecs()] == ["c1m1", "c1", "c2", "c8", "c1m1"]
+        @test [n.nodeClass for n in JuliaHub.nodespecs()] == ["c1m1", "c1", "c2", "c8", "c1g1"]
     end
     # However, for identical nodespecs, we disambiguate based on price:
     MOCK_JULIAHUB_STATE[:nodespecs] = [
@@ -281,7 +281,8 @@ end
         let ns = JuliaHub.nodespecs()
             @test ns[1].nodeClass == "a2"
             # With identical spec and price, order is not guaranteed
-            @test ns[1].nodeClass ∈ ("a1", "a3")
+            @test ns[2].nodeClass ∈ ("a1", "a3")
+            @test ns[3].nodeClass ∈ ("a1", "a3")
         end
     end
     empty!(MOCK_JULIAHUB_STATE)
