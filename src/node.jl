@@ -90,7 +90,7 @@ function nodespecs(; auth::Authentication=__auth__())
                 # the result would not depend in backend response ordering. But whether the list
                 # is sort, or based on what criteria is not documented, and is considered to be
                 # an implementation detail.
-                return sort(nodes; by = _nodespec_cmp_by)
+                return sort(nodes; by=_nodespec_cmp_by)
             end
         catch err
             throw(JuliaHubError("Unexpected answer received."))
@@ -184,7 +184,7 @@ function _nodespec_smallest(
 )
     # Note: while JuliaHub.nodespecs() does return a sorted list, we can not assume that
     # here, since the user can pass their own list which might not be sorted.
-    nodes = sort(nodes; by = _nodespec_cmp_by)
+    nodes = sort(nodes; by=_nodespec_cmp_by)
     idx = findfirst(nodes) do n
         # !gpu || n.hasGPU <=> gpu => n.hasGPU
         (!gpu || n.hasGPU) && (n.vcores >= ncpu) && (n.mem >= memory)
