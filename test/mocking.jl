@@ -186,21 +186,26 @@ function _restcall_mocked(method, url, headers, payload; query)
     apiv = get(MOCK_JULIAHUB_STATE, :api_version, JuliaHub._MISSING_API_VERSION)
     # Mocked versions of the different endpoints:
     if (method == :GET) && endswith(url, "app/config/nodespecs/info")
-        Dict(
-            "message" => "", "success" => true,
-            "node_specs" => [
+        nodespecs = get(MOCK_JULIAHUB_STATE, :nodespecs) do
+            [
                 #! format: off
-                ["m6", false, 4.0, 16.0, 0.33, "3.5 GHz Intel Xeon Platinum 8375C", "", "4", 90.5, 87.9, 2],
-                ["m6", false, 8.0, 32.0, 0.65, "3.5 GHz Intel Xeon Platinum 8375C", "", "4", 95.1, 92.1, 3],
-                ["m6", false, 32.0, 128.0, 2.4, "3.5 GHz Intel Xeon Platinum 8375C", "", "4", 98.5, 93.9, 4],
-                ["r6", false, 2.0, 16.0, 0.22, "3.5 GHz Intel Xeon Platinum 8375C", "", "8", 81.5, 89.8, 5],
-                ["r6", false, 4.0, 32.0, 0.42, "3.5 GHz Intel Xeon Platinum 8375C", "", "8", 90.5, 92.1, 6],
-                ["m6", false, 2.0, 8.0, 0.17, "3.5 GHz Intel Xeon Platinum 8375C", "", "4", 81.5, 83.25, 7],
-                ["r6", false, 8.0, 64.0, 1.3, "3.5 GHz Intel Xeon Platinum 8375C", "", "8", 95.1, 94.25, 9],
-                ["p2", true, 4.0, 61.0, 1.4, "Intel Xeon E5-2686 v4 (Broadwell)", "", "K80", 90.25, 88.09, 8],
-                ["p3", true, 8.0, 61.0, 4.5, "Intel Xeon E5-2686 v4 (Broadwell)", "", "V100", 95.03, 88.09, 1],
+                #  class,   gpu,  cpu,   mem, price,                                desc,  ?, memdisp,     ?,     ?, id
+                [   "m6", false,  4.0,  16.0,  0.33, "3.5 GHz Intel Xeon Platinum 8375C", "",     "4", 90.50, 87.90,  2],
+                [   "m6", false,  8.0,  32.0,  0.65, "3.5 GHz Intel Xeon Platinum 8375C", "",     "4", 95.10, 92.10,  3],
+                [   "m6", false, 32.0, 128.0,  2.40, "3.5 GHz Intel Xeon Platinum 8375C", "",     "4", 98.50, 93.90,  4],
+                [   "r6", false,  2.0,  16.0,  0.22, "3.5 GHz Intel Xeon Platinum 8375C", "",     "8", 81.50, 89.80,  5],
+                [   "r6", false,  4.0,  32.0,  0.42, "3.5 GHz Intel Xeon Platinum 8375C", "",     "8", 90.50, 92.10,  6],
+                [   "m6", false,  2.0,   8.0,  0.17, "3.5 GHz Intel Xeon Platinum 8375C", "",     "4", 81.50, 83.25,  7],
+                [   "r6", false,  8.0,  64.0,  1.30, "3.5 GHz Intel Xeon Platinum 8375C", "",     "8", 95.10, 94.25,  9],
+                [   "p2",  true,  4.0,  61.0,  1.40, "Intel Xeon E5-2686 v4 (Broadwell)", "",   "K80", 90.25, 88.09,  8],
+                [   "p3",  true,  8.0,  61.0,  4.50, "Intel Xeon E5-2686 v4 (Broadwell)", "",  "V100", 95.03, 88.09,  1],
                 #! format: on
-            ],
+            ]
+        end
+        Dict(
+            "message" => "",
+            "success" => true,
+            "node_specs" => nodespecs,
         ) |> jsonresponse(200)
     elseif (method == :GET) && endswith(url, "app/packages/registries")
         packages_registries = get(MOCK_JULIAHUB_STATE, :app_packages_registries) do

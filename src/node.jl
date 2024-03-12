@@ -83,9 +83,14 @@ function nodespecs(; auth::Authentication=__auth__())
         try
             json = JSON.parse(String(r.body))
             if json["success"]
-                return [
+                nodes = [
                     NodeSpec(n) for n in json["node_specs"]
                 ]
+                # We'll sort the list using the same logic that _nodespec_smallest uses, so that
+                # the result would not depend in backend response ordering. But whether the list
+                # is sort, or based on what criteria is not documented, and is considered to be
+                # an implementation detail.
+                return sort(nodes; by=_nodespec_cmp_by)
             end
         catch err
             throw(JuliaHubError("Unexpected answer received."))
@@ -109,9 +114,10 @@ Finds the node matching the specified node parameters. Throws an [`InvalidReques
 if it is unable to find a node with the specific parameters. However, if `throw` is set to
 `false`, it will return `nothing` instead in that situation.
 
-By default, it searches for the smallest node that has the specified parameters
-or more higher. If `exactmatch` is set to `true`, it only returns a node specification
-if it can find one that matches the parameters exactly.
+By default, it searches for the smallest node that has the at least the specified parameters
+(prioritizing GPU count, CPU count, and memory in this order when deciding).
+If `exactmatch` is set to `true`, it only returns a node specification if it can find one that
+matches the parameters exactly.
 
 A list of nodes (e.g. from [`nodespecs`](@ref)) can also be passed, so that the function
 does not have to query the server for the list. When this method is used, it is not necessary
@@ -150,7 +156,7 @@ function nodespec(
     if exactmatch
         _nodespec_exact(nodes; ncpu, memory, gpu=has_gpu, throw)
     else
-        _nodespec_cheapest(nodes; ncpu, memory, gpu=has_gpu, throw)
+        _nodespec_smallest(nodes; ncpu, memory, gpu=has_gpu, throw)
     end
 end
 
@@ -173,10 +179,12 @@ function _nodespec_exact(
     return nodes[first(idxs)]
 end
 
-function _nodespec_cheapest(
+function _nodespec_smallest(
     nodes::Vector{NodeSpec}; ncpu::Integer, memory::Integer, gpu::Bool, throw::Bool
 )
-    nodes = sort(nodes; by=n -> (n.priceHr, n.hasGPU, n.vcores, n.mem))
+    # Note: while JuliaHub.nodespecs() does return a sorted list, we can not assume that
+    # here, since the user can pass their own list which might not be sorted.
+    nodes = sort(nodes; by=_nodespec_cmp_by)
     idx = findfirst(nodes) do n
         # !gpu || n.hasGPU <=> gpu => n.hasGPU
         (!gpu || n.hasGPU) && (n.vcores >= ncpu) && (n.mem >= memory)
@@ -190,3 +198,8 @@ function _nodespec_cheapest(
         return nodes[idx]
     end
 end
+
+# This representation of a NodeSpec is used when comparing them to find the "smallest".
+# Node's hourly price is just used to disambiguate if there are two nodes that are
+# otherwise equal (in terms of GPU, CPU and memory numbers).
+_nodespec_cmp_by(n::NodeSpec) = (n.hasGPU, n.vcores, n.mem, n.priceHr)
