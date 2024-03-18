@@ -119,7 +119,7 @@ end
     @test_logs (:warn,) match_mode = :any JuliaHub._PackageBundler.bundle(
         bundle_env;
         output=out,
-        verbose=false,
+        verbose=false
     )
     dir = mktempdir()
     Tar.extract(out, dir)
