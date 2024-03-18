@@ -177,7 +177,7 @@ end
         bundle_env;
         output=out,
         verbose=false,
-        allownoenv=true,
+        allownoenv=true
     )
     dir = mktempdir()
     Tar.extract(out, dir)
