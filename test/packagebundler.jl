@@ -116,10 +116,10 @@ end
     out = tempname()
     # Using match_mode=:any, since it's possible for the Pkg operations to produce other additional
     # log messages, breaking the tests.
-    @test_logs (:warn,) match_mode=:any JuliaHub._PackageBundler.bundle(
+    @test_logs (:warn,) match_mode = :any JuliaHub._PackageBundler.bundle(
         bundle_env;
         output=out,
-        verbose=false,
+        verbose=false
     )
     dir = mktempdir()
     Tar.extract(out, dir)
@@ -173,7 +173,7 @@ end
     out = tempname()
     # Using match_mode=:any, since it's possible for the Pkg operations to produce other additional
     # log messages, breaking the tests.
-    @test_logs (:warn,) match_mode=:any JuliaHub._PackageBundler.bundle(
+    @test_logs (:warn,) match_mode = :any JuliaHub._PackageBundler.bundle(
         bundle_env;
         output=out,
         verbose=false,
