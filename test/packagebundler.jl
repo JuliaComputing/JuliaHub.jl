@@ -114,10 +114,12 @@ end
     bundle = "bundle.nomanifest"
     bundle_env = joinpath(pkg1, bundle)
     out = tempname()
-    @test_logs (:warn,) JuliaHub._PackageBundler.bundle(
+    # Using match_mode=:any, since it's possible for the Pkg operations to produce other additional
+    # log messages, breaking the tests.
+    @test_logs (:warn,) match_mode = :any JuliaHub._PackageBundler.bundle(
         bundle_env;
         output=out,
-        verbose=false,
+        verbose=false
     )
     dir = mktempdir()
     Tar.extract(out, dir)
@@ -169,7 +171,9 @@ end
     bundle = "bundle.noenv"
     bundle_env = joinpath(pkg1, bundle)
     out = tempname()
-    @test_logs (:warn,) JuliaHub._PackageBundler.bundle(
+    # Using match_mode=:any, since it's possible for the Pkg operations to produce other additional
+    # log messages, breaking the tests.
+    @test_logs (:warn,) match_mode = :any JuliaHub._PackageBundler.bundle(
         bundle_env;
         output=out,
         verbose=false,
