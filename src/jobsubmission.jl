@@ -785,7 +785,7 @@ function _upload_appbundle(appbundle_tar_path::AbstractString; auth::Authenticat
         Mocking.@mock _restput_mockable(
             upload_url,
             ["Content-Length" => filesize(appbundle_tar_path)],
-            input
+            input,
         )
     end
     # The response body of a successful upload is empty
@@ -955,6 +955,7 @@ struct WorkloadConfig
     env::Dict{String, String}
     project::Union{UUIDs.UUID, Nothing}
     timelimit::Union{Dates.Hour, Unlimited}
+    exposed_port::Union{Int, Nothing}
     # internal, undocumented, may be removed an any point, not part of the public API:
     _image_sha256::Union{String, Nothing}
 
@@ -964,6 +965,7 @@ struct WorkloadConfig
         env=(),
         project::Union{UUIDs.UUID, Nothing}=nothing,
         timelimit::Limit=_DEFAULT_WorkloadConfig_timelimit,
+        expose::Union{Integer, Nothing}=nothing,
         # internal, undocumented, may be removed an any point, not part of the public API:
         _image_sha256::Union{AbstractString, Nothing}=nothing,
     )
@@ -974,6 +976,13 @@ struct WorkloadConfig
                 ),
             )
         end
+        if !isnothing(expose) && !_is_valid_port_range(expose)
+            Base.throw(
+                ArgumentError(
+                    "Invalid port value for expose: '$(expose)', must be >= 1 & <= 1 65535"
+                ),
+            )
+        end
         new(
             app,
             compute,
@@ -981,10 +990,14 @@ struct WorkloadConfig
             Dict(string(k) => v for (k, v) in pairs(env)),
             project,
             @_timelimit(timelimit),
+            expose,
             _image_sha256,
         )
     end
 end
+
+# TODO: need to define the valid port range
+_is_valid_port_range(port::Integer) = 1 <= port <= 65535
 
 _is_gpu_job(workload::WorkloadConfig) = workload.compute.node.hasGPU
 
@@ -1020,8 +1033,8 @@ end
         elastic::Bool = false,
         process_per_node::Bool = true,
         # Runtime configuration keyword arguments
-        [alias::AbstractString], [env], [project::Union{UUID, AbstractString}],
-        timelimit::Limit = Hour(1),
+        [alias::AbstractString], [env], [expose::Integer],
+        [project::Union{UUID, AbstractString}], timelimit::Limit = Hour(1),
         # General keyword arguments
         dryrun::Bool = false,
         [auth :: Authentication]
@@ -1057,10 +1070,12 @@ of the job.
   with. If a string is passed, it must parse as a valid UUID. Passing `nothing` is equivalent to omitting the
   argument.
 
+* `expose :: Union{Integer, Nothing}`: if set to an integer in the valid port range, that port will be exposed
+  over HTTPS, allowing for (authenticated) HTTP calls. [See the relevant manual section for more information.](@ref jobs-batch-expose-port)
+
 **General arguments.**
 
-* `auth :: Authentication`: optional authentication object (see [the authentication section](@ref authentication)
-  for more information)
+$(_DOCS_authentication_kwarg)
 
 * `dryrun :: Bool`: if set to true, `submit_job` does not actually submit the job, but instead
   returns a [`WorkloadConfig`](@ref) object, which can be used to inspect the configuration
@@ -1116,6 +1131,7 @@ function submit_job(
     env=(),
     project::Union{UUIDs.UUID, AbstractString, Nothing}=nothing,
     timelimit::Limit=_DEFAULT_WorkloadConfig_timelimit,
+    expose::Union{Integer, Nothing}=nothing,
     # internal, undocumented, may be removed an any point, not part of the public API:
     _image_sha256::Union{AbstractString, Nothing}=nothing,
     # General submit_job arguments
@@ -1135,8 +1151,8 @@ function submit_job(
         project
     end
     submit_job(
-        WorkloadConfig(app, compute; alias, env, project, timelimit, _image_sha256);
-        kwargs...
+        WorkloadConfig(app, compute; alias, env, project, timelimit, expose, _image_sha256);
+        kwargs...,
     )
 end
 
@@ -1231,6 +1247,34 @@ function _job_submit_args(
     else
         (;)
     end
+    # Note: this set of arguments will also set product_name which must override the value
+    # in `image_args`, achieved by splatting it later in the named tuple constructor below.
+    exposed_port_args = if !isnothing(workload.exposed_port)
+        product_name = if isnothing(batch.image)
+            # If the image was not specified for the job submissions, we assume that the
+            # corresponding interactive product is called 'standard-interactive' and that it
+            # is available to the user (we can not verify that at this point anymore though).
+            "standard-interactive"
+        elseif isnothing(batch.image._interactive_product_name)
+            throw(
+                InvalidRequestError(
+                    "Product '$(batch.image.product_name)' does not support exposing a port."
+                ),
+            )
+        else
+            batch.image._interactive_product_name
+        end
+        (;
+            product_name,
+            appArgs=Dict(
+                "authentication" => true,
+                "authorization" => "me",
+                "port" => workload.exposed_port,
+            ),
+        )
+    else
+        (;)
+    end
     sysimage_args = if batch.sysimage
         sysimage_manifest_sha = _sysimage_manifest_sha(batch.environment)
         if isnothing(sysimage_manifest_sha)
@@ -1242,7 +1286,7 @@ function _job_submit_args(
     end
     return (;
         _job_submit_args(auth, workload, batch, batch.environment, _JobSubmission1; kwargs...)...,
-        image_args..., sysimage_args...,
+        image_args..., exposed_port_args..., sysimage_args...,
     )
 end
 
@@ -1290,7 +1334,7 @@ function _job_submit_args(
         registry_name=packagejob.registry,
         args=merge(
             Dict("jobname" => packagejob.name, "jr_uuid" => packagejob.jr_uuid),
-            packagejob.args
+            packagejob.args,
         ),
         # Just in case, we want to omit sysimage_build altogether when it is not requested.
         sysimage_build=packagejob.sysimage ? true : nothing,

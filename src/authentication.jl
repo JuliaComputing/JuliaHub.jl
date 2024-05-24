@@ -453,3 +453,10 @@ function reauthenticate!(
     auth._tokenpath = new_auth._tokenpath
     return auth
 end
+
+# This can be interpolated into the docstrings of functions that take the
+# auth::Authentication = __auth__() keyword argument.
+const _DOCS_authentication_kwarg = """
+* `auth :: Authentication`: optional authentication object (see
+  [the authentication section](@ref authentication) for more information)
+"""
