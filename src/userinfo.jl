@@ -44,7 +44,7 @@ function _get_authenticated_user_legacy(server::AbstractString, token::Secret)::
     json, _ = _parse_response_json(r, Dict)
     users = _get_json(_get_json(json, "data", Dict; msg), "users", Vector)
     length(users) == 1 || throw(
-        JuliaHubError("$msg\nInvalid JSON returned by the server: length(users)=$(length(users))"),
+        JuliaHubError("$msg\nInvalid JSON returned by the server: length(users)=$(length(users))")
     )
     user = only(users)
     userid = _get_json(user, "id", Int; msg)

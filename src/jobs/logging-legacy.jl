@@ -188,7 +188,7 @@ function _get_job_logs_legacy(
     query = Pair{String, Any}[
         "log_output_type" => "content",
         "jobname" => jobname,
-        "log_out_type" => "json"
+        "log_out_type" => "json",
     ]
     if start_time !== nothing
         if end_time !== nothing
@@ -224,7 +224,7 @@ function _get_job_logs_legacy(
     if jb isa Dict && !get(jb, "success", true)
         throw(
             JuliaHubError(
-                "Downloading log content failed: `$(get(jb, "reason", get(jb, "message", "unknown error")))`",
+                "Downloading log content failed: `$(get(jb, "reason", get(jb, "message", "unknown error")))`"
             ),
         )
     end
@@ -461,7 +461,7 @@ function _job_logs_older!(
         r = JuliaHub._get_job_logs_legacy(
             auth, jobname;
             end_time=timestamp,
-            event_id=reference_log._legacy_eventId
+            event_id=reference_log._legacy_eventId,
         )
         if isempty(r.logs)
             # TODO: If the logs are empty, then something has probably gone wrong

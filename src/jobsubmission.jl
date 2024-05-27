@@ -785,7 +785,7 @@ function _upload_appbundle(appbundle_tar_path::AbstractString; auth::Authenticat
         Mocking.@mock _restput_mockable(
             upload_url,
             ["Content-Length" => filesize(appbundle_tar_path)],
-            input
+            input,
         )
     end
     # The response body of a successful upload is empty
@@ -1136,7 +1136,7 @@ function submit_job(
     end
     submit_job(
         WorkloadConfig(app, compute; alias, env, project, timelimit, _image_sha256);
-        kwargs...
+        kwargs...,
     )
 end
 
@@ -1290,7 +1290,7 @@ function _job_submit_args(
         registry_name=packagejob.registry,
         args=merge(
             Dict("jobname" => packagejob.name, "jr_uuid" => packagejob.jr_uuid),
-            packagejob.args
+            packagejob.args,
         ),
         # Just in case, we want to omit sysimage_build altogether when it is not requested.
         sysimage_build=packagejob.sysimage ? true : nothing,

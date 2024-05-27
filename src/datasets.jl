@@ -317,7 +317,7 @@ function datasets(
         e isa JuliaHubException && rethrow(e)
         e isa JuliaHubError && rethrow(e)
         throw(
-            JuliaHubError("Error while retrieving datasets from the server", e, catch_backtrace()),
+            JuliaHubError("Error while retrieving datasets from the server", e, catch_backtrace())
         )
     end
     # It might happen that some of the elements of the `datasets` array can not be parsed for some reason,
@@ -406,7 +406,7 @@ function dataset end
 @_authuser function dataset(
     dsref::_DatasetRefTuple;
     throw::Bool=true,
-    auth::Authentication=__auth__()
+    auth::Authentication=__auth__(),
 )
     username, dataset_name = dsref
     for dataset in datasets(; shared=true, auth)
@@ -447,7 +447,7 @@ function delete_dataset end
 @_authuser function delete_dataset(
     dsref::_DatasetRefTuple;
     force::Bool=false,
-    auth::Authentication=__auth__()
+    auth::Authentication=__auth__(),
 )
     username, dataset_name = dsref
     _assert_current_user(username, auth; op="delete_dataset")
@@ -548,7 +548,7 @@ function upload_dataset end
                 # we must throw an invalid request error.
                 throw(
                     InvalidRequestError(
-                        "Dataset '$dataset_name' for user '$username' already exists, but update=false and replace=false.",
+                        "Dataset '$dataset_name' for user '$username' already exists, but update=false and replace=false."
                     ),
                 )
             elseif replace
@@ -600,7 +600,7 @@ function upload_dataset end
             # dtype).
             throw(
                 InvalidRequestError(
-                    "Local data type ($dtype) does not match existing dataset dtype $(upload_config["dataset_type"])",
+                    "Local data type ($dtype) does not match existing dataset dtype $(upload_config["dataset_type"])"
                 ),
             )
         end
@@ -622,7 +622,7 @@ function upload_dataset end
     if !all(ismissing.((description, tags, visibility, license, groups)))
         update_dataset(
             (username, dataset_name); auth,
-            description, tags, visibility, license, groups
+            description, tags, visibility, license, groups,
         )
     end
     # If everything was successful, we'll return an updated DataSet object.
@@ -843,7 +843,7 @@ function download_dataset(
     dsref::_DatasetRefTuple,
     local_path::AbstractString;
     auth::Authentication=__auth__(),
-    kwargs...
+    kwargs...,
 )
     ds = dataset(dsref; auth)
     download_dataset(ds, local_path; auth, kwargs...)
@@ -858,7 +858,7 @@ function download_dataset(
 )
     dataset.dtype ∈ ["Blob", "BlobTree"] || throw(
         InvalidRequestError(
-            "Download only supported for Blobs and BlobTrees, but '$(dataset.name)' is $(dataset.type)",
+            "Download only supported for Blobs and BlobTrees, but '$(dataset.name)' is $(dataset.type)"
         ),
     )
 
