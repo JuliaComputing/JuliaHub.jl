@@ -29,7 +29,7 @@ results = Dict(
         "include_success" => script_include_success,
         "script_1" => isdefined(Main, :MY_DEPENDENT_SCRIPT_1),
         "script_2" => isdefined(Main, :MY_DEPENDENT_SCRIPT_2),
-    )
+    ),
 )
 
 @info "Storing RESULTS:\n$(results)"
