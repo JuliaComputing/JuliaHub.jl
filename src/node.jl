@@ -170,7 +170,7 @@ function _nodespec_exact(
     if isempty(idxs)
         return _throw_or_nothing(;
             msg="Unable to find a nodespec: ncpu=$ncpu memory=$memory gpu=$gpu",
-            throw
+            throw,
         )
     end
     if length(idxs) > 1
@@ -192,7 +192,7 @@ function _nodespec_smallest(
     if isnothing(idx)
         return _throw_or_nothing(;
             msg="Unable to find a nodespec with at least: ncpu=$ncpu memory=$memory gpu=$gpu",
-            throw
+            throw,
         )
     else
         return nodes[idx]

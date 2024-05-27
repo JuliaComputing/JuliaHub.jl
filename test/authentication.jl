@@ -81,7 +81,7 @@ end
             token,
             username="authfile_username",
             expires=1234,
-            email="authfile@example.org"
+            email="authfile@example.org",
         )
         # Testing the fallback to legacy GQL endpoint
         MOCK_JULIAHUB_STATE[:auth_v1_status] = 404
@@ -89,7 +89,7 @@ end
                 server;
                 token,
                 username="authfile_username",
-                email="authfile@example.org"
+                email="authfile@example.org",
             )
             @test a isa JuliaHub.Authentication
             @test a.server == server
@@ -105,7 +105,7 @@ end
             token,
             username="authfile_username",
             expires=1234,
-            email="authfile@example.org"
+            email="authfile@example.org",
         )
         # Missing username in /api/v1 -- succes, but with a warning
         delete!(MOCK_JULIAHUB_STATE, :auth_v1_status)
@@ -114,7 +114,7 @@ end
                 server;
                 token,
                 username="authfile_username",
-                email="authfile@example.org"
+                email="authfile@example.org",
             )
             @test a isa JuliaHub.Authentication
             @test a.server == server

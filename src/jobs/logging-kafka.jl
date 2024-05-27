@@ -71,7 +71,7 @@ mutable struct KafkaLogsBuffer <: AbstractJobLogsBuffer
             f,
             nothing,
             0,
-            ReentrantLock()
+            ReentrantLock(),
         )
         # If the user requested streaming too, then we start the background task.
         stream && _job_logs_kafka_start_streaming!(auth, b)
@@ -142,7 +142,7 @@ function _job_logs_newer!(
     consumer_id, logs, job_is_done = _get_logs_kafka_parsed(
         auth, jobname;
         offset=_kafka_next_offset(b),
-        timeout=_KAFKA_DEFAULT_GET_TIMEOUT
+        timeout=_KAFKA_DEFAULT_GET_TIMEOUT,
     )
     job_is_done && (b._found_last = true)
     # If the returned list of logs is empty, we check if we can still update the cursor
@@ -176,7 +176,7 @@ function _job_logs_newer!(
         next_offset = last(logs)._offset + 1
         consumer_id, logs, job_is_done = _get_logs_kafka_parsed(
             auth, jobname; offset=next_offset, consumer_id,
-            timeout=_KAFKA_DEFAULT_GET_TIMEOUT
+            timeout=_KAFKA_DEFAULT_GET_TIMEOUT,
         )
         job_is_done && (b._found_last = true)
     end
@@ -257,7 +257,7 @@ function _job_logs_older!(
     consumer_id, logs, _ = _get_logs_kafka_parsed(
         auth, jobname;
         offset=next_offset,
-        timeout=_KAFKA_DEFAULT_GET_TIMEOUT
+        timeout=_KAFKA_DEFAULT_GET_TIMEOUT,
     )
     # This should not normally happen because we should only be asking for logs that are actually present.
     # But sometimes it does.. maybe when the timeout is not long enough? So we handle this by gracefully
@@ -278,7 +278,7 @@ function _job_logs_older!(
         next_offset = last(logs)._offset + 1
         consumer_id, logs, _ = _get_logs_kafka_parsed(
             auth, jobname; offset=next_offset, consumer_id,
-            timeout=_KAFKA_DEFAULT_GET_TIMEOUT
+            timeout=_KAFKA_DEFAULT_GET_TIMEOUT,
         )
         @assert !isempty(logs)
     end

@@ -118,7 +118,7 @@ end
     job, _ = submit_test_job(
         JuliaHub.script"@info 1+1; sleep(200)"noenv;
         ncpu=2, memory=8,
-        auth, alias="script-simple"
+        auth, alias="script-simple",
     )
     @test job isa JuliaHub.Job
     @test job.status ∈ ("Submitted", "Running")
@@ -315,7 +315,7 @@ end
         ENV["RESULTS_FILE"] = joinpath(@__DIR__, "output.txt")
         n = write(ENV["RESULTS_FILE"], "output-txt-content")
         @info "Wrote $(n) bytes"
-        """noenv; alias="output-file",
+        """noenv; alias="output-file"
     )
     job = JuliaHub.wait_job(job)
     @test job.status == "Completed"
@@ -345,7 +345,7 @@ end
         write(joinpath(odir, "bar.txt"), "output-txt-content-2")
         @info "Wrote: odir"
         ENV["RESULTS_FILE"] = odir
-        """noenv; alias="output-file-tarball",
+        """noenv; alias="output-file-tarball"
     )
     job = JuliaHub.wait_job(job)
     @test job.status == "Completed"
@@ -386,7 +386,7 @@ end
             joinpath(@__DIR__, "jobenvs", "sysimage"),
             "script.jl";
             sysimage=true,
-        ); auth, alias="sysimage",
+        ); auth, alias="sysimage"
     )
     job = JuliaHub.wait_job(job)
     @test job.status == "Completed"

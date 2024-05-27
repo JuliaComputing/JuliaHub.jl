@@ -202,7 +202,7 @@ function authenticate(
     server_uri_string = if isnothing(server)
         haskey(ENV, "JULIA_PKG_SERVER") || throw(
             AuthenticationError(
-                "Either JULIA_PKG_SERVER must be set, or explicit `server` argument passed to JuliaHub.authenticate().",
+                "Either JULIA_PKG_SERVER must be set, or explicit `server` argument passed to JuliaHub.authenticate()."
             ),
         )
         Pkg.pkg_server()
@@ -442,7 +442,7 @@ function reauthenticate!(
     if new_auth.username != auth.username
         throw(
             AuthenticationError(
-                "Username in new authentication ($(new_auth.username)) does not match original authentication ($(auth.username))",
+                "Username in new authentication ($(new_auth.username)) does not match original authentication ($(auth.username))"
             ),
         )
     end
