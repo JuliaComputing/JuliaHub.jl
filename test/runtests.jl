@@ -52,6 +52,18 @@ function is_enabled(testname=nothing; args=ARGS)
             @warn "Skipping test set: $(testname) (windows tests disabled by default)"
             return false
         end
+    elseif isempty(enabled_tests) && run_live_tests && (testname == "jobs-exposed-port")
+        exposed_port_toggle_env = get(ENV, "JULIAHUBJL_LIVE_EXPOSED_PORT_TESTS", nothing)
+        if !(exposed_port_toggle_env in ("true", "false", nothing))
+            error("Invalid value for JULIAHUBJL_LIVE_EXPOSED_PORT_TESTS: '$(exposed_port_toggle_env)'")
+        end
+        if exposed_port_toggle_env == "false"
+            @warn "Skipping test set: $(testname) (disabled via env variable)"
+            return false
+        else
+            @info "Running test set: $(testname)"
+            return true
+        end
     elseif (isempty(enabled_tests) && run_live_tests) || (testname in enabled_tests)
         @info "Running test set: $(testname)"
         return true
