@@ -165,6 +165,7 @@ end
             :hasfirst, :haslast, :jobs, :kill_job,
             :nodespec, :nodespecs, :reauthenticate!, :submit_job,
             :update_dataset, :upload_dataset, :wait_job,
+            :request,
         ])
         extra_public_symbols = setdiff(public_symbols, expected_public_symbols)
         isempty(extra_public_symbols) || @warn """
