@@ -78,7 +78,6 @@ function _job_proxy_host(job::Job)
             isempty(uri.query),
             isempty(uri.fragment),
         )
-        @show checks
         all(checks) ? uri : nothing
     catch e
         isa(e, ParseError) || rethrow()
