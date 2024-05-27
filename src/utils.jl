@@ -140,7 +140,7 @@ function _parse_response_json(s::AbstractString, ::Type{T})::Tuple{T, String} wh
     if !isa(object, T)
         throw(
             JuliaHubError(
-                "Invalid JSON returned by the server (expected `$T`, got `$(typeof(object))`):\n$(s)",
+                "Invalid JSON returned by the server (expected `$T`, got `$(typeof(object))`):\n$(s)"
             ),
         )
     end
@@ -368,7 +368,7 @@ _nothing_or(f::Base.Callable, x) = isnothing(x) ? nothing : f(x)
 function _throw_or_nothing(
     nothrow_extra_logic_f::Union{Base.Callable, Nothing}=nothing;
     msg::AbstractString,
-    throw::Bool
+    throw::Bool,
 )
     throw && Base.throw(InvalidRequestError(msg))
     isnothing(nothrow_extra_logic_f) || nothrow_extra_logic_f(msg)

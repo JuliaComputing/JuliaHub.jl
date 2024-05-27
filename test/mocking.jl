@@ -293,7 +293,7 @@ function _restcall_mocked(method, url, headers, payload; query)
             "message" => Dict{String, Any}(
                 "upload_url" => "..."
             ),
-            "success" => true
+            "success" => true,
         ) |> jsonresponse(200)
     elseif (method == :GET) && occursin(GET_JOB_REGEX, url)
         jobname = match(GET_JOB_REGEX, url)[1]
@@ -315,7 +315,7 @@ function _restcall_mocked(method, url, headers, payload; query)
             job_info["status"] = "Stopped"
             Dict{String, Any}(
                 "status" => true,
-                "message" => "Job $(query.jobname) stopped successfully"
+                "message" => "Job $(query.jobname) stopped successfully",
             ) |> jsonresponse(200)
         end
     elseif (method == :POST) && endswith(url, "juliaruncloud/extend_job_time_limit")
@@ -334,7 +334,7 @@ function _restcall_mocked(method, url, headers, payload; query)
             dataset -> begin
                 version_sizes = something(
                     dataset_version_sizes,
-                    (dataset == "example-dataset") ? [57, 331] : [57]
+                    (dataset == "example-dataset") ? [57, 331] : [57],
                 )
                 Dict(
                     "version" => string("v", length(version_sizes)),
@@ -414,7 +414,7 @@ function _restcall_mocked(method, url, headers, payload; query)
             )
             Dict{String, Any}(
                 "name" => dataset,
-                "repo_id" => "df039a60-0ccc-40a7-ad31-82040a74a12a"
+                "repo_id" => "df039a60-0ccc-40a7-ad31-82040a74a12a",
             ) |> jsonresponse(200)
         else
             return JuliaHub._RESTResponse(404, "Dataset $(dataset) does not exist.")
@@ -427,7 +427,7 @@ function _restcall_mocked(method, url, headers, payload; query)
             end
             Dict{String, Any}(
                 "name" => dataset,
-                "repo_id" => "df039a60-0ccc-40a7-ad31-82040a74a12a"
+                "repo_id" => "df039a60-0ccc-40a7-ad31-82040a74a12a",
             ) |> jsonresponse(200)
         else
             return JuliaHub._RESTResponse(404, "Dataset $(dataset) does not exist.")
