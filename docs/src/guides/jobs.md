@@ -101,6 +101,16 @@ Registered packages are installed via the package manager via the standard envir
 When the JuliaHub job starts, the bundle is unpacked into the `appbundle/` directory (relative to the starting working directory).
 E.g. if you have a `mydata.dat` file in the bundled directory, you can access it in the script at `joinpath("appbundle", "mydata.dat")`.
 
+!!! note "Including scripts"
+
+    This also applies when trying to load additional Julia scripts in the main script with `include`.
+    If you have e.g. a script `my-dependent-script.jl` on the top level of the appbundle and a `subdir/my-dependent-script-2.jl` script in a subdirectory, you can load them in the main script as follows:
+
+    ```julia
+    include(joinpath("appbundle", "my-dependent-script.jl"))
+    include(joinpath("appbundle", "subdir", "my-dependent-script-2.jl"))
+    ```
+
 Finally, a `.juliabundleignore` file can be used to exclude certain directories, by adding the relevant [globs](https://en.wikipedia.org/wiki/Glob_(programming)), similar to how `.gitignore` files work.
 In addition, `.git` directories are also automatically excluded from the bundle.
 
