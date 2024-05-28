@@ -5,15 +5,15 @@ toml = TOML.parsefile(projecttoml)
 datastructures_version = toml["version"]
 
 # Check for the appbundle file
-datafile = joinpath(@__DIR__, "appbundle", "datafile.txt")
+datafile = joinpath(@__DIR__, "datafile.txt")
 datafile_hash = if isfile(datafile)
     bytes2hex(open(SHA.sha1, datafile))
 end
 
 # Try to load dependencies with relative paths:
 script_include_success = try
-    include(joinpath("appbundle", "my-dependent-script.jl"))
-    include(joinpath("appbundle", "subdir", "my-dependent-script-2.jl"))
+    include("my-dependent-script.jl")
+    include("subdir/my-dependent-script-2.jl")
     true
 catch e
     e isa SystemError || rethrow()

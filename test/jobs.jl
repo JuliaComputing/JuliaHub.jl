@@ -80,12 +80,38 @@ end
     end
 end
 
+function is_valid_julia_code(code::AbstractString)
+    try
+        ex = Meta.parse(code)
+        if ex.head === :incomplete
+            @error "Incomplete Julia expression in Julia code\n$(code)" ex
+            return false
+        end
+    catch exception
+        if isa(exception, Meta.ParseError)
+            @error "Invalid Julia code\n$(code)" exception
+            return false
+        end
+    end
+    return true
+end
+
 @testset "JuliaHub.appbundle" begin
+    driver_file_first_line = first(eachline(JuliaHub._APPBUNDLE_DRIVER_TEMPLATE_FILE))
     jobfile(path...) = joinpath(JOBENVS, "job1", path...)
 
     bundle = JuliaHub.appbundle(jobfile(), "script.jl")
     @test isfile(bundle.environment.tarball_path)
-    @test bundle.code == read(jobfile("script.jl"), String)
+    @test startswith(bundle.code, driver_file_first_line)
+    @test contains(bundle.code, "raw\"script.jl\"")
+    @test is_valid_julia_code(bundle.code)
+
+    bundle = JuliaHub.appbundle(jobfile(), "subdir/my-dependent-script-2.jl")
+    @test isfile(bundle.environment.tarball_path)
+    @test startswith(bundle.code, driver_file_first_line)
+    @test contains(bundle.code, "raw\"subdir\"")
+    @test contains(bundle.code, "raw\"my-dependent-script-2.jl\"")
+    @test is_valid_julia_code(bundle.code)
 
     bundle = JuliaHub.appbundle(jobfile(); code="test()")
     @test isfile(bundle.environment.tarball_path)
@@ -114,7 +140,17 @@ end
     cd(jobfile()) do
         bundle = JuliaHub.appbundle(".", "script.jl")
         @test isfile(bundle.environment.tarball_path)
-        @test bundle.code == read(jobfile("script.jl"), String)
+        @test startswith(bundle.code, driver_file_first_line)
+        @test contains(bundle.code, "raw\"script.jl\"")
+        @test is_valid_julia_code(bundle.code)
+    end
+
+    # Deprecated case, where `codefile` comes from outside of the appbundle
+    # directory. In that case, `codefile` gets attached directly as the driver
+    # script.
+    let bundle = @test_logs (:warn,) JuliaHub.appbundle(jobfile(), "../job-dist/script.jl")
+        @test isfile(bundle.environment.tarball_path)
+        @test bundle.code == read(jobfile("../job-dist/script.jl"), String)
     end
 end
 

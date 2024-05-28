@@ -769,13 +769,48 @@ function appbundle(
 end
 
 function appbundle(bundle_directory::AbstractString, codefile::AbstractString; kwargs...)
-    codefile = abspath(joinpath(bundle_directory, codefile))
     haskey(kwargs, :code) &&
         throw(ArgumentError("'code' keyword not supported if 'codefile' passed"))
-    isfile(codefile) ||
-        throw(ArgumentError("'codefile' does not point to an existing file: $codefile"))
-    appbundle(bundle_directory; kwargs..., code=read(codefile, String))
+    codefile_fullpath = abspath(bundle_directory, codefile)
+    isfile(codefile_fullpath) ||
+        throw(ArgumentError("'codefile' does not point to an existing file: $codefile_fullpath"))
+    codefile_relpath = relpath(codefile_fullpath, bundle_directory)
+    # It is possible that the user passes a `codefile` path that is outside of the appbundle
+    # directory. This used to work back when `codefile` was just read() and submitted as the
+    # code argument. So we still support this, but print a loud deprecation warning.
+    if startswith(codefile_relpath, "..")
+        @warn """
+        Deprecated: codefile outside of the appbundle $(codefile_relpath)
+        The support for codefiles outside of the appbundle will be removed in a future version.
+        Also note that in this mode, the behaviour of @__DIR__, @__FILE__, and include() with
+        a relative path are undefined.
+
+        To avoid the warning, but retain the old behavior, you can explicitly pass the code
+        keyword argument instead of `codefile`:
+
+        JuliaHub.appbundle(
+            bundle_directory;
+            code = read(joinpath(bundle_directory, codefile), String),
+            kwargs...
+        )
+        """
+        appbundle(bundle_directory; kwargs..., code=read(codefile_fullpath, String))
+    else
+        # TODO: we could check that codefile actually exists within the appbundle tarball
+        # (e.g. to also catch if it is accidentally .juliabundleignored). This would require
+        # Tar.list-ing the bundled tarball, and checking that the file is in there.
+        path_components = splitpath(codefile_relpath)
+        path_components = replace(path_components, '\\' => "\\\\", '"' => "\\\"")
+        path_components = join(string.("raw\"", path_components, '\"'), ", ")
+        driver_script = replace(
+            read(_APPBUNDLE_DRIVER_TEMPLATE_FILE, String),
+            "{PATH_COMPONENTS}" => path_components,
+        )
+        appbundle(bundle_directory; kwargs..., code=driver_script)
+    end
 end
+
+const _APPBUNDLE_DRIVER_TEMPLATE_FILE = abspath(@__DIR__, "appbundle-driver.jl")
 
 function _upload_appbundle(appbundle_tar_path::AbstractString; auth::Authentication)
     isfile(appbundle_tar_path) ||
