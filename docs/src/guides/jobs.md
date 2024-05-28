@@ -79,7 +79,8 @@ The Julia environment in the directory is also immediately added into the bundle
 
 An appbundle can be constructed with the [`appbundle`](@ref) function, which takes as arguments the path to the directory to be bundled up, and a script _within that directory_.
 This is meant to be used for project directories where you have your Julia environment in the top level of the directory or repository.
-For example, you can submit an bundle from a submit script on the top level of your project directory as follows:
+
+For example, suppose you have a submit at the top level of your project directory, then you can submit a bundle as follows:
 
 ```@example
 import JuliaHub # hide
@@ -98,18 +99,9 @@ When the job starts on JuliaHub, this environment is instantiated.
 A key feature of the appbundle is that development dependencies of the environment (i.e. packages added with `pkg> develop` or `Pkg.develop()`) are also bundled up into the archive that gets submitted to JuliaHub (including any current, uncommitted changes).
 Registered packages are installed via the package manager via the standard environment instantiation, and their source code is not included in the bundle directly.
 
-When the JuliaHub job starts, the bundle is unpacked into the `appbundle/` directory (relative to the starting working directory).
-E.g. if you have a `mydata.dat` file in the bundled directory, you can access it in the script at `joinpath("appbundle", "mydata.dat")`.
-
-!!! note "Including scripts"
-
-    This also applies when trying to load additional Julia scripts in the main script with `include`.
-    If you have e.g. a script `my-dependent-script.jl` on the top level of the appbundle and a `subdir/my-dependent-script-2.jl` script in a subdirectory, you can load them in the main script as follows:
-
-    ```julia
-    include(joinpath("appbundle", "my-dependent-script.jl"))
-    include(joinpath("appbundle", "subdir", "my-dependent-script-2.jl"))
-    ```
+When the JuliaHub job starts, the working directory is set to the root of the unpacked appbundle directory.
+This should be kept in mind especially when launching a script that is not at the root itself, and trying to open other files from the appbundle in that script (e.g. with `open`).
+You can still use `@__DIR__` to load files relative to the script, and `include`s also work as expected (i.e. relative to the script file).
 
 Finally, a `.juliabundleignore` file can be used to exclude certain directories, by adding the relevant [globs](https://en.wikipedia.org/wiki/Glob_(programming)), similar to how `.gitignore` files work.
 In addition, `.git` directories are also automatically excluded from the bundle.

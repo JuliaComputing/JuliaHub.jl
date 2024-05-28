@@ -698,16 +698,18 @@ end
 Construct an appbundle-type JuliaHub batch job configuration. An appbundle is a directory containing a Julia environment
 that is bundled up, uploaded to JuliaHub, and then unpacked and instantiated as the job starts.
 
+The primary, two-argument method will submit a job that runs a file from within the appbundle (specified by `codefile`,
+which must be a path relative to the root of the appbundle).
 The code that gets executed is read from `codefile`, which should be a path to Julia source file relative to `directory`.
 
 ```julia
 JuliaHub.appbundle(@__DIR__, "my-script.jl")
 ```
 
-Alternatively, if `codefile` is omitted, the code can be provided as a string via the `code` keyword argument.
+Alternatively, if `codefile` is omitted, the code must be provided as a string via the `code` keyword argument.
 
 ```julia
-JuliaHub.AppBundle(
+JuliaHub.appbundle(
     @__DIR__,
     code = \"""
     @show ENV
@@ -734,17 +736,31 @@ The following should be kept in mind about how appbundles are handled:
   instantiation, and their source code is not included in the bundle directly.
 
 * When the JuliaHub job starts, the bundle is unpacked and the job's starting working directory
-  is set to the `appbundle/` directory, and you can e.g. load the data from those files with
-  just `read("my-data.txt", String)`.
-
-  Note that `@__DIR__` points elsewhere and, relatedly, `include` in the main script should be
-  used with an absolute path (e.g. `include(joinpath(pwd(), "my-julia-file.jl"))`).
+  is set to the root of the unpacked appbundle directory, and you can e.g. load the data from those
+  files with just `read("my-data.txt", String)`.
 
   !!! compat "JuliaHub 6.2 and older"
 
-      On some older JuliaHub versions (6.2 and older), the working directory was set to the parent
-      directory of `appbundle/`, and so it was necessary to do `joinpath("appbundle", "mydata.dat")`
-      to load the code.
+      On some JuliaHub versions (6.2 and older), the working directory was set to the parent directory
+      of unpacked appbundle (with the appbundle directory called `appbundle`), and so it was necessary
+      to do `joinpath("appbundle", "mydata.dat")` to load files.
+
+* When submitting appbundles with the two-argument `codefile` method, you can expect `@__DIR__` and
+  `include` to work as expected.
+
+  However, when submitting the Julia code as a string (via the `code` keyword argument), the behavior of
+  `@__DIR__` and `include` should be considered undefined and subject to change in the future.
+
+* The one-argument + `code` keyword argument method is a lower-level method, that more closely mirrors
+  the underlying platform API. The custom code that is passed via `code` is sometimes referred to as the
+  "driver script", and the two-argument method is actually implemented by submitting an automatically
+  constructed driver script that actually loads the specified file.
+
+!!! compat "Deprecation: v0.1.10"
+
+    As of JuliaHub.jl v0.1.10, the ability to launch appbundles using the two-argument method where
+    the `codefile` parameter point to a file outside of the appbundle itself, is deprecated. It still works,
+    though, by submitting the contents of the script as the driver script.
 """
 function appbundle end
 
