@@ -1070,8 +1070,9 @@ of the job.
   with. If a string is passed, it must parse as a valid UUID. Passing `nothing` is equivalent to omitting the
   argument.
 
-* `expose :: Union{Integer, Nothing}`: if set to an integer in the valid port range, that port will be exposed
-  over HTTPS, allowing for (authenticated) HTTP calls. [See the relevant manual section for more information.](@ref jobs-batch-expose-port)
+* `expose :: Union{Integer, Nothing}`: if set to an integer in the valid port range (i.e. anything other than
+  `9009`, which is reserved), that port will be exposed over HTTPS, allowing for (authenticated) HTTP calls.
+  [See the relevant manual section for more information.](@ref jobs-batch-expose-port)
 
 **General arguments.**
 

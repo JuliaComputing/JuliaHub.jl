@@ -146,28 +146,6 @@ JuliaHub.submit_job(
 )
 ```
 
-### [Opening ports on batch jobs](@id jobs-batch-expose-port)
-
-If supported and enabled for the given product and user, JuliaHub allows
-
-This exposes
-
-This can be used to
-
-(requiring )
-
-The value will also be set in the `PORT` environment variable, available in the job.
-
-Requires the product to support exposing ports and the user to have access to the feature.
-
-!!! note "Valid port values"
-
-    ???
-
-!!! warn "Pricing"
-
-    Jobs that expose ports may be priced differently per hour than batch jobs that do not.
-
 ## [Default Applications](@id jobs-default-apps)
 
 !!! compat "Experimental feature"

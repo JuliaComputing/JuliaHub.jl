@@ -48,14 +48,14 @@ function request(
     extra_headers::Vector{Any} = [],
     kwargs...
 )
-    proxyhost = _job_proxy_host(job)
+    proxyhost = job_hostname(job)
     if isnothing(proxyhost)
-        throw(ArgumentError("Job '$(job.id)' does not expose a HTTP endpoint."))
+        throw(ArgumentError("Job '$(job.id)' does not expose a HTTPS port."))
     end
     if !startswith(uripath, "/")
         throw(ArgumentError("'uripath' must start with a /, got: '$uripath'"))
     end
-    HTTP.request(
+    return Mocking.@mock _http_request_mockable(
         method,
         string("https://", proxyhost, uripath),
         [_authheaders(auth)..., extra_headers...],
@@ -64,7 +64,23 @@ function request(
     )
 end
 
-function _job_proxy_host(job::Job)
+_http_request_mockable(args...; kwargs...) = HTTP.request(args...; kwargs...)
+
+"""
+    JuliaHub.job_hostname(::Job) -> String
+
+Returns the domain name that can be used to communicate with the JuliaHub job, if the job is
+exposing a port and running an HTTP server. If the job is not exposing a port, it throws an
+`ArgumentError`.
+
+The server on the job is always exposed on port `443` on the public hostname, and the communication
+is TLS-wrapped (i.e. you need to connect to it over the HTTPS protocol). In most cases, your requests
+to the job also need to be authenticated (see also the [`JuliaHub.request`](@ref) function).
+
+See also: [`expose` for `JuliaHub.submit_job`](@ref JuliaHub.submit_job), and
+[the relevant section in the manual](@ref jobs-batch-expose-port)
+"""
+function job_hostname(job::Job)
     proxy_link = get(job._json, "proxy_link", "")
     if isempty(proxy_link)
         return nothing
@@ -85,7 +101,6 @@ function _job_proxy_host(job::Job)
     end
     if isnothing(uri)
         throw(JuliaHubError("Invalid proxy_link value for job: $(job.id)\n proxy_link=$(proxy_link)"))
-        return nothing
     end
     return uri.host
 end

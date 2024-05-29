@@ -70,6 +70,7 @@ JuliaHub.Job
 JuliaHub.JobStatus
 JuliaHub.JobFile
 JuliaHub.FileHash
+JuliaHub.job_hostname
 JuliaHub.request
 ```
 
