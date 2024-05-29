@@ -753,14 +753,14 @@ The following should be kept in mind about how appbundles are handled:
 
 * The one-argument + `code` keyword argument method is a lower-level method, that more closely mirrors
   the underlying platform API. The custom code that is passed via `code` is sometimes referred to as the
-  "driver script", and the two-argument method is actually implemented by submitting an automatically
+  "driver script", and the two-argument method is implemented by submitting an automatically
   constructed driver script that actually loads the specified file.
 
 !!! compat "Deprecation: v0.1.10"
 
     As of JuliaHub.jl v0.1.10, the ability to launch appbundles using the two-argument method where
-    the `codefile` parameter point to a file outside of the appbundle itself, is deprecated. It still works,
-    though, by submitting the contents of the script as the driver script.
+    the `codefile` parameter point to a file outside of the appbundle itself, is deprecated. You can still
+    submit the contents of the script as the driver script via the `code` keyword argument.
 """
 function appbundle end
 
