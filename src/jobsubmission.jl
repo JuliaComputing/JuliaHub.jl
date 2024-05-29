@@ -815,16 +815,23 @@ function appbundle(bundle_directory::AbstractString, codefile::AbstractString; k
         # TODO: we could check that codefile actually exists within the appbundle tarball
         # (e.g. to also catch if it is accidentally .juliabundleignored). This would require
         # Tar.list-ing the bundled tarball, and checking that the file is in there.
-        path_components = splitpath(codefile_relpath)
-        path_components = replace(path_components, '\\' => "\\\\", '"' => "\\\"")
-        path_components = join(string.("raw\"", path_components, '\"'), ", ")
         driver_script = replace(
             read(_APPBUNDLE_DRIVER_TEMPLATE_FILE, String),
-            "{PATH_COMPONENTS}" => path_components,
+            "{PATH_COMPONENTS}" => _tuple_encode_path_components(codefile_relpath),
         )
         appbundle(bundle_directory; kwargs..., code=driver_script)
     end
 end
+
+# We'll hard-code the file path directly into the driver script as string literals.
+# We trust here that repr() will take care of any necessary escaping of the path
+# components. In the end, we'll write the path "x/y/z" into the file as
+#
+#   "x", "y", "z"
+#
+# Note: splitting up the path into components also helps avoid any cross-platform
+# path separator issues.
+_tuple_encode_path_components(path) = join(repr.(splitpath(path)), ",")
 
 const _APPBUNDLE_DRIVER_TEMPLATE_FILE = abspath(@__DIR__, "appbundle-driver.jl")
 
