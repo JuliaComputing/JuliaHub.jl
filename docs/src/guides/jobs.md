@@ -80,7 +80,7 @@ The Julia environment in the directory is also immediately added into the bundle
 An appbundle can be constructed with the [`appbundle`](@ref) function, which takes as arguments the path to the directory to be bundled up, and a script _within that directory_.
 This is meant to be used for project directories where you have your Julia environment in the top level of the directory or repository.
 
-For example, suppose you have a submit at the top level of your project directory, then you can submit a bundle as follows:
+For example, suppose you have a script at the top level of your project directory, then you can submit a bundle as follows:
 
 ```@example
 import JuliaHub # hide
