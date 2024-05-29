@@ -161,7 +161,7 @@ end
                 @test isdir(joinpath(pwd(), "local"))
                 @test_logs (:warn,) JuliaHub.download_dataset(
                     ("username", "blobtree/example"),
-                    "local"; replace=true
+                    "local"; replace=true,
                 )
                 @test isdir(joinpath(pwd(), "local"))
             end

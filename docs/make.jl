@@ -64,7 +64,7 @@ Mocking.apply(mocking_patch) do
         authors="JuliaHub Inc.",
         format=Documenter.HTML(;
             canonical="https://help.juliahub.com/julia-api/stable",
-            edit_link="main"
+            edit_link="main",
         ),
         pages=[
             "Home" => "index.md",

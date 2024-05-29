@@ -511,7 +511,7 @@ function _download_job_file(auth::Authentication, file::JobFile, io::IO)
         job_file_url,
         _authheaders(auth);
         status_exception=false,
-        response_stream=io
+        response_stream=io,
     )
     r.status == 200 || _throw_invalidresponse(r)
     return nothing

@@ -30,11 +30,11 @@ end
         [
             Dict(
                 "display_name" => "Stable", "type" => "base-cpu",
-                "image_key_name" => "stable-cpu"
+                "image_key_name" => "stable-cpu",
             ),
             Dict(
                 "display_name" => "Stable", "type" => "base-gpu",
-                "image_key_name" => "stable-gpu"
+                "image_key_name" => "stable-gpu",
             ),
             Dict(
                 "display_name" => "Dev", "type" => "option-cpu", "image_key_name" => "dev-cpu"
