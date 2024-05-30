@@ -877,7 +877,7 @@ JuliaHub._OPTION_LoggingMode[] = JuliaHub._LoggingMode.NOKAFKA
     end
 end
 
-@testset "JuliaHub.job_hostname,request" begin
+@testset "JuliaHub.request" begin
     empty!(MOCK_JULIAHUB_STATE)
     Mocking.apply(mocking_patch) do
         job = JuliaHub.job("jr-xf4tslavut")

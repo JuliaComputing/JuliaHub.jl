@@ -261,12 +261,7 @@ job = JuliaHub.submit_job(
 )
 ```
 
-Note that, unlike a usual batch job, this job has a `hostname` property.
-You can always introspect the domain with the [`JuliaHub.job_hostname`](@ref) function.
-
-```@repl job-expose-port
-JuliaHub.job_hostname(job)
-```
+Note that, unlike a usual batch job, this job has a `.hostname` property, that will point to the DNS hostname that can be used to access the server exposed by the job (see also [the relevant reference section](@ref jobs-apis-expose-ports)).
 
 Once the job has started and the Oxygen-based server has started serving the page, you can perform [HTTP.jl](https://juliahub.com/ui/Packages/General/HTTP) requests against the job with the [`JuliaHub.request`](@ref) function, which is thin wrapper around the `HTTP.request` function that sets up the necessary authentication headers and constructs the full URL.
 

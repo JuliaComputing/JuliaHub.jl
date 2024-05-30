@@ -44,6 +44,16 @@ classDef user fill:lightgray
     job = JuliaHub.job(job)
     ```
 
+## [Jobs with exposed ports](@id jobs-apis-expose-ports)
+
+Some JuliaHub jobs may expose ports and can be communicated with from the outside over the network (e.g. [batch jobs that expose ports](@ref jobs-batch-expose-port)).
+
+If the job exposes a port, it can be accessed at a dedicated hostname (see the `.hostname` property of the [`Job`](@ref) object).
+The server running on the job is always exposed on port `443` on the public hostname, and the communication is TLS-wrapped (i.e. you need to connect to it over the HTTPS protocol).
+In most cases, your requests to the job also need to be authenticated (see also the [`JuliaHub.request`](@ref) function).
+
+See also: [the guide on submitting batch jobs with open ports](@ref jobs-batch-expose-port), [`expose` argument for `JuliaHub.submit_job`](@ref JuliaHub.submit_job), [`JuliaHub.request`](@ref)
+
 ## Reference
 
 ```@docs

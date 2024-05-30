@@ -37,8 +37,8 @@ $(_DOCS_authentication_kwarg)
 
 !!! note
 
-    See the [manual section on exposing ports](@ref jobs-batch-expose-port) and
-    the `expose` argument to [`submit_job`](@ref).
+    See the [manual section on jobs with exposed ports](@ref jobs-apis-expose-ports)
+    and the `expose` argument to [`submit_job`](@ref).
 """
 function request(
     job::Job,
