@@ -83,4 +83,4 @@ Mocking.apply(mocking_patch) do
     )
 end
 
-deploydocs(; repo="github.com/JuliaComputing/JuliaHub.jl")
+deploydocs(; repo="github.com/JuliaComputing/JuliaHub.jl", push_preview=true)
