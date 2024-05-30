@@ -881,7 +881,7 @@ end
     empty!(MOCK_JULIAHUB_STATE)
     Mocking.apply(mocking_patch) do
         job = JuliaHub.job("jr-xf4tslavut")
-        @test JuliaHub.job_hostname(job) === nothing
+        @test job.hostname === nothing
         @test_throws ArgumentError JuliaHub.request(job, "GET", "/")
 
         MOCK_JULIAHUB_STATE[:jobs] = Dict(
@@ -890,7 +890,7 @@ end
             )
         )
         job = JuliaHub.job("jr-xf4tslavut")
-        @test JuliaHub.job_hostname(job) == "afyux.launch.juliahub.app"
+        @test job.hostname  == "afyux.launch.juliahub.app"
         let r = JuliaHub.request(job, "GET", "/")
             @test r isa HTTP.Response
             @test r.status == 200
