@@ -294,6 +294,7 @@ function Base.show(io::IO, ::MIME"text/plain", job::Job)
     print(io, '\n', " submitted: ", job._timestamp_submit)
     isnothing(job._timestamp_start) || print(io, '\n', " started:   ", job._timestamp_start)
     isnothing(job._timestamp_end) || print(io, '\n', " finished:  ", job._timestamp_end)
+    isnothing(job.hostname) || print(io, '\n', " hostname:  ", job.hostname)
     # List of job files:
     if !isempty(job.files)
         print(io, '\n', " files: ")
