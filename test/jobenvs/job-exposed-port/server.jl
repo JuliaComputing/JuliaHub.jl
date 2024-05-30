@@ -20,13 +20,13 @@ function results_json()
     """
 end
 
-@get "/" function(req::HTTP.Request)
+@get "/" function (req::HTTP.Request)
     NREQUESTS[] += 1
     return results_json()
 end
 
 @info "Starting server..." PORT
-serve(; host="0.0.0.0", port = PORT)
+serve(; host="0.0.0.0", port=PORT)
 
 @info "Exiting the server"
 ENV["RESULTS"] = results_json()

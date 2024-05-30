@@ -44,10 +44,10 @@ function request(
     job::Job,
     method::AbstractString,
     uripath::AbstractString,
-    body::Any = UInt8[];
+    body::Any=UInt8[];
     auth::Authentication=__auth__(),
-    extra_headers::Vector{Any} = [],
-    kwargs...
+    extra_headers::Vector{Any}=[],
+    kwargs...,
 )
     if isnothing(job.hostname)
         throw(ArgumentError("Job '$(job.id)' does not expose a HTTPS port."))
@@ -60,7 +60,7 @@ function request(
         string("https://", job.hostname, uripath),
         [_authheaders(auth)..., extra_headers...],
         body;
-        kwargs...
+        kwargs...,
     )
 end
 

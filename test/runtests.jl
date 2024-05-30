@@ -55,7 +55,9 @@ function is_enabled(testname=nothing; args=ARGS)
     elseif isempty(enabled_tests) && run_live_tests && (testname == "jobs-exposed-port")
         exposed_port_toggle_env = get(ENV, "JULIAHUBJL_LIVE_EXPOSED_PORT_TESTS", nothing)
         if !(exposed_port_toggle_env in ("true", "false", nothing))
-            error("Invalid value for JULIAHUBJL_LIVE_EXPOSED_PORT_TESTS: '$(exposed_port_toggle_env)'")
+            error(
+                "Invalid value for JULIAHUBJL_LIVE_EXPOSED_PORT_TESTS: '$(exposed_port_toggle_env)'"
+            )
         end
         if exposed_port_toggle_env == "false"
             @warn "Skipping test set: $(testname) (disabled via env variable)"

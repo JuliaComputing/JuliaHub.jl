@@ -767,7 +767,7 @@ function _http_request_mocked(
     url::AbstractString,
     headers,
     body;
-    kwargs...
+    kwargs...,
 )
     global MOCK_JULIAHUB_STATE
     headers = [

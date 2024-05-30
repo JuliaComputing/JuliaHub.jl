@@ -315,7 +315,8 @@ function _batchimages_62(auth::Authentication)
             # we issue a warning and disable the 'interactive' compute for it (i.e. the user
             # won't be able to start jobs that require a port to be exposed until the configuration
             # issue is resolved).
-            @warn "Multiple matching interactive apps for $(app)" image_group matches = matching_interactive_app
+            @warn "Multiple matching interactive apps for $(app)" image_group matches =
+                matching_interactive_app
             nothing
         elseif isempty(matching_interactive_app)
             # If we can't find a matching 'distributed-interactive' product, we disable the
@@ -326,9 +327,11 @@ function _batchimages_62(auth::Authentication)
         end
         map(images) do (display_name, imagekey)
             BatchImage(;
-                product=product_name, image=display_name,
-                _cpu_image_key=imagekey.cpu, _gpu_image_key=imagekey.gpu,
-                _is_product_default=imagekey.isdefault,
+                product                   = product_name,
+                image                     = display_name,
+                _cpu_image_key            = imagekey.cpu,
+                _gpu_image_key            = imagekey.gpu,
+                _is_product_default       = imagekey.isdefault,
                 _interactive_product_name = interactive_product_name,
             )
         end

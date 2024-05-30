@@ -256,7 +256,9 @@ struct Job
                 )
                 if !all(checks)
                     throw(
-                        JuliaHubError("Unable to parse 'proxy_link' JSON for job $jobname:\n$(proxy_link)"),
+                        JuliaHubError(
+                            "Unable to parse 'proxy_link' JSON for job $jobname:\n$(proxy_link)"
+                        )
                     )
                 end
                 uri.host

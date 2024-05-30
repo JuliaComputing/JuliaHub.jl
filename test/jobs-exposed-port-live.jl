@@ -6,7 +6,8 @@ function wait_exposed_job_502(job::JuliaHub.Job; maxtime::Real=300)
     r = JuliaHub.request(job, "GET", "/"; auth, status_exception=false)
     while r.status == 502
         @debug "Waiting for HTTP on job $(job.id) to start up (502-check)" time() - start_time maxtime
-        time() > start_time + maxtime && error("HTTP server on job $(job.id) didn't start in $(maxtime)s")
+        time() > start_time + maxtime &&
+            error("HTTP server on job $(job.id) didn't start in $(maxtime)s")
         sleep(5)
         r = JuliaHub.request(job, "GET", "/"; auth, status_exception=false)
     end
@@ -47,8 +48,8 @@ end
     # Submit a job that will determine the correct product name from the batchimage.
     job, _ = submit_test_job(
         JuliaHub.appbundle(JOBENV_EXPOSED_PORT, "server.jl"; image);
-        expose = 8080,
-        alias = "exposed-port", auth,
+        expose=8080,
+        alias="exposed-port", auth,
     )
     try
         test_job_with_exposed_port(job; port=8080)
@@ -63,8 +64,8 @@ end
     # set env environment variable.
     job, _ = submit_test_job(
         JuliaHub.appbundle(JOBENV_EXPOSED_PORT, "server.jl");
-        expose = 23456, env = Dict("TEST_INPUT" => "foobar"),
-        alias = "exposed-port-no-image", auth,
+        expose=23456, env=Dict("TEST_INPUT" => "foobar"),
+        alias="exposed-port-no-image", auth,
     )
     try
         test_job_with_exposed_port(job; port=23456, check_input=true)
