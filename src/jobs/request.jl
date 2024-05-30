@@ -32,7 +32,7 @@ $(_DOCS_authentication_kwarg)
 * `extra_headers`: an iterable of extra HTTP headers, that gets concatenated
   with the list of necessary authentication headers and passed on to `HTTP.request`.
 
-  * Additional keyword arguments must be valid HTTP.jl keyword arguments and will
+* Additional keyword arguments must be valid HTTP.jl keyword arguments and will
   get directly passed to the `HTTP.request` function.
 
 !!! note
