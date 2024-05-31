@@ -2,6 +2,12 @@
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Changed
+
+* When submitting an appbundle with the two-argument `JuliaHub.appbundle(bundle_directory, codefile)` method, JuliaHub.jl now ensures that `@__DIR__` `@__FILE`, and `include()` in the user code now work correctly. There is a subtle behavior change due to this, where now the user script _must_ be present within the uploaded appbundle tarball (previously it was possible to use a file that would get filtered out by `.juliabundleignore`). (#37, #53)
+
 ## Version v0.1.9 - 2024-03-13
 
 ### Fixed

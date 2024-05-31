@@ -305,6 +305,13 @@ end
         @test VersionNumber(results["datastructures_version"]) == v"0.17.0"
         @test haskey(results, "datafile_hash")
         @test results["datafile_hash"] == datafile_hash
+        @test haskey(results, "scripts")
+        let s = results["scripts"]
+            @test s isa AbstractDict
+            @test get(s, "include_success", nothing) === true
+            @test get(s, "script_1", nothing) === true
+            @test get(s, "script_2", nothing) === true
+        end
     end
 end
 

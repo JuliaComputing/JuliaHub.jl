@@ -698,16 +698,18 @@ end
 Construct an appbundle-type JuliaHub batch job configuration. An appbundle is a directory containing a Julia environment
 that is bundled up, uploaded to JuliaHub, and then unpacked and instantiated as the job starts.
 
+The primary, two-argument method will submit a job that runs a file from within the appbundle (specified by `codefile`,
+which must be a path relative to the root of the appbundle).
 The code that gets executed is read from `codefile`, which should be a path to Julia source file relative to `directory`.
 
 ```julia
 JuliaHub.appbundle(@__DIR__, "my-script.jl")
 ```
 
-Alternatively, if `codefile` is omitted, the code can be provided as a string via the `code` keyword argument.
+Alternatively, if `codefile` is omitted, the code must be provided as a string via the `code` keyword argument.
 
 ```julia
-JuliaHub.AppBundle(
+JuliaHub.appbundle(
     @__DIR__,
     code = \"""
     @show ENV
@@ -734,17 +736,31 @@ The following should be kept in mind about how appbundles are handled:
   instantiation, and their source code is not included in the bundle directly.
 
 * When the JuliaHub job starts, the bundle is unpacked and the job's starting working directory
-  is set to the `appbundle/` directory, and you can e.g. load the data from those files with
-  just `read("my-data.txt", String)`.
-
-  Note that `@__DIR__` points elsewhere and, relatedly, `include` in the main script should be
-  used with an absolute path (e.g. `include(joinpath(pwd(), "my-julia-file.jl"))`).
+  is set to the root of the unpacked appbundle directory, and you can e.g. load the data from those
+  files with just `read("my-data.txt", String)`.
 
   !!! compat "JuliaHub 6.2 and older"
 
-      On some older JuliaHub versions (6.2 and older), the working directory was set to the parent
-      directory of `appbundle/`, and so it was necessary to do `joinpath("appbundle", "mydata.dat")`
-      to load the code.
+      On some JuliaHub versions (6.2 and older), the working directory was set to the parent directory
+      of unpacked appbundle (with the appbundle directory called `appbundle`), and so it was necessary
+      to do `joinpath("appbundle", "mydata.dat")` to load files.
+
+* When submitting appbundles with the two-argument `codefile` method, you can expect `@__DIR__` and
+  `include` to work as expected.
+
+  However, when submitting the Julia code as a string (via the `code` keyword argument), the behavior of
+  `@__DIR__` and `include` should be considered undefined and subject to change in the future.
+
+* The one-argument + `code` keyword argument method is a lower-level method, that more closely mirrors
+  the underlying platform API. The custom code that is passed via `code` is sometimes referred to as the
+  "driver script", and the two-argument method is implemented by submitting an automatically
+  constructed driver script that actually loads the specified file.
+
+!!! compat "Deprecation: v0.1.10"
+
+    As of JuliaHub.jl v0.1.10, the ability to launch appbundles using the two-argument method where
+    the `codefile` parameter point to a file outside of the appbundle itself, is deprecated. You can still
+    submit the contents of the script as the driver script via the `code` keyword argument.
 """
 function appbundle end
 
@@ -769,13 +785,55 @@ function appbundle(
 end
 
 function appbundle(bundle_directory::AbstractString, codefile::AbstractString; kwargs...)
-    codefile = abspath(joinpath(bundle_directory, codefile))
     haskey(kwargs, :code) &&
         throw(ArgumentError("'code' keyword not supported if 'codefile' passed"))
-    isfile(codefile) ||
-        throw(ArgumentError("'codefile' does not point to an existing file: $codefile"))
-    appbundle(bundle_directory; kwargs..., code=read(codefile, String))
+    codefile_fullpath = abspath(bundle_directory, codefile)
+    isfile(codefile_fullpath) ||
+        throw(ArgumentError("'codefile' does not point to an existing file: $codefile_fullpath"))
+    codefile_relpath = relpath(codefile_fullpath, bundle_directory)
+    # It is possible that the user passes a `codefile` path that is outside of the appbundle
+    # directory. This used to work back when `codefile` was just read() and submitted as the
+    # code argument. So we still support this, but print a loud deprecation warning.
+    if startswith(codefile_relpath, "..")
+        @warn """
+        Deprecated: codefile outside of the appbundle $(codefile_relpath)
+        The support for codefiles outside of the appbundle will be removed in a future version.
+        Also note that in this mode, the behaviour of @__DIR__, @__FILE__, and include() with
+        a relative path are undefined.
+
+        To avoid the warning, but retain the old behavior, you can explicitly pass the code
+        keyword argument instead of `codefile`:
+
+        JuliaHub.appbundle(
+            bundle_directory;
+            code = read(joinpath(bundle_directory, codefile), String),
+            kwargs...
+        )
+        """
+        appbundle(bundle_directory; kwargs..., code=read(codefile_fullpath, String))
+    else
+        # TODO: we could check that codefile actually exists within the appbundle tarball
+        # (e.g. to also catch if it is accidentally .juliabundleignored). This would require
+        # Tar.list-ing the bundled tarball, and checking that the file is in there.
+        driver_script = replace(
+            _APPBUNDLE_DRIVER_TEMPLATE,
+            "{PATH_COMPONENTS}" => _tuple_encode_path_components(codefile_relpath),
+        )
+        appbundle(bundle_directory; kwargs..., code=driver_script)
+    end
 end
+
+# We'll hard-code the file path directly into the driver script as string literals.
+# We trust here that repr() will take care of any necessary escaping of the path
+# components. In the end, we'll write the path "x/y/z" into the file as
+#
+#   "x", "y", "z"
+#
+# Note: splitting up the path into components also helps avoid any cross-platform
+# path separator issues.
+_tuple_encode_path_components(path) = join(repr.(splitpath(path)), ",")
+
+const _APPBUNDLE_DRIVER_TEMPLATE = read(abspath(@__DIR__, "appbundle-driver.jl"), String)
 
 function _upload_appbundle(appbundle_tar_path::AbstractString; auth::Authentication)
     isfile(appbundle_tar_path) ||
