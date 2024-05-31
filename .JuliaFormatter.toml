@@ -22,5 +22,4 @@ align_matrix = false
 join_lines_based_on_source = true
 trailing_comma = true
 indent_submodule = true
-# jobs.jl is ignored due to a parsing error: https://github.com/julia-vscode/CSTParser.jl/issues/371
-ignore = [".git", "test/jobs.jl"]
+ignore = [".git"]
