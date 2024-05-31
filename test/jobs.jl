@@ -98,20 +98,20 @@ function is_valid_julia_code(code::AbstractString)
 end
 
 @testset "JuliaHub.appbundle" begin
-    driver_file_first_line = first(eachline(JuliaHub._APPBUNDLE_DRIVER_TEMPLATE_FILE))
+    driver_file_first_line = first(eachline(IOBuffer(JuliaHub._APPBUNDLE_DRIVER_TEMPLATE)))
     jobfile(path...) = joinpath(JOBENVS, "job1", path...)
 
     bundle = JuliaHub.appbundle(jobfile(), "script.jl")
     @test isfile(bundle.environment.tarball_path)
     @test startswith(bundle.code, driver_file_first_line)
-    @test contains(bundle.code, "raw\"script.jl\"")
+    @test contains(bundle.code, "\"script.jl\"")
     @test is_valid_julia_code(bundle.code)
 
     bundle = JuliaHub.appbundle(jobfile(), "subdir/my-dependent-script-2.jl")
     @test isfile(bundle.environment.tarball_path)
     @test startswith(bundle.code, driver_file_first_line)
-    @test contains(bundle.code, "raw\"subdir\"")
-    @test contains(bundle.code, "raw\"my-dependent-script-2.jl\"")
+    @test contains(bundle.code, "\"subdir\"")
+    @test contains(bundle.code, "\"my-dependent-script-2.jl\"")
     @test is_valid_julia_code(bundle.code)
 
     bundle = JuliaHub.appbundle(jobfile(); code="test()")
@@ -143,7 +143,7 @@ end
         bundle = JuliaHub.appbundle(".", "script.jl")
         @test isfile(bundle.environment.tarball_path)
         @test startswith(bundle.code, driver_file_first_line)
-        @test contains(bundle.code, "raw\"script.jl\"")
+        @test contains(bundle.code, "\"script.jl\"")
         @test is_valid_julia_code(bundle.code)
     end
 

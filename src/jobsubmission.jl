@@ -816,7 +816,7 @@ function appbundle(bundle_directory::AbstractString, codefile::AbstractString; k
         # (e.g. to also catch if it is accidentally .juliabundleignored). This would require
         # Tar.list-ing the bundled tarball, and checking that the file is in there.
         driver_script = replace(
-            read(_APPBUNDLE_DRIVER_TEMPLATE_FILE, String),
+            _APPBUNDLE_DRIVER_TEMPLATE,
             "{PATH_COMPONENTS}" => _tuple_encode_path_components(codefile_relpath),
         )
         appbundle(bundle_directory; kwargs..., code=driver_script)
@@ -833,7 +833,7 @@ end
 # path separator issues.
 _tuple_encode_path_components(path) = join(repr.(splitpath(path)), ",")
 
-const _APPBUNDLE_DRIVER_TEMPLATE_FILE = abspath(@__DIR__, "appbundle-driver.jl")
+const _APPBUNDLE_DRIVER_TEMPLATE = read(abspath(@__DIR__, "appbundle-driver.jl"), String)
 
 function _upload_appbundle(appbundle_tar_path::AbstractString; auth::Authentication)
     isfile(appbundle_tar_path) ||
