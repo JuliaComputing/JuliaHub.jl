@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 * The `JuliaHub.submit_job` function now allows submitting jobs that expose ports (via the `expose` argument). Related to that, the new `JuliaHub.request` function offers a simple interface for constructing authenticated HTTP.jl requests against the job, and the domain name of the job can be accessed via the new `.hostname` property of the `Job` object. (#14, #52)
 
+## Version v0.1.10 - 2024-05-31
+
+### Changed
+
+* When submitting an appbundle with the two-argument `JuliaHub.appbundle(bundle_directory, codefile)` method, JuliaHub.jl now ensures that `@__DIR__` `@__FILE`, and `include()` in the user code now work correctly. There is a subtle behavior change due to this, where now the user script _must_ be present within the uploaded appbundle tarball (previously it was possible to use a file that would get filtered out by `.juliabundleignore`). (#37, #53)
+
 ## Version v0.1.9 - 2024-03-13
 
 ### Fixed
