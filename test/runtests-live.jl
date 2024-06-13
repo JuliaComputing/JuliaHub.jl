@@ -12,8 +12,7 @@ JULIAHUB_SERVER = let
     end
 end
 auth = if haskey(ENV, "JULIAHUB_TOKEN")
-    JULIAHUB_TOKEN = JuliaHub.Secret(ENV["JULIAHUB_TOKEN"])
-    JuliaHub._authentication(JULIAHUB_SERVER; token=JULIAHUB_TOKEN)
+    JuliaHub.authenticate(JULIAHUB_SERVER, ENV["JULIAHUB_TOKEN"])
 else
     @warn "JULIAHUB_TOKEN not set, attempting interactive authentication."
     @show JuliaHub.authenticate(string(JULIAHUB_SERVER))

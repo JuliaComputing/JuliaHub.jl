@@ -2,6 +2,12 @@
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+
+* The `JuliaHub.authenticate` function now supports a two-argument form, where you can pass the JuliaHub token in directly, bypassing interactive authentication. (??)
+
 ## Version v0.1.10 - 2024-05-31
 
 ### Changed
