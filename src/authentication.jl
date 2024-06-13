@@ -165,7 +165,7 @@ end
     ) -> JuliaHub.Authentication
     JuliaHub.authenticate(server::AbstractString, token::Union{AbstractString, JuliaHub.Secret}) -> JuliaHub.Authentication
 
-Authenticates with a JuliaHub server, returning a [`JuliaHub.Authenticate`](@ref) object and
+Authenticates with a JuliaHub server, returning a [`JuliaHub.Authentication`](@ref) object and
 setting the global authentication session (see [`JuliaHub.current_authentication`](@ref)).
 May throw an [`AuthenticationError`](@ref) if the authentication fails (e.g. expired token).
 
