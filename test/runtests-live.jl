@@ -51,23 +51,26 @@ JuliaHub.__AUTH__[] = auth
             include("datasets-large-live.jl")
         end
 
-    is_enabled("jobs") &&
+    if is_enabled("jobs")
         @testset "JuliaHub Jobs" begin
-            include("jobs-live.jl")
-        end
+            @testset "Basic" begin
+                include("jobs-live.jl")
+            end
 
-    is_enabled("jobs-exposed-port") &&
-        @testset "JuliaHub Jobs" begin
-            include("jobs-exposed-port-live.jl")
-        end
+            is_enabled("jobs-exposed-port") &&
+                @testset "Exposed ports" begin
+                    include("jobs-exposed-port-live.jl")
+                end
 
-    is_enabled("jobs-applications") &&
-        @testset "JuliaHub Apps" begin
-            include("jobs-applications-live.jl")
-        end
+            is_enabled("jobs-applications") &&
+                @testset "Applications" begin
+                    include("jobs-applications-live.jl")
+                end
 
-    is_enabled("jobs-windows") &&
-        @testset "JuliaHub Jobs" begin
-            include("jobs-windows-live.jl")
+            is_enabled("jobs-windows") &&
+                @testset "Windows" begin
+                    include("jobs-windows-live.jl")
+                end
         end
+    end
 end
