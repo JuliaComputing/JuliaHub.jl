@@ -199,7 +199,7 @@ function authenticate end
 function authenticate(server::AbstractString, token::Union{AbstractString, Secret})
     auth = _authentication(
         _juliahub_uri(server);
-        token = isa(token, Secret) ? token : Secret(token)
+        token=isa(token, Secret) ? token : Secret(token),
     )
     global __AUTH__[] = auth
     return auth
