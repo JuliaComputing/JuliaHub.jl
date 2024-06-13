@@ -255,13 +255,11 @@ struct Job
                     isempty(uri.fragment),
                 )
                 if !all(checks)
-                    throw(
-                        JuliaHubError(
-                            "Unable to parse 'proxy_link' JSON for job $jobname:\n$(proxy_link)"
-                        ),
-                    )
+                    @warn "Unable to parse 'proxy_link' JSON for job '$jobname': '$(proxy_link)'"
+                    nothing
+                else
+                    uri.host
                 end
-                uri.host
             end
         end
         return new(
