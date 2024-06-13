@@ -3,22 +3,15 @@
 TESTID = Random.randstring(8)
 
 # Authenticate the test session
-JULIAHUB_SERVER = let
-    juliahub_server = get(ENV, "JULIAHUB_SERVER") do
-        error("JULIAHUB_SERVER environment variable must be set for these tests to work")
-    end
-    JuliaHub._sanitize_juliahub_uri(juliahub_server) do _, msg
-        error("JULIAHUB_SERVER is invalid: $msg")
-    end
+JULIAHUB_SERVER = get(ENV, "JULIAHUB_SERVER") do
+    error("JULIAHUB_SERVER environment variable must be set for these tests to work")
 end
 auth = if haskey(ENV, "JULIAHUB_TOKEN")
     JuliaHub.authenticate(JULIAHUB_SERVER, ENV["JULIAHUB_TOKEN"])
 else
     @warn "JULIAHUB_TOKEN not set, attempting interactive authentication."
-    @show JuliaHub.authenticate(string(JULIAHUB_SERVER))
+    @show JuliaHub.authenticate(JULIAHUB_SERVER)
 end
-# manually set global auth ref
-JuliaHub.__AUTH__[] = auth
 @info "Authentication / API version: $(auth._api_version)"
 
 @testset "JuliaHub.jl LIVE tests" begin
