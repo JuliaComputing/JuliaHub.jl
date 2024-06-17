@@ -255,7 +255,9 @@ struct Job
                     isempty(uri.fragment),
                 )
                 if !all(checks)
-                    @warn "Unable to parse 'proxy_link' JSON for job '$jobname': '$(proxy_link)'"
+                    # Some jobs can have non-empty proxy links that are not proper hostnames.
+                    # We'll just ignore those for now.
+                    @debug "Unable to parse 'proxy_link' JSON for job '$jobname': '$(proxy_link)'"
                     nothing
                 else
                     uri.host
