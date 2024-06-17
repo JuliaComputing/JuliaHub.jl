@@ -73,16 +73,14 @@ jobs:
       - uses: julia-actions/setup-julia@v1
         with:
           version: "1"
-      - run: |
+      - name: "Aqua.test_all(JuliaHub)"
+        shell: julia --color=yes {0}
+        run: |
           import Pkg
           Pkg.activate(temp=true)
           Pkg.add(name="Aqua", version="0.6")
           Pkg.develop(path=".")
-          import Aqua, JuliaHub
-          Aqua.test_all(JuliaHub)
-        shell: julia --color=yes {0}
-        name: "Aqua.test_all(JuliaHub)"
-        continue-on-error: true
+          include("test/aqua.jl")
 
   jet:
     name: JET
