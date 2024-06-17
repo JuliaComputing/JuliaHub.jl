@@ -97,7 +97,7 @@ jobs:
         run: |
           import Pkg
           Pkg.activate("juliahub-jet", shared=true)
-          Pkg.add(name="JET", version="0.8")
+          Pkg.add(name="JET", version="0.9")
           Pkg.develop(path=".")
       - name: "JET.test_package(..., mode=:basic) [informational]"
         run: julia --color=yes --project=@juliahub-jet test/jet.jl
