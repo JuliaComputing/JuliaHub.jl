@@ -80,7 +80,7 @@ jobs:
           Pkg.activate(temp=true)
           Pkg.add(name="Aqua", version="0.8")
           Pkg.develop(path=".")
-          include("test/aqua.jl")
+          include(joinpath(pwd(), "test", "aqua.jl"))
 
   jet:
     name: JET
