@@ -1,15 +1,16 @@
 const JOBENV_EXPOSED_PORT = joinpath(@__DIR__, "jobenvs", "job-exposed-port")
 
 function wait_exposed_job_502(job::JuliaHub.Job; maxtime::Real=300)
+    test_request() = JuliaHub.request(job, "GET", "/"; auth, status_exception=false)
     # maxtime: it can definitely take at least 3 minutes for a job to start
     start_time = time()
-    r = JuliaHub.request(job, "GET", "/"; auth, status_exception=false)
+    r = test_request()
     while r.status == 502
         @debug "Waiting for HTTP on job $(job.id) to start up (502-check)" time() - start_time maxtime
         time() > start_time + maxtime &&
             error("HTTP server on job $(job.id) didn't start in $(maxtime)s")
         sleep(5)
-        r = JuliaHub.request(job, "GET", "/"; auth, status_exception=false)
+        r = test_request()
     end
     return r
 end
