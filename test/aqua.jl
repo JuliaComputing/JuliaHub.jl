@@ -9,10 +9,7 @@ using Test
         # https://github.com/JuliaStrings/InlineStrings.jl/issues/71
         ambiguities=(;
             exclude=[
-                Base.rstrip,
-                Base.lstrip,
-                Base.unsafe_convert,
-                Base.Sort.defalg,
+                Base.Sort.defalg
             ],
         ),
         # Aqua detects missing standard library compat entries, but setting these
