@@ -57,10 +57,13 @@ JuliaHub.__AUTH__[] = auth
                 include("jobs-live.jl")
             end
 
-            is_enabled("jobs-exposed-port") &&
-                @testset "Exposed ports" begin
-                    include("jobs-exposed-port-live.jl")
-                end
+            # TODO: disabled for now, since the long-term token
+            # can not be used for these tests
+            #
+            # is_enabled("jobs-exposed-port") &&
+            #     @testset "Exposed ports" begin
+            #         include("jobs-exposed-port-live.jl")
+            #     end
 
             is_enabled("jobs-applications") &&
                 @testset "Applications" begin
