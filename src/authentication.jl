@@ -46,7 +46,8 @@ mutable struct Authentication
     function Authentication(
         server::URIs.URI, api_version::VersionNumber, username::AbstractString, token::Secret;
         tokenpath::Union{AbstractString, Nothing}=nothing,
-        email::Union{AbstractString, Nothing}=nothing, expires::Union{Integer, Nothing}=nothing,
+        email::Union{AbstractString, Nothing}=nothing,
+        expires::Union{Integer, Nothing}=nothing,
     )
         # The authentication() function should take care of sanitizing the inputs here,
         # so it is fine to just error() here.
