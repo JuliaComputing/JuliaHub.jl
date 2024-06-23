@@ -6,7 +6,7 @@ on:
     paths:
       - "**.jl"
       - ".JuliaFormatter.toml"
-      - ".github/workflow/format-julia.yaml"
+      - ".github/workflows/format-julia.yaml"
   pull_request:
     types:
       - opened
@@ -17,7 +17,7 @@ on:
     paths:
       - "**.jl"
       - ".JuliaFormatter.toml"
-      - ".github/workflow/format-julia.yaml"
+      - ".github/workflows/format-julia.yaml"
 
 env:
   CI: true
