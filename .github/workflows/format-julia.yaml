@@ -1,0 +1,36 @@
+name: "Format: Julia"
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "**.jl"
+      - ".JuliaFormatter.toml"
+      - ".github/workflows/format-julia.yaml"
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+      - labeled
+    paths:
+      - "**.jl"
+      - ".JuliaFormatter.toml"
+      - ".github/workflows/format-julia.yaml"
+
+env:
+  CI: true
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: julia-actions/julia-format@v3
+        with:
+          # Version compat for JuliaFormatter.jl (default: '1')
+          # E.g. set to '1.0.54' if you need to use JuliaFormatter.jl v1.0.54
+          version: '1'
+          # GitHub PR label that enabled formatting suggestions.
+          # Leave this unset or empty to show suggestions for all PRs.
+          suggestion-label: 'format-suggest'
