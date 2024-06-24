@@ -14,10 +14,6 @@ on:
       - synchronize
       - ready_for_review
       - labeled
-    paths:
-      - "**.jl"
-      - ".JuliaFormatter.toml"
-      - ".github/workflows/format-julia.yaml"
 
 env:
   CI: true
