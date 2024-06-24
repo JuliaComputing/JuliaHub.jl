@@ -61,7 +61,7 @@ jobs:
           JULIAHUB_SERVER: ${{ secrets.JULIAHUB_SERVER }}
           JULIAHUB_TOKEN: ${{ secrets.JULIAHUB_TOKEN }}
       - uses: julia-actions/julia-processcoverage@v1
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v4
         with:
           file: lcov.info
 
@@ -131,7 +131,7 @@ jobs:
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: julia-actions/julia-processcoverage@v1
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v4
         with:
           file: lcov.info
 
@@ -153,6 +153,6 @@ jobs:
       - name: Check doctests
         run: julia --color=yes --project=docs/ --code-coverage docs/make.jl --doctest
       - uses: julia-actions/julia-processcoverage@v1
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v4
         with:
           file: lcov.info
