@@ -157,22 +157,33 @@ function _authheaders(token::Secret; hasura=false)
 end
 
 """
-    JuliaHub.authenticate(server = Pkg.pkg_server(); force::Bool = false, maxcount::Integer = $(_DEFAULT_authenticate_maxcount), [hook::Base.Callable])
+    JuliaHub.authenticate(
+        server::AbstractString = Pkg.pkg_server();
+        force::Bool = false,
+        maxcount::Integer = $(_DEFAULT_authenticate_maxcount),
+        [hook::Base.Callable]
+    ) -> JuliaHub.Authentication
+    JuliaHub.authenticate(server::AbstractString, token::Union{AbstractString, JuliaHub.Secret}) -> JuliaHub.Authentication
 
-Authenticates with a JuliaHub server. If a valid authentication token does not exist in
-the Julia depot, a new token is acquired via an interactive browser based prompt.
-Returns an [`Authentication`](@ref) object if the authentication was successful, or throws an
-[`AuthenticationError`](@ref) if authentication fails.
+Authenticates with a JuliaHub server, returning a [`JuliaHub.Authentication`](@ref) object and
+setting the global authentication session (see [`JuliaHub.current_authentication`](@ref)).
+May throw an [`AuthenticationError`](@ref) if the authentication fails (e.g. expired token).
+
+The zero- and one-argument methods will attempt to read the token from the current Julia depot.
+If a valid authentication token does not exist in the Julia depot, a new token is acquired via an
+interactive browser based prompt. By default, it attemps to connect to the currently configured Julia
+package server URL (configured e.g. via the `JULIA_PKG_SERVER` environment variable), but this
+can be overridden by passing the `server` argument.
+
+The two-argument method can be used when you do not want to read the token from the `auth.toml`
+file (e.g. when using a long-term token via an environment variable). In this case, you also have
+to explicitly set the server URL and `JULIA_PKG_SERVER` is ignored.
+
+# Extended help
 
 The interactive prompts tries to authenticate for a maximum of `maxcount` times.
 If `force` is set to `true`, an existing authentication token is first deleted. This can be
 useful when the existing authentication token is causing the authentication to fail.
-
-# Extended help
-
-By default, it attemps to connect to the currently configured Julia package server URL
-(configured e.g. via the `JULIA_PKG_SERVER` environment variable). However, this can
-be overridden by passing the `server` argument.
 
 `hook` can be set to a function taking a single string-type argument, and will be passed the
 authorization URL the user should interact with in the browser. This can be used to override the default
@@ -183,6 +194,17 @@ cached authentications), making it unnecessary to pass the returned object manua
 function calls. This is useful for interactive use, but should not be used in library code,
 as different authentication calls may clash.
 """
+function authenticate end
+
+function authenticate(server::AbstractString, token::Union{AbstractString, Secret})
+    auth = _authentication(
+        _juliahub_uri(server);
+        token=isa(token, Secret) ? token : Secret(token),
+    )
+    global __AUTH__[] = auth
+    return auth
+end
+
 function authenticate(
     server::Union{AbstractString, Nothing}=nothing;
     force::Bool=false,
@@ -197,6 +219,13 @@ function authenticate(
             ),
         )
     end
+    server_uri = _juliahub_uri(server)
+    auth = Mocking.@mock _authenticate(server_uri; force, maxcount, hook)
+    global __AUTH__[] = auth
+    return auth
+end
+
+function _juliahub_uri(server::Union{AbstractString, Nothing})
     # PkgAuthentication.token_path can not handle server values that do not
     # prepend `https://`, so we use Pkg.pkg_server() to normalize it, just in case.
     server_uri_string = if isnothing(server)
@@ -217,9 +246,8 @@ function authenticate(
             isnothing(server) ? ("Pkg.pkg_server()", Pkg.pkg_server()) : ("server", server)
         throw(AuthenticationError("Invalid $name value '$value' ($error_msg)"))
     end
-    auth = Mocking.@mock _authenticate(server_uri; force, maxcount, hook)
-    global __AUTH__[] = auth
-    return auth
+
+    return server_uri
 end
 
 function _authenticate(

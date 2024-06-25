@@ -107,7 +107,7 @@ end
             expires=1234,
             email="authfile@example.org",
         )
-        # Missing username in /api/v1 -- succes, but with a warning
+        # Missing username in /api/v1 -- success, but with a warning
         delete!(MOCK_JULIAHUB_STATE, :auth_v1_status)
         MOCK_JULIAHUB_STATE[:auth_v1_username] = nothing
         let a = @test_logs (:warn,) JuliaHub._authentication(
@@ -122,5 +122,55 @@ end
             @test a._api_version == v"0.0.1"
             @test a._email == "authfile@example.org"
         end
+    end
+end
+
+# The two-argument JuliaHub.authenticate does not trigger PkgAuthentication, but
+# it does do the REST calls, like JuliaHub._authentication() above
+@testset "JuliaHub.authenticate(server, token)" begin
+    empty!(MOCK_JULIAHUB_STATE)
+    server = "https://juliahub.example.org"
+    token = JuliaHub.Secret("")
+    Mocking.apply(mocking_patch) do
+        let a = JuliaHub.authenticate(server, token)
+            @test a isa JuliaHub.Authentication
+            @test a.server == URIs.URI(server)
+            @test a.username == MOCK_USERNAME
+            @test a.token == token
+            @test a._api_version == v"0.0.1"
+            @test a._email === nothing
+            @test a._expires === nothing
+        end
+        # On old instances, we handle if /api/v1 404s
+        MOCK_JULIAHUB_STATE[:auth_v1_status] = 404
+        let a = JuliaHub.authenticate(server, token)
+            @test a isa JuliaHub.Authentication
+            @test a.server == URIs.URI(server)
+            @test a.username == MOCK_USERNAME
+            @test a._api_version == JuliaHub._MISSING_API_VERSION
+            @test a._email === "testuser@example.org"
+            @test a._expires === nothing
+        end
+        # .. but on a 500, it will actually throw
+        MOCK_JULIAHUB_STATE[:auth_v1_status] = 500
+        @test_throws JuliaHub.AuthenticationError JuliaHub.authenticate(server, token)
+        # Testing the fallback to legacy GQL endpoint
+        MOCK_JULIAHUB_STATE[:auth_v1_status] = 404
+        let a = JuliaHub.authenticate(server, token)
+            @test a isa JuliaHub.Authentication
+            @test a.server == URIs.URI(server)
+            @test a.username == MOCK_USERNAME
+            @test a._api_version == JuliaHub._MISSING_API_VERSION
+            @test a._email === "testuser@example.org"
+            @test a._expires === nothing
+        end
+        # Error when the fallback also 500s
+        MOCK_JULIAHUB_STATE[:auth_gql_fail] = true
+        @test_throws JuliaHub.AuthenticationError JuliaHub.authenticate(server, token)
+        # Missing username in /api/v1 -- throws an AuthenticationError, since there is
+        # no auth.toml file to fall back to.
+        delete!(MOCK_JULIAHUB_STATE, :auth_v1_status)
+        MOCK_JULIAHUB_STATE[:auth_v1_username] = nothing
+        @test_throws JuliaHub.AuthenticationError JuliaHub.authenticate(server, token)
     end
 end
