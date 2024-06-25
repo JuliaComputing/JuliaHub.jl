@@ -7,6 +7,8 @@ on:
       - "**.jl"
       - ".JuliaFormatter.toml"
       - ".github/workflows/format-julia.yaml"
+  # Note: no path filtering when running on PRs, since the formatter
+  # is a required check, and therefore needs to always run.
   pull_request:
     types:
       - opened
@@ -14,10 +16,6 @@ on:
       - synchronize
       - ready_for_review
       - labeled
-    paths:
-      - "**.jl"
-      - ".JuliaFormatter.toml"
-      - ".github/workflows/format-julia.yaml"
 
 env:
   CI: true
