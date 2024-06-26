@@ -31,47 +31,57 @@ function withproject(f, projectfile)
     end
 end
 
+function extra_enabled_live_tests(; print_info=false)
+    testnames = String[]
+    if get(ENV, "JULIAHUBJL_LIVE_WINDOWS_TESTS", "") == "true"
+        push!(testnames, "jobs-windows")
+    end
+    if get(ENV, "JULIAHUBJL_LIVE_EXPOSED_PORT_TESTS", "") == "true"
+        push!(testnames, "jobs-exposed-port")
+    end
+    if print_info && !isempty(extra_testnames)
+        testname_list = join(string.(" - ", testnames), '\n')
+        @info """
+        Extra live tests enabled:
+        $(testname_list)
+        """
+    end
+    return testnames
+end
+
 # Hook into Pkg.test() to allow tests to be run as
 #
 # Pkg.test("JuliaHub", test_args=["jobs", "datasets"])
 #
 # Pass `--live` (without extra arguments) to enable all tests
 # (except windows batch ones).
-function is_enabled(testname=nothing; args=ARGS)
+#
+# For testset for which `disabled_by_default=true`, do not run, unless they
+# are enabled via an environment variable.
+function is_enabled(testname=nothing; args=ARGS, disabled_by_default=false)
     enabled_tests = filter(!startswith('-'), lowercase.(args))
     run_live_tests = "--live" in args
     # If `testname` is not provided, we're calling this to check, in general,
     # if _any_ live tests are enabled (i.e. calling without an argument)
     isnothing(testname) && return run_live_tests
     # Check if the specified test set is enabled
-    if isempty(enabled_tests) && run_live_tests && (testname == "jobs-windows")
-        if get(ENV, "JULIAHUBJL_LIVE_WINDOWS_TESTS", nothing) == "true"
-            @info "Running test set: $(testname)"
-            return true
-        else
-            @warn "Skipping test set: $(testname) (windows tests disabled by default)"
-            return false
-        end
-    elseif isempty(enabled_tests) && run_live_tests && (testname == "jobs-exposed-port")
-        exposed_port_toggle_env = get(ENV, "JULIAHUBJL_LIVE_EXPOSED_PORT_TESTS", nothing)
-        if !(exposed_port_toggle_env in ("true", "false", nothing))
-            error(
-                "Invalid value for JULIAHUBJL_LIVE_EXPOSED_PORT_TESTS: '$(exposed_port_toggle_env)'"
-            )
-        end
-        if exposed_port_toggle_env == "false"
-            @warn "Skipping test set: $(testname) (disabled via env variable)"
-            return false
-        else
-            @info "Running test set: $(testname)"
-            return true
-        end
-    elseif (isempty(enabled_tests) && run_live_tests) || (testname in enabled_tests)
+    testset_should_run = any((
+        # It's explicitly enabled via ARGS. In this case we'll run it regardless
+        # of whether live tests are enabled or not.
+        testname in enabled_tests,
+        # If no explicit tests are passed, we run all the test suites, except the
+        # ones that are explicitly disable. But only if --live gets passed.
+        run_live_tests && isempty(enabled_tests) && !disabled_by_default,
+        # If the testset is disabled by default, but it gets enabled via an
+        # environment variable (see extra_enabled_live_tests()), and --live
+        # has been passed.
+        run_live_tests && disabled_by_default && (testname in extra_enabled_live_tests()),
+    ))
+    if testset_should_run
         @info "Running test set: $(testname)"
         return true
-    else
-        @warn "Skipping test set: $(testname)"
     end
+    @warn "Skipping test set: $(testname)"
     return false
 end
 
@@ -94,37 +104,66 @@ end
             let args = ["datasets"]
                 @test_logs (:info,) @test is_enabled("datasets"; args)
                 @test_logs (:warn,) @test !is_enabled("jobs"; args)
-                @test_logs (:warn,) @test !is_enabled("jobs-windows"; args)
+                @test_logs (:warn,) @test !is_enabled(
+                    "jobs-windows"; args, disabled_by_default=true
+                )
             end
             let args = ["--live"]
                 @test_logs (:info,) @test is_enabled("datasets"; args)
                 @test_logs (:info,) @test is_enabled("jobs"; args)
-                @test_logs (:warn,) @test !is_enabled("jobs-windows"; args)
+                @test_logs (:warn,) @test !is_enabled(
+                    "jobs-windows"; args, disabled_by_default=true
+                )
                 withenv("JULIAHUBJL_LIVE_WINDOWS_TESTS" => "foo") do
                     @test_logs (:info,) @test is_enabled("datasets"; args)
                     @test_logs (:info,) @test is_enabled("jobs"; args)
-                    @test_logs (:warn,) @test !is_enabled("jobs-windows"; args)
+                    @test_logs (:warn,) @test !is_enabled(
+                        "jobs-windows"; args, disabled_by_default=true
+                    )
+                    @test_logs (:warn,) @test !is_enabled(
+                        "jobs-exposed-port"; args, disabled_by_default=true
+                    )
                 end
                 withenv("JULIAHUBJL_LIVE_WINDOWS_TESTS" => "true") do
                     @test_logs (:info,) @test is_enabled("datasets"; args)
                     @test_logs (:info,) @test is_enabled("jobs"; args)
-                    @test_logs (:info,) @test is_enabled("jobs-windows"; args)
+                    @test_logs (:info,) @test is_enabled(
+                        "jobs-windows"; args, disabled_by_default=true
+                    )
+                    @test_logs (:warn,) @test !is_enabled(
+                        "jobs-exposed-port"; args, disabled_by_default=true
+                    )
+                end
+                withenv(
+                    "JULIAHUBJL_LIVE_WINDOWS_TESTS" => "true",
+                    "JULIAHUBJL_LIVE_EXPOSED_PORT_TESTS" => "true",
+                ) do
+                    @test_logs (:info,) @test is_enabled("datasets"; args)
+                    @test_logs (:info,) @test is_enabled("jobs"; args)
+                    @test_logs (:info,) @test is_enabled(
+                        "jobs-windows"; args, disabled_by_default=true
+                    )
+                    @test_logs (:info,) @test is_enabled(
+                        "jobs-exposed-port"; args, disabled_by_default=true
+                    )
                 end
             end
             let args = ["datasets", "jobs"]
                 @test_logs (:info,) @test is_enabled("datasets"; args)
                 @test_logs (:info,) @test is_enabled("jobs"; args)
-                @test_logs (:warn,) @test !is_enabled("jobs-windows"; args)
+                @test_logs (:warn,) @test !is_enabled(
+                    "jobs-windows"; args, disabled_by_default=true
+                )
             end
             let args = ["jobs-windows"]
                 @test_logs (:warn,) @test !is_enabled("datasets"; args)
                 @test_logs (:warn,) @test !is_enabled("jobs"; args)
-                @test_logs (:info,) @test is_enabled("jobs-windows"; args)
+                @test_logs (:info,) @test is_enabled("jobs-windows"; args, disabled_by_default=true)
             end
             let args = ["jobs-windows", "datasets"]
                 @test_logs (:info,) @test is_enabled("datasets"; args)
                 @test_logs (:warn,) @test !is_enabled("jobs"; args)
-                @test_logs (:info,) @test is_enabled("jobs-windows"; args)
+                @test_logs (:info,) @test is_enabled("jobs-windows"; args, disabled_by_default=true)
             end
         end
     end

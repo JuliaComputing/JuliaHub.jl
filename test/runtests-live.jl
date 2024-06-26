@@ -13,6 +13,7 @@ else
     @show JuliaHub.authenticate(JULIAHUB_SERVER)
 end
 @info "Authentication / API version: $(auth._api_version)"
+extra_enabled_live_tests(; print_info=true)
 
 @testset "JuliaHub.jl LIVE tests" begin
     @testset "Authentication" begin
@@ -49,20 +50,17 @@ end
                 include("jobs-live.jl")
             end
 
-            # TODO: disabled for now, since the long-term token
-            # can not be used for these tests
-            #
-            # is_enabled("jobs-exposed-port") &&
-            #     @testset "Exposed ports" begin
-            #         include("jobs-exposed-port-live.jl")
-            #     end
+            is_enabled("jobs-exposed-port"; disabled_by_default=true) &&
+                @testset "Exposed ports" begin
+                    include("jobs-exposed-port-live.jl")
+                end
 
             is_enabled("jobs-applications") &&
                 @testset "Applications" begin
                     include("jobs-applications-live.jl")
                 end
 
-            is_enabled("jobs-windows") &&
+            is_enabled("jobs-windows"; disabled_by_default=true) &&
                 @testset "Windows" begin
                     include("jobs-windows-live.jl")
                 end
