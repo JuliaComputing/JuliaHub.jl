@@ -95,8 +95,8 @@ end
 @testset "JuliaHub.jl" begin
     # Just to make sure the logic within is_enabled() is correct.
     @testset "is_enabled" begin
-        # We need to unset JULIAHUBJL_LIVE_WINDOWS_TESTS in case it is set in the
-        # actual enviornment.
+        # We need to unset the environment variables read by extra_enabled_live_tests()
+        # in case it is set in the actual enviornment.
         withenv(
             "JULIAHUBJL_LIVE_WINDOWS_TESTS" => nothing,
             "JULIAHUBJL_LIVE_EXPOSED_PORT_TESTS" => nothing,
