@@ -39,7 +39,7 @@ function extra_enabled_live_tests(; print_info=false)
     if get(ENV, "JULIAHUBJL_LIVE_EXPOSED_PORT_TESTS", "") == "true"
         push!(testnames, "jobs-exposed-port")
     end
-    if print_info && !isempty(extra_testnames)
+    if print_info && !isempty(testnames)
         testname_list = join(string.(" - ", testnames), '\n')
         @info """
         Extra live tests enabled:
