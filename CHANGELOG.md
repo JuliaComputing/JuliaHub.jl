@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+* The `JuliaHub.authenticate` function now supports a two-argument form, where you can pass the JuliaHub token in directly, bypassing interactive authentication. (#58)
 * The `JuliaHub.submit_job` function now allows submitting jobs that expose ports (via the `expose` argument). Related to that, the new `JuliaHub.request` function offers a simple interface for constructing authenticated HTTP.jl requests against the job, and the domain name of the job can be accessed via the new `.hostname` property of the `Job` object. (#14, #52)
 
 ## Version v0.1.10 - 2024-05-31
