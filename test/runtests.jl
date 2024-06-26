@@ -97,7 +97,10 @@ end
     @testset "is_enabled" begin
         # We need to unset JULIAHUBJL_LIVE_WINDOWS_TESTS in case it is set in the
         # actual enviornment.
-        withenv("JULIAHUBJL_LIVE_WINDOWS_TESTS" => nothing) do
+        withenv(
+            "JULIAHUBJL_LIVE_WINDOWS_TESTS" => nothing,
+            "JULIAHUBJL_LIVE_EXPOSED_PORT_TESTS" => nothing,
+        ) do
             @test !is_enabled(; args=[])
             @test is_enabled(; args=["--live"])
 
