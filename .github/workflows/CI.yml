@@ -120,13 +120,9 @@ jobs:
           version: "1"
       - uses: julia-actions/julia-buildpkg@v1
       - name: Set up documentation environment
-        run: |
-          using Pkg
-          Pkg.develop(path=".")
-          Pkg.instantiate()
-        shell: julia --color=yes --project=docs/ {0}
+        run: make docs-manifest
       - name: Build & deploy the documentation
-        run: julia --color=yes --project=docs/ --code-coverage docs/make.jl
+        run: make docs
         env:
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
