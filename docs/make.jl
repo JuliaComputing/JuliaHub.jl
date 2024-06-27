@@ -1,5 +1,7 @@
 using JuliaHub
-using Documenter, DocumenterMermaid
+using Documenter
+using DocumenterMermaid
+using Changelog
 import TimeZones
 
 # Timestamp printing is dependent on the timezone, so we force a specific (non-UTC)
@@ -43,6 +45,14 @@ function setup_job_results_file!()
     )
 end
 
+# Generate a Documenter-friendly changelog from CHANGELOG.md
+Changelog.generate(
+    Changelog.Documenter(),
+    joinpath(@__DIR__, "..", "CHANGELOG.md"),
+    joinpath(@__DIR__, "src", "release-notes.md");
+    repo="JuliaComputing/JuliaHub.jl",
+)
+
 # These lists are reused in the makedocs, but also in the at-contents
 # blocks on the src/index.md page.
 const PAGES_GUIDES = [
@@ -72,6 +82,7 @@ Mocking.apply(mocking_patch) do
             "Guides" => PAGES_GUIDES,
             "Reference" => PAGES_REFERENCE,
             Documenter.hide("internal.md"),
+            "release-notes.md",
         ],
         doctest=if in("--fix-doctests", ARGS)
             :fix

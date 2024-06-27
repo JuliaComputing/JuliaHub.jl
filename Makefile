@@ -8,14 +8,17 @@ help:
 
 docs/Manifest.toml: docs/Project.toml
 	@echo "Instantiating the docs/ environment:"
-	$(JULIA) --color=yes --project=docs/ -e 'using Pkg; Pkg.develop(path="."); Pkg.instantiate()'
+	${JULIA} --color=yes --project=docs/ -e 'using Pkg; Pkg.develop(path="."); Pkg.instantiate()'
 
 docs-manifest:
 	rm -f docs/Manifest.toml
 	$(MAKE) docs/Manifest.toml
 
 docs: docs/Manifest.toml
-	$(JULIA) --project=docs/ docs/make.jl
+	${JULIA} --project=docs/ docs/make.jl
+
+changelog:
+	${JULIA} --project=docs/ docs/changelog.jl
 
 test:
 	${JULIA} --project -e 'using Pkg; Pkg.test()'
