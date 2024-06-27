@@ -1,4 +1,5 @@
 [deps]
+Changelog = "5217a498-cd5d-4ec6-b8c2-9b85a09b6e3e"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 DocumenterMermaid = "a078cd44-4d9c-4618-b545-3ab9d77f9177"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
@@ -8,5 +9,6 @@ TimeZones = "f269a46b-ccf7-5d73-abea-4c690281aa53"
 URIs = "5c2747f8-b7ea-4ff2-ba2e-563bfd36b1d4"
 
 [compat]
+Changelog = "1"
 Documenter = "1"
 DocumenterMermaid = "0.1"
