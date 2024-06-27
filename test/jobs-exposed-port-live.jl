@@ -65,7 +65,7 @@ end
     # set env environment variable.
     job, _ = submit_test_job(
         JuliaHub.appbundle(JOBENV_EXPOSED_PORT, "server.jl");
-        expose=23456, env=Dict("TEST_INPUT" => "foobar"),
+        expose=30000, env=Dict("TEST_INPUT" => "foobar"),
         alias="exposed-port-no-image", auth,
     )
     try

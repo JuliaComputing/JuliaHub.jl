@@ -1034,10 +1034,10 @@ struct WorkloadConfig
                 ),
             )
         end
-        if !isnothing(expose) && !_is_valid_port_range(expose)
+        if !isnothing(expose) && !_is_valid_port(expose)
             Base.throw(
                 ArgumentError(
-                    "Invalid port value for expose: '$(expose)', must be >= 1 & <= 1 65535"
+                    "Invalid port value for expose: '$(expose)', must be in 1025:9008, 9010:23399, 23500:32767"
                 ),
             )
         end
@@ -1054,8 +1054,10 @@ struct WorkloadConfig
     end
 end
 
-# TODO: need to define the valid port range
-_is_valid_port_range(port::Integer) = 1 <= port <= 65535
+_is_valid_port(port::Integer) = any(
+    portrange -> in(port, portrange),
+    (1025:9008, 9010:23399, 23500:32767),
+)
 
 _is_gpu_job(workload::WorkloadConfig) = workload.compute.node.hasGPU
 
@@ -1128,8 +1130,10 @@ of the job.
   with. If a string is passed, it must parse as a valid UUID. Passing `nothing` is equivalent to omitting the
   argument.
 
-* `expose :: Union{Integer, Nothing}`: if set to an integer in the valid port range (i.e. anything other than
-  `9009`, which is reserved), that port will be exposed over HTTPS, allowing for (authenticated) HTTP calls.
+* `expose :: Union{Integer, Nothing}`: if set to an integer in the valid port ranges, that port will be exposed
+  over HTTPS, allowing for (authenticated) HTTP request to be performed against the job, as long as the job
+  binds an HTTP server to that port. The allowed port ranges are `1025-9008``, `9010-23399`, `23500-32767`
+  (in other words, `<= 1024`, `9009`, `23400-23499`, and `>= 32768` can not be used).
   [See the relevant manual section for more information.](@ref jobs-batch-expose-port)
 
 **General arguments.**

@@ -925,11 +925,19 @@ JuliaHub._OPTION_LoggingMode[] = JuliaHub._LoggingMode.NOKAFKA
         let jc = JuliaHub.submit_job(JuliaHub.script""; dryrun=true)
             @test jc.exposed_port === nothing
         end
-        @testset "port $port" for port in (1, 80, 443, 8080, 65_535)
+        @testset "port $port" for port in (1025, 8080, 9008, 9010, 18000, 24_399, 23_500, 31_767)
             jc = JuliaHub.submit_job(JuliaHub.script""; expose=port, dryrun=true)
             @test jc.exposed_port == port
         end
         @test_throws ArgumentError JuliaHub.submit_job(JuliaHub.script"", expose=0)
+        @test_throws ArgumentError JuliaHub.submit_job(JuliaHub.script"", expose=80)
+        @test_throws ArgumentError JuliaHub.submit_job(JuliaHub.script"", expose=443)
+        @test_throws ArgumentError JuliaHub.submit_job(JuliaHub.script"", expose=1024)
+        @test_throws ArgumentError JuliaHub.submit_job(JuliaHub.script"", expose=9009)
+        @test_throws ArgumentError JuliaHub.submit_job(JuliaHub.script"", expose=24_400)
+        @test_throws ArgumentError JuliaHub.submit_job(JuliaHub.script"", expose=24_499)
+        @test_throws ArgumentError JuliaHub.submit_job(JuliaHub.script"", expose=31_768)
+        @test_throws ArgumentError JuliaHub.submit_job(JuliaHub.script"", expose=40_000)
         @test_throws ArgumentError JuliaHub.submit_job(JuliaHub.script"", expose=-200)
         @test_throws ArgumentError JuliaHub.submit_job(JuliaHub.script"", expose=65_535 + 1)
     end
