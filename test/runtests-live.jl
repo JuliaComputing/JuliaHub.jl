@@ -13,6 +13,7 @@ else
     @show JuliaHub.authenticate(JULIAHUB_SERVER)
 end
 @info "Authentication / API version: $(auth._api_version)"
+extra_enabled_live_tests(; print_info=true)
 
 @testset "JuliaHub.jl LIVE tests" begin
     @testset "Authentication" begin
@@ -43,18 +44,26 @@ end
             include("datasets-large-live.jl")
         end
 
-    is_enabled("jobs") &&
+    if is_enabled("jobs")
         @testset "JuliaHub Jobs" begin
-            include("jobs-live.jl")
-        end
+            @testset "Basic" begin
+                include("jobs-live.jl")
+            end
 
-    is_enabled("jobs-applications") &&
-        @testset "JuliaHub Apps" begin
-            include("jobs-applications-live.jl")
-        end
+            is_enabled("jobs-exposed-port"; disabled_by_default=true) &&
+                @testset "Exposed ports" begin
+                    include("jobs-exposed-port-live.jl")
+                end
 
-    is_enabled("jobs-windows") &&
-        @testset "JuliaHub Jobs" begin
-            include("jobs-windows-live.jl")
+            is_enabled("jobs-applications") &&
+                @testset "Applications" begin
+                    include("jobs-applications-live.jl")
+                end
+
+            is_enabled("jobs-windows"; disabled_by_default=true) &&
+                @testset "Windows" begin
+                    include("jobs-windows-live.jl")
+                end
         end
+    end
 end

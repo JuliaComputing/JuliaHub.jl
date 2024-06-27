@@ -918,3 +918,52 @@ JuliaHub._OPTION_LoggingMode[] = JuliaHub._LoggingMode.AUTOMATIC
     end
 end
 JuliaHub._OPTION_LoggingMode[] = JuliaHub._LoggingMode.NOKAFKA
+
+@testset "JuliaHub.submit_job: expose=" begin
+    empty!(MOCK_JULIAHUB_STATE)
+    Mocking.apply(mocking_patch) do
+        let jc = JuliaHub.submit_job(JuliaHub.script""; dryrun=true)
+            @test jc.exposed_port === nothing
+        end
+        @testset "port $port" for port in (1025, 8080, 9008, 9010, 18000, 23_399, 23_500, 32_767)
+            jc = JuliaHub.submit_job(JuliaHub.script""; expose=port, dryrun=true)
+            @test jc.exposed_port == port
+        end
+        # Basic invalid ranges for ports
+        @test_throws ArgumentError JuliaHub.submit_job(JuliaHub.script"", expose=-200)
+        @test_throws ArgumentError JuliaHub.submit_job(JuliaHub.script"", expose=0)
+        @test_throws ArgumentError JuliaHub.submit_job(JuliaHub.script"", expose=65_535 + 1)
+        # JuliaHub-reserved port ranges:
+        @test_throws ArgumentError JuliaHub.submit_job(JuliaHub.script"", expose=80)
+        @test_throws ArgumentError JuliaHub.submit_job(JuliaHub.script"", expose=443)
+        @test_throws ArgumentError JuliaHub.submit_job(JuliaHub.script"", expose=1024)
+        @test_throws ArgumentError JuliaHub.submit_job(JuliaHub.script"", expose=9009)
+        @test_throws ArgumentError JuliaHub.submit_job(JuliaHub.script"", expose=23_400)
+        @test_throws ArgumentError JuliaHub.submit_job(JuliaHub.script"", expose=23_499)
+        @test_throws ArgumentError JuliaHub.submit_job(JuliaHub.script"", expose=32_768)
+        @test_throws ArgumentError JuliaHub.submit_job(JuliaHub.script"", expose=40_000)
+        @test_throws ArgumentError JuliaHub.submit_job(JuliaHub.script"", expose=65_535)
+    end
+end
+
+@testset "JuliaHub.request" begin
+    empty!(MOCK_JULIAHUB_STATE)
+    Mocking.apply(mocking_patch) do
+        job = JuliaHub.job("jr-xf4tslavut")
+        @test job.hostname === nothing
+        @test_throws ArgumentError JuliaHub.request(job, "GET", "/")
+
+        MOCK_JULIAHUB_STATE[:jobs] = Dict(
+            "jr-xf4tslavut" => Dict(
+                "proxy_link" => "https://afyux.launch.juliahub.app/"
+            ),
+        )
+        job = JuliaHub.job("jr-xf4tslavut")
+        @test job.hostname == "afyux.launch.juliahub.app"
+        let r = JuliaHub.request(job, "GET", "/")
+            @test r isa HTTP.Response
+            @test r.status == 200
+            @test r.body == b"success"
+        end
+    end
+end

@@ -1,6 +1,7 @@
 # This contains the shared mocking setup for the offline test suite, but is also
 # re-used in docs/make.jl to make the doctest outputs consistent.
 import Dates, Mocking, JSON, SHA, URIs, UUIDs, TimeZones
+import JuliaHub: HTTP
 
 # Development note: you can MITM the REST calls and save the raw API responses
 # with the following Mocking setup:
@@ -79,7 +80,11 @@ mocking_patch = [
     Mocking.@patch(
         JuliaHub._get_authenticated_user_api_v1_request(::AbstractString, ::JuliaHub.Secret) =
             _auth_apiv1_mocked()
-    )
+    ),
+    Mocking.@patch(
+        JuliaHub._http_request_mockable(args...; kwargs...) =
+            _http_request_mocked(args...; kwargs...)
+    ),
 ]
 uuidhash(s::AbstractString) = only(reinterpret(UUIDs.UUID, SHA.sha1(s)[1:16]))
 function _restput_mocked(url::AbstractString, headers, input)
@@ -755,4 +760,19 @@ function _auth_apiv1_mocked()
         d["username"] = username
     end
     d |> jsonresponse(200)
+end
+
+function _http_request_mocked(
+    method::AbstractString,
+    url::AbstractString,
+    headers,
+    body;
+    kwargs...,
+)
+    global MOCK_JULIAHUB_STATE
+    headers = [
+        "Content-Type" => "text/plain; charset=utf-8",
+        "Content-Length" => "7",
+    ]
+    HTTP.Response(200, headers, b"success")
 end

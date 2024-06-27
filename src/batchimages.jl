@@ -18,6 +18,7 @@ Base.@kwdef struct BatchImage
     _cpu_image_key::Union{String, Nothing}
     _gpu_image_key::Union{String, Nothing}
     _is_product_default::Bool
+    _interactive_product_name::Union{String, Nothing}
 end
 
 function Base.show(io::IO, image::BatchImage)
@@ -33,6 +34,10 @@ function Base.show(io::IO, ::MIME"text/plain", image::BatchImage)
     print(io, '\n', " image: ", image.image)
     isnothing(image._cpu_image_key) || print(io, "\n CPU image: ", image._cpu_image_key)
     isnothing(image._gpu_image_key) || print(io, "\n GPU image: ", image._gpu_image_key)
+    if !isnothing(image._interactive_product_name)
+        print(io, "\n Features:")
+        print(io, "\n  - Expose Port: ✓")
+    end
 end
 
 # This value is used in BatchImages objects when running against older JuliaHub
@@ -283,9 +288,18 @@ function _is_batch_app(app::DefaultApp)
     compute_type in ("batch", "singlenode-batch") && (input_type == "userinput")
 end
 
+function _is_interactive_batch_app(app::DefaultApp)
+    # Like _is_batch_app, this should return false for JuliaHub <= 6.1
+    compute_type = get(app._json, "compute_type_name", nothing)
+    input_type = get(app._json, "input_type_name", nothing)
+    compute_type in ("distributed-interactive",) && (input_type == "userinput")
+end
+
 function _batchimages_62(auth::Authentication)
     image_groups = _product_image_groups(auth)
-    batchapps = filter(_is_batch_app, _apps_default(auth))
+    batchapps, interactiveapps = let apps = _apps_default(auth)
+        filter(_is_batch_app, apps), filter(_is_interactive_batch_app, apps)
+    end
     batchimages = map(batchapps) do app
         product_name = app._json["product_name"]
         image_group = app._json["image_group"]
@@ -293,11 +307,32 @@ function _batchimages_62(auth::Authentication)
         if isempty(images)
             @warn "Invalid image_group '$image_group' for '$product_name'" app
         end
+        matching_interactive_app = filter(interactiveapps) do app
+            get(app._json, "image_group", nothing) == image_group
+        end
+        interactive_product_name = if length(matching_interactive_app) > 1
+            # If there are multiple interactive products configured for a batch product
+            # we issue a warning and disable the 'interactive' compute for it (i.e. the user
+            # won't be able to start jobs that require a port to be exposed until the configuration
+            # issue is resolved).
+            @warn "Multiple matching interactive apps for $(app)" image_group matches =
+                matching_interactive_app
+            nothing
+        elseif isempty(matching_interactive_app)
+            # If we can't find a matching 'distributed-interactive' product, we disable the
+            # ability for the user to expose a port with this image.
+            nothing
+        else
+            only(matching_interactive_app)._json["product_name"]
+        end
         map(images) do (display_name, imagekey)
             BatchImage(;
-                product=product_name, image=display_name,
-                _cpu_image_key=imagekey.cpu, _gpu_image_key=imagekey.gpu,
-                _is_product_default=imagekey.isdefault,
+                product                   = product_name,
+                image                     = display_name,
+                _cpu_image_key            = imagekey.cpu,
+                _gpu_image_key            = imagekey.gpu,
+                _is_product_default       = imagekey.isdefault,
+                _interactive_product_name = interactive_product_name,
             )
         end
     end

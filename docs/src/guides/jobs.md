@@ -230,3 +230,60 @@ To actually fetch the contents of a file, you can use the [`download_job_file`](
 ```@setup job-outputs
 empty!(Main.MOCK_JULIAHUB_STATE)
 ```
+
+## [Opening ports on batch jobs](@id jobs-batch-expose-port)
+
+```@setup job-expose-port
+Main.MOCK_JULIAHUB_STATE[:jobs] = Dict(
+    "jr-xf4tslavut" => Dict(
+        "proxy_link" => "https://afyux.launch.juliahub.app/"
+    )
+)
+import JuliaHub
+job = JuliaHub.job("jr-xf4tslavut")
+```
+
+If supported for a given product and user, you can expose a single port on the job serving a HTTP server, to do HTTP requests to the job from the outside.
+This could be used to run "interactive" jobs that respond to user inputs, or to poll the job for data.
+
+For example, the following job would run a simple [Oxygen.jl-based server](https://juliahub.com/ui/Packages/General/Oxygen) that exposes a simple API at the `/` path.
+
+```@example job-expose-port
+import JuliaHub # hide
+job = JuliaHub.submit_job(
+    JuliaHub.script"""
+    using Oxygen, HTTP
+    PORT = parse(Int, ENV["PORT"])
+    @get "/" function(req::HTTP.Request)
+        return "success"
+    end
+    serve(; host="0.0.0.0", port = PORT)
+    """,
+    expose = 8080,
+)
+```
+
+Note that, unlike a usual batch job, this job has a `.hostname` property, that will point to the DNS hostname that can be used to access the server exposed by the job (see also [the relevant reference section](@ref jobs-apis-expose-ports)).
+
+Once the job has started and the Oxygen-based server has started serving the page, you can perform [HTTP.jl](https://juliahub.com/ui/Packages/General/HTTP) requests against the job with the [`JuliaHub.request`](@ref) function, which is thin wrapper around the `HTTP.request` function that sets up the necessary authentication headers and constructs the full URL.
+
+```@repl job-expose-port
+JuliaHub.request(job, "GET", "/")
+```
+
+!!! note "502 Bad Gateway"
+
+    When the job is starting up or if the HTTP server in the job is not running, you can expect a `502 Bad Gateway` HTTP response from the job domain.
+
+!!! tip "HTML page"
+
+    If the server can serve a HTML page, then you can also access the job in the browser.
+    The web UI will also have a "Connect" link, like for other interactive applications.
+
+!!! note "Pricing"
+
+    Jobs that expose ports may be priced differently per hour than batch jobs that do not open ports.
+
+```@setup job-expose-port
+empty!(Main.MOCK_JULIAHUB_STATE)
+```
