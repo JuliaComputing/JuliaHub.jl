@@ -69,7 +69,7 @@ end
         alias="exposed-port-no-image", auth,
     )
     try
-        test_job_with_exposed_port(job; port=23456, check_input=true)
+        test_job_with_exposed_port(job; port=30000, check_input=true)
     finally
         # Kill the job, since we don't want the job to run unnecessarily long
         JuliaHub.kill_job(job)
