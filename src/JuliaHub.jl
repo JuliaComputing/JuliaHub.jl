@@ -36,6 +36,7 @@ function __init__()
     # and store the result in a global. This way all timestamps will have consistent timezones
     # even if something in the environment changes.
     _LOCAL_TZ[] = _localtz()
+    HTTP.SOCKET_TYPE_TLS[] = HTTP.MbedTLS.SSLContext
 end
 
 end
