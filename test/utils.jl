@@ -15,7 +15,7 @@ using Test
         throw_connecterror(), msg = "Custom message"
     )
     @test_throws msgortype(
-        "Custom interpolation 2=2\nHTTP connection to JuliaHub failed (HTTP.Exceptions.ConnectError)",
+        "Custom interpolation 2=2\nHTTP connection to JuliaHub failed (HTTP.Exceptions.ConnectError)"
     ) JuliaHub.@_httpcatch(
         throw_connecterror(), msg = "Custom interpolation $(1+1)=2"
     )

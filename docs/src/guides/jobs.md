@@ -79,7 +79,8 @@ The Julia environment in the directory is also immediately added into the bundle
 
 An appbundle can be constructed with the [`appbundle`](@ref) function, which takes as arguments the path to the directory to be bundled up, and a script _within that directory_.
 This is meant to be used for project directories where you have your Julia environment in the top level of the directory or repository.
-For example, you can submit an bundle from a submit script on the top level of your project directory as follows:
+
+For example, suppose you have a script at the top level of your project directory, then you can submit a bundle as follows:
 
 ```@example
 import JuliaHub # hide
@@ -98,8 +99,9 @@ When the job starts on JuliaHub, this environment is instantiated.
 A key feature of the appbundle is that development dependencies of the environment (i.e. packages added with `pkg> develop` or `Pkg.develop()`) are also bundled up into the archive that gets submitted to JuliaHub (including any current, uncommitted changes).
 Registered packages are installed via the package manager via the standard environment instantiation, and their source code is not included in the bundle directly.
 
-When the JuliaHub job starts, the bundle is unpacked into the `appbundle/` directory (relative to the starting working directory).
-E.g. if you have a `mydata.dat` file in the bundled directory, you can access it in the script at `joinpath("appbundle", "mydata.dat")`.
+When the JuliaHub job starts, the working directory is set to the root of the unpacked appbundle directory.
+This should be kept in mind especially when launching a script that is not at the root itself, and trying to open other files from the appbundle in that script (e.g. with `open`).
+You can still use `@__DIR__` to load files relative to the script, and `include`s also work as expected (i.e. relative to the script file).
 
 Finally, a `.juliabundleignore` file can be used to exclude certain directories, by adding the relevant [globs](https://en.wikipedia.org/wiki/Glob_(programming)), similar to how `.gitignore` files work.
 In addition, `.git` directories are also automatically excluded from the bundle.
@@ -226,5 +228,62 @@ jobfile = JuliaHub.job_file(job, :result, "outdir.tar.gz")
 To actually fetch the contents of a file, you can use the [`download_job_file`](@ref) function on the [`JobFile`](@ref) objects.
 
 ```@setup job-outputs
+empty!(Main.MOCK_JULIAHUB_STATE)
+```
+
+## [Opening ports on batch jobs](@id jobs-batch-expose-port)
+
+```@setup job-expose-port
+Main.MOCK_JULIAHUB_STATE[:jobs] = Dict(
+    "jr-xf4tslavut" => Dict(
+        "proxy_link" => "https://afyux.launch.juliahub.app/"
+    )
+)
+import JuliaHub
+job = JuliaHub.job("jr-xf4tslavut")
+```
+
+If supported for a given product and user, you can expose a single port on the job serving a HTTP server, to do HTTP requests to the job from the outside.
+This could be used to run "interactive" jobs that respond to user inputs, or to poll the job for data.
+
+For example, the following job would run a simple [Oxygen.jl-based server](https://juliahub.com/ui/Packages/General/Oxygen) that exposes a simple API at the `/` path.
+
+```@example job-expose-port
+import JuliaHub # hide
+job = JuliaHub.submit_job(
+    JuliaHub.script"""
+    using Oxygen, HTTP
+    PORT = parse(Int, ENV["PORT"])
+    @get "/" function(req::HTTP.Request)
+        return "success"
+    end
+    serve(; host="0.0.0.0", port = PORT)
+    """,
+    expose = 8080,
+)
+```
+
+Note that, unlike a usual batch job, this job has a `.hostname` property, that will point to the DNS hostname that can be used to access the server exposed by the job (see also [the relevant reference section](@ref jobs-apis-expose-ports)).
+
+Once the job has started and the Oxygen-based server has started serving the page, you can perform [HTTP.jl](https://juliahub.com/ui/Packages/General/HTTP) requests against the job with the [`JuliaHub.request`](@ref) function, which is thin wrapper around the `HTTP.request` function that sets up the necessary authentication headers and constructs the full URL.
+
+```@repl job-expose-port
+JuliaHub.request(job, "GET", "/")
+```
+
+!!! note "502 Bad Gateway"
+
+    When the job is starting up or if the HTTP server in the job is not running, you can expect a `502 Bad Gateway` HTTP response from the job domain.
+
+!!! tip "HTML page"
+
+    If the server can serve a HTML page, then you can also access the job in the browser.
+    The web UI will also have a "Connect" link, like for other interactive applications.
+
+!!! note "Pricing"
+
+    Jobs that expose ports may be priced differently per hour than batch jobs that do not open ports.
+
+```@setup job-expose-port
 empty!(Main.MOCK_JULIAHUB_STATE)
 ```

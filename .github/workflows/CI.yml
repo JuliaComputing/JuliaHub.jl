@@ -35,11 +35,11 @@ jobs:
           - os: macos-latest
             version: "1"
     steps:
-      - uses: actions/checkout@v3
-      - uses: julia-actions/setup-julia@v1
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.version }}
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         env:
           cache-name: cache-artifacts
         with:
@@ -61,7 +61,7 @@ jobs:
           JULIAHUB_SERVER: ${{ secrets.JULIAHUB_SERVER }}
           JULIAHUB_TOKEN: ${{ secrets.JULIAHUB_TOKEN }}
       - uses: julia-actions/julia-processcoverage@v1
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v4
         with:
           file: lcov.info
 
@@ -69,27 +69,25 @@ jobs:
     name: Aqua
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: julia-actions/setup-julia@v1
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
         with:
           version: "1"
-      - run: |
+      - name: "Aqua.test_all(JuliaHub)"
+        shell: julia --color=yes {0}
+        run: |
           import Pkg
           Pkg.activate(temp=true)
-          Pkg.add(name="Aqua", version="0.6")
+          Pkg.add(name="Aqua", version="0.8")
           Pkg.develop(path=".")
-          import Aqua, JuliaHub
-          Aqua.test_all(JuliaHub)
-        shell: julia --color=yes {0}
-        name: "Aqua.test_all(JuliaHub)"
-        continue-on-error: true
+          include(joinpath(pwd(), "test", "aqua.jl"))
 
   jet:
     name: JET
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: julia-actions/setup-julia@v1
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
         with:
           version: "1"
       - name: "Install dependencies"
@@ -97,7 +95,7 @@ jobs:
         run: |
           import Pkg
           Pkg.activate("juliahub-jet", shared=true)
-          Pkg.add(name="JET", version="0.8")
+          Pkg.add(name="JET", version="0.9")
           Pkg.develop(path=".")
       - name: "JET.test_package(..., mode=:basic) [informational]"
         run: julia --color=yes --project=@juliahub-jet test/jet.jl
@@ -112,24 +110,24 @@ jobs:
   docs:
     name: Documentation
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read  # Required when using `push_preview=true`
+      statuses: write  # Optional, used to report documentation build statuses
     steps:
-      - uses: actions/checkout@v3
-      - uses: julia-actions/setup-julia@v1
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
         with:
           version: "1"
       - uses: julia-actions/julia-buildpkg@v1
       - name: Set up documentation environment
-        run: |
-          using Pkg
-          Pkg.develop(path=".")
-          Pkg.instantiate()
-        shell: julia --color=yes --project=docs/ {0}
+        run: make docs-manifest
       - name: Build & deploy the documentation
-        run: julia --color=yes --project=docs/ --code-coverage docs/make.jl
+        run: make docs
         env:
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: julia-actions/julia-processcoverage@v1
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v4
         with:
           file: lcov.info
 
@@ -137,8 +135,8 @@ jobs:
     name: Doctest
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: julia-actions/setup-julia@v1
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
         with:
           version: "1.9"
       - uses: julia-actions/julia-buildpkg@v1
@@ -151,6 +149,6 @@ jobs:
       - name: Check doctests
         run: julia --color=yes --project=docs/ --code-coverage docs/make.jl --doctest
       - uses: julia-actions/julia-processcoverage@v1
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v4
         with:
           file: lcov.info

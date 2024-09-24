@@ -199,6 +199,8 @@ Represents a single job submitted to JuliaHub. Objects have the following proper
   explicitly set)
 * `files :: Vector{JobFiles}`: a list of [`JobFile`](@ref) objects, representing the input and
   output files of the job (see: [`job_files`](@ref), [`job_file`](@ref), [`download_job_file`](@ref)).
+* `hostname :: Union{String, Nothing}`: for jobs that expose a port over HTTP, this will be set to the
+  hostname of the job (`nothing` otherwise; see: [the relevant section in the manual](@ref jobs-batch-expose-port))
 
 See also: [`job`](@ref), [`jobs`](@ref).
 
@@ -213,6 +215,7 @@ struct Job
     env::Dict{String, Any}
     results::String
     files::Vector{JobFile}
+    hostname::Union{String, Nothing}
     _timestamp_submit::Union{String, Nothing}
     _timestamp_start::Union{String, Nothing}
     _timestamp_end::Union{String, Nothing}
@@ -239,6 +242,28 @@ struct Job
                 )
             end
         end
+        hostname = let proxy_link = get(j, "proxy_link", "")
+            if isempty(proxy_link)
+                nothing
+            else
+                uri = URIs.URI(proxy_link)
+                checks = (
+                    uri.scheme == "https",
+                    !isempty(uri.host),
+                    isempty(uri.path) || uri.path == "/",
+                    isempty(uri.query),
+                    isempty(uri.fragment),
+                )
+                if !all(checks)
+                    # Some jobs can have non-empty proxy links that are not proper hostnames.
+                    # We'll just ignore those for now.
+                    @debug "Unable to parse 'proxy_link' JSON for job '$jobname': '$(proxy_link)'"
+                    nothing
+                else
+                    uri.host
+                end
+            end
+        end
         return new(
             jobname,
             _get_json_or(j, "jobname_alias", Union{String, Nothing}, nothing),
@@ -246,6 +271,7 @@ struct Job
             inputs,
             outputs,
             haskey(j, "files") ? JobFile.(jobname, j["files"]; var) : JobFile[],
+            hostname,
             # Under some circumstances, submittimestamp can also be nothing, even though that is
             # weird.
             _json_get(j, "submittimestamp", Union{String, Nothing}; var), # TODO: drop Nothing?
@@ -270,6 +296,7 @@ function Base.show(io::IO, ::MIME"text/plain", job::Job)
     print(io, '\n', " submitted: ", job._timestamp_submit)
     isnothing(job._timestamp_start) || print(io, '\n', " started:   ", job._timestamp_start)
     isnothing(job._timestamp_end) || print(io, '\n', " finished:  ", job._timestamp_end)
+    isnothing(job.hostname) || print(io, '\n', " hostname:  ", job.hostname)
     # List of job files:
     if !isempty(job.files)
         print(io, '\n', " files: ")
@@ -511,7 +538,7 @@ function _download_job_file(auth::Authentication, file::JobFile, io::IO)
         job_file_url,
         _authheaders(auth);
         status_exception=false,
-        response_stream=io
+        response_stream=io,
     )
     r.status == 200 || _throw_invalidresponse(r)
     return nothing

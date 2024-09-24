@@ -1,0 +1,1 @@
+const MY_DEPENDENT_SCRIPT_1 = true

@@ -70,7 +70,7 @@ try
     JuliaHub.upload_dataset(
         blobname, joinpath(TESTDATA, "hi.txt");
         description="some blob", tags=["x", "y", "z"],
-        auth
+        auth,
     )
     datasets = list_datasets_prefix(PREFIX; auth)
     @test length(datasets) == 1
@@ -89,7 +89,7 @@ try
 
     JuliaHub.upload_dataset(
         (auth.username, treename), TESTDATA;
-        description="some tree", tags=["a", "b", "c"]
+        description="some tree", tags=["a", "b", "c"],
     )
     datasets = list_datasets_prefix(PREFIX; auth)
     tree_dataset = only(filter(d -> d.name == treename, datasets))

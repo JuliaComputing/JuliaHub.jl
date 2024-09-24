@@ -317,7 +317,7 @@ function datasets(
         e isa JuliaHubException && rethrow(e)
         e isa JuliaHubError && rethrow(e)
         throw(
-            JuliaHubError("Error while retrieving datasets from the server", e, catch_backtrace()),
+            JuliaHubError("Error while retrieving datasets from the server", e, catch_backtrace())
         )
     end
     # It might happen that some of the elements of the `datasets` array can not be parsed for some reason,
@@ -406,7 +406,7 @@ function dataset end
 @_authuser function dataset(
     dsref::_DatasetRefTuple;
     throw::Bool=true,
-    auth::Authentication=__auth__()
+    auth::Authentication=__auth__(),
 )
     username, dataset_name = dsref
     for dataset in datasets(; shared=true, auth)
@@ -447,7 +447,7 @@ function delete_dataset end
 @_authuser function delete_dataset(
     dsref::_DatasetRefTuple;
     force::Bool=false,
-    auth::Authentication=__auth__()
+    auth::Authentication=__auth__(),
 )
     username, dataset_name = dsref
     _assert_current_user(username, auth; op="delete_dataset")
@@ -495,6 +495,8 @@ If a dataset already exists, then these fields are updated as if [`update_datase
 
 The function will throw an `ArgumentError` for invalid argument combinations.
 
+Use the `progress` keyword argument to suppress upload progress from being printed.
+
 !!! note
     Presently, it is only possible to upload datasets for the currently authenticated user.
 """
@@ -503,6 +505,7 @@ function upload_dataset end
 @_authuser function upload_dataset(
     dsref::_DatasetRefTuple,
     local_path::AbstractString;
+    progress::Bool=true,
     # Operation type
     create::Bool=true,
     update::Bool=false,
@@ -545,7 +548,7 @@ function upload_dataset end
                 # we must throw an invalid request error.
                 throw(
                     InvalidRequestError(
-                        "Dataset '$dataset_name' for user '$username' already exists, but update=false and replace=false.",
+                        "Dataset '$dataset_name' for user '$username' already exists, but update=false and replace=false."
                     ),
                 )
             elseif replace
@@ -597,14 +600,14 @@ function upload_dataset end
             # dtype).
             throw(
                 InvalidRequestError(
-                    "Local data type ($dtype) does not match existing dataset dtype $(upload_config["dataset_type"])",
+                    "Local data type ($dtype) does not match existing dataset dtype $(upload_config["dataset_type"])"
                 ),
             )
         end
     end
     # Upload the actual data
     try
-        _upload_dataset(upload_config, local_path)
+        _upload_dataset(upload_config, local_path; progress)
     catch e
         throw(JuliaHubError("Data upload failed", e, catch_backtrace()))
     end
@@ -619,7 +622,7 @@ function upload_dataset end
     if !all(ismissing.((description, tags, visibility, license, groups)))
         update_dataset(
             (username, dataset_name); auth,
-            description, tags, visibility, license, groups
+            description, tags, visibility, license, groups,
         )
     end
     # If everything was successful, we'll return an updated DataSet object.
@@ -679,7 +682,7 @@ function _open_dataset_version(name; auth::Authentication=__auth__())::_RESTResp
     _restcall(auth, :POST, "user", "datasets", name, "versions")
 end
 
-function _upload_dataset(upload_config, local_path)
+function _upload_dataset(upload_config, local_path; progress::Bool)
     type = upload_config["upload_type"]
     vendor = upload_config["vendor"]
     if type != "S3" || vendor != "aws"
@@ -704,13 +707,20 @@ function _upload_dataset(upload_config, local_path)
             #   --s3-upload-cutoff 1M --s3-chunk-size 5M
 
             # FIXME: remove `--s3-no-head` once policies are figured out (again)
+            args = [
+                "--s3-no-check-bucket",
+                "--s3-no-head",
+                "--no-check-dest",
+            ]
+
+            if progress
+                pushfirst!(args, "--progress")
+            end
+
             run(```
                 $rclone_exe copyto $local_path "juliahub_remote:$remote_path"
                 --config $rclone_conf_path
-                --progress
-                --s3-no-check-bucket
-                --s3-no-head
-                --no-check-dest
+                $args
                 ```)
         end
     end
@@ -833,7 +843,7 @@ function download_dataset(
     dsref::_DatasetRefTuple,
     local_path::AbstractString;
     auth::Authentication=__auth__(),
-    kwargs...
+    kwargs...,
 )
     ds = dataset(dsref; auth)
     download_dataset(ds, local_path; auth, kwargs...)
@@ -848,7 +858,7 @@ function download_dataset(
 )
     dataset.dtype ∈ ["Blob", "BlobTree"] || throw(
         InvalidRequestError(
-            "Download only supported for Blobs and BlobTrees, but '$(dataset.name)' is $(dataset.type)",
+            "Download only supported for Blobs and BlobTrees, but '$(dataset.name)' is $(dataset.type)"
         ),
     )
 

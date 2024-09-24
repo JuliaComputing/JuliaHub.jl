@@ -64,7 +64,7 @@ end
 _print_log_list(logs::Vector{JobLogMessage}; kwargs...) = _print_log_list(stdout, logs; kwargs...)
 function _print_log_list(
     io::IO, logs::Vector{JobLogMessage}; all::Bool=false,
-    nlines::Integer=_default_display_lines(io)
+    nlines::Integer=_default_display_lines(io),
 )
     @assert Base.all(x -> isa(x, JobLogMessage), logs) # note: kwarg shadows function
     @assert nlines >= 1

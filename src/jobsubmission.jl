@@ -698,16 +698,18 @@ end
 Construct an appbundle-type JuliaHub batch job configuration. An appbundle is a directory containing a Julia environment
 that is bundled up, uploaded to JuliaHub, and then unpacked and instantiated as the job starts.
 
+The primary, two-argument method will submit a job that runs a file from within the appbundle (specified by `codefile`,
+which must be a path relative to the root of the appbundle).
 The code that gets executed is read from `codefile`, which should be a path to Julia source file relative to `directory`.
 
 ```julia
 JuliaHub.appbundle(@__DIR__, "my-script.jl")
 ```
 
-Alternatively, if `codefile` is omitted, the code can be provided as a string via the `code` keyword argument.
+Alternatively, if `codefile` is omitted, the code must be provided as a string via the `code` keyword argument.
 
 ```julia
-JuliaHub.AppBundle(
+JuliaHub.appbundle(
     @__DIR__,
     code = \"""
     @show ENV
@@ -734,17 +736,31 @@ The following should be kept in mind about how appbundles are handled:
   instantiation, and their source code is not included in the bundle directly.
 
 * When the JuliaHub job starts, the bundle is unpacked and the job's starting working directory
-  is set to the `appbundle/` directory, and you can e.g. load the data from those files with
-  just `read("my-data.txt", String)`.
-
-  Note that `@__DIR__` points elsewhere and, relatedly, `include` in the main script should be
-  used with an absolute path (e.g. `include(joinpath(pwd(), "my-julia-file.jl"))`).
+  is set to the root of the unpacked appbundle directory, and you can e.g. load the data from those
+  files with just `read("my-data.txt", String)`.
 
   !!! compat "JuliaHub 6.2 and older"
 
-      On some older JuliaHub versions (6.2 and older), the working directory was set to the parent
-      directory of `appbundle/`, and so it was necessary to do `joinpath("appbundle", "mydata.dat")`
-      to load the code.
+      On some JuliaHub versions (6.2 and older), the working directory was set to the parent directory
+      of unpacked appbundle (with the appbundle directory called `appbundle`), and so it was necessary
+      to do `joinpath("appbundle", "mydata.dat")` to load files.
+
+* When submitting appbundles with the two-argument `codefile` method, you can expect `@__DIR__` and
+  `include` to work as expected.
+
+  However, when submitting the Julia code as a string (via the `code` keyword argument), the behavior of
+  `@__DIR__` and `include` should be considered undefined and subject to change in the future.
+
+* The one-argument + `code` keyword argument method is a lower-level method, that more closely mirrors
+  the underlying platform API. The custom code that is passed via `code` is sometimes referred to as the
+  "driver script", and the two-argument method is implemented by submitting an automatically
+  constructed driver script that actually loads the specified file.
+
+!!! compat "Deprecation: v0.1.10"
+
+    As of JuliaHub.jl v0.1.10, the ability to launch appbundles using the two-argument method where
+    the `codefile` parameter point to a file outside of the appbundle itself, is deprecated. You can still
+    submit the contents of the script as the driver script via the `code` keyword argument.
 """
 function appbundle end
 
@@ -769,13 +785,55 @@ function appbundle(
 end
 
 function appbundle(bundle_directory::AbstractString, codefile::AbstractString; kwargs...)
-    codefile = abspath(joinpath(bundle_directory, codefile))
     haskey(kwargs, :code) &&
         throw(ArgumentError("'code' keyword not supported if 'codefile' passed"))
-    isfile(codefile) ||
-        throw(ArgumentError("'codefile' does not point to an existing file: $codefile"))
-    appbundle(bundle_directory; kwargs..., code=read(codefile, String))
+    codefile_fullpath = abspath(bundle_directory, codefile)
+    isfile(codefile_fullpath) ||
+        throw(ArgumentError("'codefile' does not point to an existing file: $codefile_fullpath"))
+    codefile_relpath = relpath(codefile_fullpath, bundle_directory)
+    # It is possible that the user passes a `codefile` path that is outside of the appbundle
+    # directory. This used to work back when `codefile` was just read() and submitted as the
+    # code argument. So we still support this, but print a loud deprecation warning.
+    if startswith(codefile_relpath, "..")
+        @warn """
+        Deprecated: codefile outside of the appbundle $(codefile_relpath)
+        The support for codefiles outside of the appbundle will be removed in a future version.
+        Also note that in this mode, the behaviour of @__DIR__, @__FILE__, and include() with
+        a relative path are undefined.
+
+        To avoid the warning, but retain the old behavior, you can explicitly pass the code
+        keyword argument instead of `codefile`:
+
+        JuliaHub.appbundle(
+            bundle_directory;
+            code = read(joinpath(bundle_directory, codefile), String),
+            kwargs...
+        )
+        """
+        appbundle(bundle_directory; kwargs..., code=read(codefile_fullpath, String))
+    else
+        # TODO: we could check that codefile actually exists within the appbundle tarball
+        # (e.g. to also catch if it is accidentally .juliabundleignored). This would require
+        # Tar.list-ing the bundled tarball, and checking that the file is in there.
+        driver_script = replace(
+            _APPBUNDLE_DRIVER_TEMPLATE,
+            "{PATH_COMPONENTS}" => _tuple_encode_path_components(codefile_relpath),
+        )
+        appbundle(bundle_directory; kwargs..., code=driver_script)
+    end
 end
+
+# We'll hard-code the file path directly into the driver script as string literals.
+# We trust here that repr() will take care of any necessary escaping of the path
+# components. In the end, we'll write the path "x/y/z" into the file as
+#
+#   "x", "y", "z"
+#
+# Note: splitting up the path into components also helps avoid any cross-platform
+# path separator issues.
+_tuple_encode_path_components(path) = join(repr.(splitpath(path)), ",")
+
+const _APPBUNDLE_DRIVER_TEMPLATE = read(abspath(@__DIR__, "appbundle-driver.jl"), String)
 
 function _upload_appbundle(appbundle_tar_path::AbstractString; auth::Authentication)
     isfile(appbundle_tar_path) ||
@@ -785,7 +843,7 @@ function _upload_appbundle(appbundle_tar_path::AbstractString; auth::Authenticat
         Mocking.@mock _restput_mockable(
             upload_url,
             ["Content-Length" => filesize(appbundle_tar_path)],
-            input
+            input,
         )
     end
     # The response body of a successful upload is empty
@@ -955,6 +1013,7 @@ struct WorkloadConfig
     env::Dict{String, String}
     project::Union{UUIDs.UUID, Nothing}
     timelimit::Union{Dates.Hour, Unlimited}
+    exposed_port::Union{Int, Nothing}
     # internal, undocumented, may be removed an any point, not part of the public API:
     _image_sha256::Union{String, Nothing}
 
@@ -964,6 +1023,7 @@ struct WorkloadConfig
         env=(),
         project::Union{UUIDs.UUID, Nothing}=nothing,
         timelimit::Limit=_DEFAULT_WorkloadConfig_timelimit,
+        expose::Union{Integer, Nothing}=nothing,
         # internal, undocumented, may be removed an any point, not part of the public API:
         _image_sha256::Union{AbstractString, Nothing}=nothing,
     )
@@ -974,6 +1034,13 @@ struct WorkloadConfig
                 ),
             )
         end
+        if !isnothing(expose) && !_is_valid_port(expose)
+            Base.throw(
+                ArgumentError(
+                    "Invalid port value for expose: '$(expose)', must be in 1025:9008, 9010:23399, 23500:32767"
+                ),
+            )
+        end
         new(
             app,
             compute,
@@ -981,10 +1048,16 @@ struct WorkloadConfig
             Dict(string(k) => v for (k, v) in pairs(env)),
             project,
             @_timelimit(timelimit),
+            expose,
             _image_sha256,
         )
     end
 end
+
+_is_valid_port(port::Integer) = any(
+    portrange -> in(port, portrange),
+    (1025:9008, 9010:23399, 23500:32767),
+)
 
 _is_gpu_job(workload::WorkloadConfig) = workload.compute.node.hasGPU
 
@@ -1020,8 +1093,8 @@ end
         elastic::Bool = false,
         process_per_node::Bool = true,
         # Runtime configuration keyword arguments
-        [alias::AbstractString], [env], [project::Union{UUID, AbstractString}],
-        timelimit::Limit = Hour(1),
+        [alias::AbstractString], [env], [expose::Integer],
+        [project::Union{UUID, AbstractString}], timelimit::Limit = Hour(1),
         # General keyword arguments
         dryrun::Bool = false,
         [auth :: Authentication]
@@ -1057,10 +1130,15 @@ of the job.
   with. If a string is passed, it must parse as a valid UUID. Passing `nothing` is equivalent to omitting the
   argument.
 
+* `expose :: Union{Integer, Nothing}`: if set to an integer in the valid port ranges, that port will be exposed
+  over HTTPS, allowing for (authenticated) HTTP request to be performed against the job, as long as the job
+  binds an HTTP server to that port. The allowed port ranges are `1025-9008``, `9010-23399`, `23500-32767`
+  (in other words, `<= 1024`, `9009`, `23400-23499`, and `>= 32768` can not be used).
+  [See the relevant manual section for more information.](@ref jobs-batch-expose-port)
+
 **General arguments.**
 
-* `auth :: Authentication`: optional authentication object (see [the authentication section](@ref authentication)
-  for more information)
+$(_DOCS_authentication_kwarg)
 
 * `dryrun :: Bool`: if set to true, `submit_job` does not actually submit the job, but instead
   returns a [`WorkloadConfig`](@ref) object, which can be used to inspect the configuration
@@ -1116,6 +1194,7 @@ function submit_job(
     env=(),
     project::Union{UUIDs.UUID, AbstractString, Nothing}=nothing,
     timelimit::Limit=_DEFAULT_WorkloadConfig_timelimit,
+    expose::Union{Integer, Nothing}=nothing,
     # internal, undocumented, may be removed an any point, not part of the public API:
     _image_sha256::Union{AbstractString, Nothing}=nothing,
     # General submit_job arguments
@@ -1135,8 +1214,8 @@ function submit_job(
         project
     end
     submit_job(
-        WorkloadConfig(app, compute; alias, env, project, timelimit, _image_sha256);
-        kwargs...
+        WorkloadConfig(app, compute; alias, env, project, timelimit, expose, _image_sha256);
+        kwargs...,
     )
 end
 
@@ -1231,6 +1310,34 @@ function _job_submit_args(
     else
         (;)
     end
+    # Note: this set of arguments will also set product_name which must override the value
+    # in `image_args`, achieved by splatting it later in the named tuple constructor below.
+    exposed_port_args = if !isnothing(workload.exposed_port)
+        product_name = if isnothing(batch.image)
+            # If the image was not specified for the job submissions, we assume that the
+            # corresponding interactive product is called 'standard-interactive' and that it
+            # is available to the user (we can not verify that at this point anymore though).
+            "standard-interactive"
+        elseif isnothing(batch.image._interactive_product_name)
+            throw(
+                InvalidRequestError(
+                    "Product '$(batch.image.product_name)' does not support exposing a port."
+                ),
+            )
+        else
+            batch.image._interactive_product_name
+        end
+        (;
+            product_name,
+            appArgs=Dict(
+                "authentication" => true,
+                "authorization" => "me",
+                "port" => workload.exposed_port,
+            ),
+        )
+    else
+        (;)
+    end
     sysimage_args = if batch.sysimage
         sysimage_manifest_sha = _sysimage_manifest_sha(batch.environment)
         if isnothing(sysimage_manifest_sha)
@@ -1242,7 +1349,7 @@ function _job_submit_args(
     end
     return (;
         _job_submit_args(auth, workload, batch, batch.environment, _JobSubmission1; kwargs...)...,
-        image_args..., sysimage_args...,
+        image_args..., exposed_port_args..., sysimage_args...,
     )
 end
 
@@ -1290,7 +1397,7 @@ function _job_submit_args(
         registry_name=packagejob.registry,
         args=merge(
             Dict("jobname" => packagejob.name, "jr_uuid" => packagejob.jr_uuid),
-            packagejob.args
+            packagejob.args,
         ),
         # Just in case, we want to omit sysimage_build altogether when it is not requested.
         sysimage_build=packagejob.sysimage ? true : nothing,
