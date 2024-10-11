@@ -320,6 +320,11 @@ function datasets(
             JuliaHubError("Error while retrieving datasets from the server", e, catch_backtrace())
         )
     end
+    # Note: unless `shared` is `true`, we filter down to the datasets owned by `username`.
+    return _parse_dataset_list(datasets; username=shared ? nothing : username)
+end
+
+function _parse_dataset_list(datasets::Vector; username::Union{AbstractString, Nothing}=nothing)::Vector{Dataset}
     # It might happen that some of the elements of the `datasets` array can not be parsed for some reason,
     # and the Dataset() constructor will throw. Rather than having `datasets` throw an error (as we would
     # normally do for invalid backend responses), in this case we handle the situation more gracefully,
@@ -331,8 +336,8 @@ function datasets(
     datasets = map(datasets) do dataset
         try
             # We also use the `nothing` method for filtering out datasets that are not owned by the
-            # current `username` if `shared = false`.
-            if !shared && (dataset["owner"]["username"] != username)
+            # current `username`. If `username = nothing`, no filtering is done.
+            if !isnothing(username) && (dataset["owner"]["username"] != username)
                 return nothing
             end
             return Dataset(dataset)
