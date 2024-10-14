@@ -30,6 +30,7 @@ include("jobs/request.jl")
 include("jobs/logging.jl")
 include("jobs/logging-kafka.jl")
 include("jobs/logging-legacy.jl")
+include("packages.jl")
 
 function __init__()
     # We'll only attempt to determine the local timezone once, when the package loads,
