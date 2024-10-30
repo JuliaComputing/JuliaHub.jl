@@ -469,6 +469,11 @@ const _DOCS_datasets_metadata_fields = """
   `(:spdx, licence_identifier)` tuple), or a tuple `(:fulltext, license_text)`,
   where `license_text` is the full text string of a custom license
 * `groups`: an iterable of valid group names
+
+!!! compat "JuliaHub.jl v0.1.12"
+
+    The `license = (:fulltext, ...)` form requires v0.1.12, and `license = (:fulltext, ...)`
+    is deprecated since that version.
 """
 
 """
