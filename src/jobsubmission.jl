@@ -1247,6 +1247,8 @@ function submit_job(
         c.env
     end
     args = merge(
+        # Note: we need to ::Dict type assertion here to avoid JET complaining with:
+        # no matching method found `convert(::Type{Dict}, ::NamedTuple)`: convert(JuliaHub.Dict, _26::NamedTuple)
         get(app, :args, Dict())::Dict,
         args,
     )
