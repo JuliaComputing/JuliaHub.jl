@@ -2,6 +2,12 @@
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Fixed
+
+* The `JuliaHub.update_dataset` function now correctly accepts the `license=(:fulltext, ...)` argument. ([#74])
+
 ## Version [v0.1.11] - 2024-06-27
 
 ### Added
@@ -134,3 +140,4 @@ Initial package release.
 [#52]: https://github.com/JuliaComputing/JuliaHub.jl/issues/52
 [#53]: https://github.com/JuliaComputing/JuliaHub.jl/issues/53
 [#58]: https://github.com/JuliaComputing/JuliaHub.jl/issues/58
+[#74]: https://github.com/JuliaComputing/JuliaHub.jl/issues/74
