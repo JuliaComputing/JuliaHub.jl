@@ -472,7 +472,7 @@ const _DOCS_datasets_metadata_fields = """
 
 !!! compat "JuliaHub.jl v0.1.12"
 
-    The `license = (:fulltext, ...)` form requires v0.1.12, and `license = (:fulltext, ...)`
+    The `license = (:fulltext, ...)` form requires v0.1.12, and `license = (:text, ...)`
     is deprecated since that version.
 """
 
