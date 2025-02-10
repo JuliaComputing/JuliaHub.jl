@@ -214,7 +214,7 @@ function haslast end
 """
     JuliaHub.job_logs_buffered(
         [f::Base.Callable], job::Union{Job,AbstractString};
-        streaming::Bool=true, [offset::Integer],
+        stream::Bool=true, [offset::Integer],
         [auth::Authentication]
     ) -> AbstractJobLogsBuffer
 
@@ -228,15 +228,15 @@ The function accepts the following arguments:
   The first argument is the buffer object itself, and the second argument will be passed a _read-only
   view_ of all the logs that have been loaded into the buffer, including the new ones.
 * `job :: Union{Job,AbstractString}`: either the job name or a [`Job`](@ref) object.
-* `streaming :: Bool`: if set to `true`, the buffer object The streaming can be stopped with
-  [`interrupt!`](@ref).
+* `stream :: Bool`: if set to `true`, the buffer object will automatically pull new logs in a
+  an asynchronous background task. The streaming can be stopped with [`interrupt!`](@ref).
 * `offset :: Integer`: optional non-negative value to specify the starting point of the buffer
 
 # Interface of the returned object
 
 Returns an instance of the abstract [`AbstractJobLogsBuffer`](@ref) type.
 These objects contain log messages (of type [`JobLogMessage`](@ref)), but not all the log messages
-are immediately available. Instead, at any given time the buffer represents a continous section of
+are immediately available. Instead, at any given time the buffer represents a continuous section of
 logs that can be extended in either direction.
 
 The following functions can be used to interact with log buffers: [`job_logs_newer!`](@ref),
