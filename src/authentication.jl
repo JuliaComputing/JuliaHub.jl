@@ -173,7 +173,8 @@ The zero- and one-argument methods will attempt to read the token from the curre
 If a valid authentication token does not exist in the Julia depot, a new token is acquired via an
 interactive browser based prompt. By default, it attemps to connect to the currently configured Julia
 package server URL (configured e.g. via the `JULIA_PKG_SERVER` environment variable), but this
-can be overridden by passing the `server` argument.
+can be overridden by passing the `server` argument.  `server` is just the URL of your JuliaHub instance,
+so if you've logged on to the public JuliaHub server, this is `"juliahub.com"`.
 
 The two-argument method can be used when you do not want to read the token from the `auth.toml`
 file (e.g. when using a long-term token via an environment variable). In this case, you also have
