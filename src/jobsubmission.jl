@@ -1246,7 +1246,12 @@ function submit_job(
     else
         c.env
     end
-    args = merge(get(app, :args, Dict()), args)
+    args = merge(
+        # Note: we need to ::Dict type assertion here to avoid JET complaining with:
+        # no matching method found `convert(::Type{Dict}, ::NamedTuple)`: convert(JuliaHub.Dict, _26::NamedTuple)
+        get(app, :args, Dict())::Dict,
+        args,
+    )
 
     projectid = isnothing(c.project) ? nothing : string(c.project)
 

@@ -470,9 +470,15 @@ const _DOCS_datasets_metadata_fields = """
 * `description`: description of the dataset (a string)
 * `tags`: an iterable of strings of all the tags of the dataset
 * `visibility`: a string with possible values `public` or `private`
-* `license`: a valid SPDX license identifier, or a tuple `(:fulltext, license_text)`, where
-  `license_text` is the full text string of a custom license
+* `license`: a valid SPDX license identifier (as a string or in a
+  `(:spdx, licence_identifier)` tuple), or a tuple `(:fulltext, license_text)`,
+  where `license_text` is the full text string of a custom license
 * `groups`: an iterable of valid group names
+
+!!! compat "JuliaHub.jl v0.1.12"
+
+    The `license = (:fulltext, ...)` form requires v0.1.12, and `license = (:text, ...)`
+    is deprecated since that version.
 """
 
 """
@@ -988,7 +994,14 @@ function update_dataset end
         cmd, license_value = license
         params["license"] = if cmd == :spdx
             Dict("spdx_id" => license_value)
-        elseif cmd == :text
+        elseif cmd in (:fulltext, :text)
+            if cmd == :text
+                Base.depwarn(
+                    "Passing license=(:text, ...) is deprecated, use license=(:fulltext, ...) instead.",
+                    :update_dataset;
+                    force=true,
+                )
+            end
             Dict("text" => license_value)
         else
             throw(ArgumentError("Invalid license argument: $(cmd) ∉ [:spdx, :text]"))

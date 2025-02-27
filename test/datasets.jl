@@ -237,6 +237,24 @@ end
         @test_throws TypeError JuliaHub.update_dataset(
             "example-dataset"; description=42
         )
+        # Different options for `license` keyword
+        @test JuliaHub.update_dataset("example-dataset"; license="MIT") isa JuliaHub.Dataset
+        @test JuliaHub.update_dataset("example-dataset"; license=(:spdx, "MIT")) isa
+            JuliaHub.Dataset
+        @test JuliaHub.update_dataset("example-dataset"; license=(:fulltext, "...")) isa
+            JuliaHub.Dataset
+        # This should log a deprecation warning
+        @test @test_logs (
+            :warn,
+            "Passing license=(:text, ...) is deprecated, use license=(:fulltext, ...) instead.",
+        ) JuliaHub.update_dataset(
+            "example-dataset"; license=(:text, "...")
+        ) isa JuliaHub.Dataset
+        @test_throws TypeError JuliaHub.update_dataset("example-dataset"; license=1234)
+        @test_throws ArgumentError JuliaHub.update_dataset("example-dataset"; license=(:foo, ""))
+        @test_throws TypeError JuliaHub.update_dataset(
+            "example-dataset"; license=(:fulltext, 1234)
+        )
     end
 end
 
@@ -293,6 +311,33 @@ end
 
         # @test JuliaHub.upload_dataset(
         #     "existing-dataset", @__FILE__; update=true) isa JuliaHub.Dataset
+
+        # Different options for `license` keyword
+        @test JuliaHub.upload_dataset(
+            "example-dataset-license", @__FILE__; create=true, license="MIT"
+        ) isa JuliaHub.Dataset
+        @test JuliaHub.upload_dataset(
+            "example-dataset-license", @__FILE__; replace=true, license=(:spdx, "MIT")
+        ) isa JuliaHub.Dataset
+        @test JuliaHub.upload_dataset(
+            "example-dataset-license", @__FILE__; replace=true, license=(:fulltext, "...")
+        ) isa JuliaHub.Dataset
+        # This should log a deprecation warning
+        @test @test_logs (
+            :warn,
+            "Passing license=(:text, ...) is deprecated, use license=(:fulltext, ...) instead.",
+        ) JuliaHub.upload_dataset(
+            "example-dataset-license", @__FILE__; replace=true, license=(:text, "...")
+        ) isa JuliaHub.Dataset
+        @test_throws TypeError JuliaHub.upload_dataset(
+            "example-dataset-license", @__FILE__; replace=true, license=1234
+        )
+        @test_throws ArgumentError JuliaHub.upload_dataset(
+            "example-dataset-license", @__FILE__; replace=true, license=(:foo, "")
+        )
+        @test_throws TypeError JuliaHub.upload_dataset(
+            "example-dataset-license", @__FILE__; replace=true, license=(:fulltext, 1234)
+        )
     end
     empty!(MOCK_JULIAHUB_STATE)
 end
