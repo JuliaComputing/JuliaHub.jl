@@ -26,6 +26,7 @@ Objects have the following properties:
 * `server :: URIs.URI`: URL of the JuliaHub instance this authentication token applies to.
 * `username :: String`: user's JuliaHub username (used for e.g. to namespace datasets)
 * `token :: JuliaHub.Secret`: a [`Secret`](@ref) object storing the JuliaHub authentication token
+* `project_id :: Union{UUID, Nothing}`: the project ID of the currently active project.
 
 Note that the object is mutable, and hence will be shared as it is passed around. And at the same
 time, functions such as [`reauthenticate!`](@ref) may modify the object.
@@ -38,6 +39,7 @@ mutable struct Authentication
     server::URIs.URI
     username::String
     token::Secret
+    project_id::Union{UUIDs.UUID, Nothing}
     _api_version::VersionNumber
     _tokenpath::Union{String, Nothing}
     _email::Union{String, Nothing}
@@ -48,6 +50,7 @@ mutable struct Authentication
         tokenpath::Union{AbstractString, Nothing}=nothing,
         email::Union{AbstractString, Nothing}=nothing,
         expires::Union{Integer, Nothing}=nothing,
+        project_uuid::Union{UUIDs.UUID, Nothing}=nothing,
     )
         # The authentication() function should take care of sanitizing the inputs here,
         # so it is fine to just error() here.
@@ -58,7 +61,7 @@ mutable struct Authentication
             @warn "Invalid auth.toml token path passed to Authentication, ignoring." tokenpath
             tokenpath = nothing
         end
-        new(server, username, token, api_version, tokenpath, email, expires)
+        new(server, username, token, project_uuid, api_version, tokenpath, email, expires)
     end
 end
 
@@ -66,7 +69,11 @@ function Base.show(io::IO, auth::Authentication)
     print(io, "JuliaHub.Authentication(")
     print(io, '"', auth.server, "\", ")
     print(io, '"', auth.username, "\", ")
-    print(io, "*****)")
+    print(io, "*****")
+    if !isnothing(auth.project_id)
+        print(io, "; project_id = \"", auth.project_id, "\"")
+    end
+    print(io, ")")
 end
 
 function _sanitize_juliahub_uri(f::Base.Callable, server::URIs.URI)
@@ -211,6 +218,7 @@ function authenticate(
     force::Bool=false,
     maxcount::Integer=_DEFAULT_authenticate_maxcount,
     hook::Union{Base.Callable, Nothing}=nothing,
+    project::Union{AbstractString, UUIDs.UUID, Nothing, Missing}=missing,
 )
     maxcount >= 1 || throw(ArgumentError("maxcount must be >= 1, got '$maxcount'"))
     if !isnothing(hook) && !hasmethod(hook, Tuple{AbstractString})
@@ -220,8 +228,9 @@ function authenticate(
             ),
         )
     end
+    project_uuid = _normalize_project(project)
     server_uri = _juliahub_uri(server)
-    auth = Mocking.@mock _authenticate(server_uri; force, maxcount, hook)
+    auth = Mocking.@mock _authenticate(server_uri; force, maxcount, hook, project_uuid)
     global __AUTH__[] = auth
     return auth
 end
@@ -252,14 +261,16 @@ function _juliahub_uri(server::Union{AbstractString, Nothing})
 end
 
 function _authenticate(
-    server_uri::URIs.URI; force::Bool, maxcount::Integer, hook::Union{Base.Callable, Nothing}
+    server_uri::URIs.URI;
+    force::Bool, maxcount::Integer, hook::Union{Base.Callable, Nothing},
+    project_uuid::Union{UUID, Nothing},
 )
     isnothing(hook) || PkgAuthentication.register_open_browser_hook(hook)
     try
         # _authenticate either returns a valid token, or throws
         auth_toml = _authenticate_retry(string(server_uri), 1; force, maxcount)
         # Note: _authentication may throw, which gets passed on to the user
-        _authentication(server_uri; auth_toml...)
+        _authentication(server_uri; project_uuid, auth_toml...)
     finally
         isnothing(hook) || PkgAuthentication.clear_open_browser_hook()
     end
@@ -332,6 +343,7 @@ function _authentication(
     email::Union{AbstractString, Nothing}=nothing,
     username::Union{AbstractString, Nothing}=nothing,
     tokenpath::Union{AbstractString, Nothing}=nothing,
+    project_uuid::Union{UUID, Nothing}=nothing,
 )
     # If something goes badly wrong in _get_api_information, it may throw. We won't really
     # be able to proceed, since we do not know what JuliaHub APIs to use, so we need to
@@ -367,9 +379,36 @@ function _authentication(
     else
         username = api.username
     end
-    return Authentication(server, api.api_version, username, token; email, expires, tokenpath)
+    return Authentication(
+        server, api.api_version, username, token;
+        email, expires, tokenpath, project_uuid,
+    )
 end
 _authentication(server::AbstractString; kwargs...) = _authentication(URIs.URI(server); kwargs...)
+
+function _normalize_project(
+    project::Union{AbstractString, UUIDs.UUID, Nothing, Missing}
+)::Union{UUID, Nothing}
+    if ismissing(project)
+        project = get(ENV, "JULIAHUB_PROJECT_UUID", nothing)
+    end
+    if isnothing(project)
+        return nothing
+    elseif isa(project, UUIDs.UUID)
+        return project
+    elseif isa(project, AbstractString)
+        project_uuid = tryparse(UUIDs.UUID, project)
+        if isnothing(project)
+            throw(
+                ArgumentError(
+                    "Invalid project_id passed to Authentication() - not a UUID: $(project)"
+                ),
+            )
+        end
+        return project_uuid::UUID
+    end
+    error("Bug. Unimplemented case.")
+end
 
 """
     JuliaHub.check_authentication(; [auth::Authentication]) -> Bool

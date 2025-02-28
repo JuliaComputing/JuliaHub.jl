@@ -324,7 +324,9 @@ function datasets(
     return _parse_dataset_list(datasets; username=shared ? nothing : username)
 end
 
-function _parse_dataset_list(datasets::Vector; username::Union{AbstractString, Nothing}=nothing)::Vector{Dataset}
+function _parse_dataset_list(
+    datasets::Vector; username::Union{AbstractString, Nothing}=nothing
+)::Vector{Dataset}
     # It might happen that some of the elements of the `datasets` array can not be parsed for some reason,
     # and the Dataset() constructor will throw. Rather than having `datasets` throw an error (as we would
     # normally do for invalid backend responses), in this case we handle the situation more gracefully,
@@ -587,7 +589,7 @@ function upload_dataset end
     #
     # Acquire an upload for the dataset. By this point, the dataset with this name
     # should definitely exist, although race conditions are always a possibility.
-    r = _open_dataset_version(dataset_name; auth)
+    r = _open_dataset_version(auth, dataset_name)
     if (r.status == 404) && !create
         # A non-existent dataset if create=false indicates a user error.
         throw(
@@ -599,23 +601,7 @@ function upload_dataset end
         # Any other 404 or other non-200 response indicates a backend failure
         _throw_invalidresponse(r)
     end
-    upload_config, _ = _parse_response_json(r, Dict)
-    # Verify that the dtype of the remote dataset is what we expect it to be.
-    if upload_config["dataset_type"] != dtype
-        if newly_created_dataset
-            # If we just created the dataset, then there has been some strange error if dtypes
-            # do not match.
-            throw(JuliaHubError("Dataset types do not match."))
-        else
-            # Otherwise, it's a user error (i.e. they are trying to update dataset with the wrong
-            # dtype).
-            throw(
-                InvalidRequestError(
-                    "Local data type ($dtype) does not match existing dataset dtype $(upload_config["dataset_type"])"
-                ),
-            )
-        end
-    end
+    upload_config = _check_dataset_upload_config(r, dtype)
     # Upload the actual data
     try
         _upload_dataset(upload_config, local_path; progress)
@@ -625,7 +611,7 @@ function upload_dataset end
     # Finalize the upload
     try
         # _close_dataset_version will also throw on non-200 responses
-        _close_dataset_version(dataset_name, upload_config; local_path, auth)
+        _close_dataset_version(auth, dataset_name, upload_config; local_path)
     catch e
         throw(JuliaHubError("Finalizing upload failed", e, catch_backtrace()))
     end
@@ -638,6 +624,27 @@ function upload_dataset end
     end
     # If everything was successful, we'll return an updated DataSet object.
     return dataset((username, dataset_name); auth)
+end
+
+function _check_dataset_upload_config(r::_RESTResponse, expected_dtype::AbstractString)
+    upload_config, _ = _parse_response_json(r, Dict)
+    # Verify that the dtype of the remote dataset is what we expect it to be.
+    if upload_config["dataset_type"] != expected_dtype
+        if newly_created_dataset
+            # If we just created the dataset, then there has been some strange error if dtypes
+            # do not match.
+            throw(JuliaHubError("Dataset types do not match."))
+        else
+            # Otherwise, it's a user error (i.e. they are trying to update dataset with the wrong
+            # dtype).
+            throw(
+                InvalidRequestError(
+                    "Local data type ($expected_dtype) does not match existing dataset dtype $(upload_config["dataset_type"])"
+                ),
+            )
+        end
+    end
+    return upload_config
 end
 
 function _dataset_dtype(local_path::AbstractString)
@@ -689,7 +696,7 @@ function _new_dataset(
     )
 end
 
-function _open_dataset_version(name; auth::Authentication=__auth__())::_RESTResponse
+function _open_dataset_version(auth::Authentication, name::AbstractString)::_RESTResponse
     _restcall(auth, :POST, "user", "datasets", name, "versions")
 end
 
@@ -740,7 +747,7 @@ function _upload_dataset(upload_config, local_path; progress::Bool)
 end
 
 function _close_dataset_version(
-    name, upload_config; local_path=nothing, auth::Authentication=__auth__()
+    auth::Authentication, name, upload_config; local_path=nothing
 )::_RESTResponse
     body = Dict(
         "name" => name,

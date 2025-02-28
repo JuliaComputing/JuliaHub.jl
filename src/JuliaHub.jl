@@ -11,7 +11,7 @@ import SHA
 import TimeZones
 import TOML
 import URIs
-import UUIDs
+using UUIDs: UUIDs, UUID
 
 const _LOCAL_TZ = Ref{Dates.TimeZone}()
 
