@@ -62,6 +62,14 @@ end
             @test ds_updated.owner == ds.owner
             @test ds_updated.dtype == ds.dtype
             @test ds_updated.description == ds.description
+
+            @testset "propertynames()" begin
+                expected = filter(
+                    s -> !startswith(string(s), "_"),
+                    fieldnames(JuliaHub.Dataset),
+                )
+                @test Set(propertynames(pd._dataset)) == Set(expected)
+            end
         end
         let ds = JuliaHub.dataset(("username", "example-dataset"); throw=false)
             @test ds isa JuliaHub.Dataset

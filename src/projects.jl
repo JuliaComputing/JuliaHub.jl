@@ -1,19 +1,56 @@
+"""
+    struct ProjectDataset
+
+A dataset object returned by the functions that return project dataset links.
+
+Has the same fields as [`Dataset`](@ref) plus the following fields
+that are specific to the project-dataset link:
+
+- `project_uuid::UUID`: identifies the project in the context of which the dataset was listed
+- `is_writable :: Bool`: whether this dataset has been marked writable by the dataset owner
+"""
 struct ProjectDataset
+    _dataset::Dataset
     project_uuid::UUIDs.UUID
-    dataset::Dataset
     is_writable::Bool
 end
 
 function Base.getproperty(pd::ProjectDataset, name::Symbol)
+    dataset = getfield(pd, :_dataset)
     if name in fieldnames(ProjectDataset)
         return getfield(pd, name)
-    elseif name in propertynames(Dataset)
-        return getproperty(getfield(pd, :dataset), name)
+    elseif name in propertynames(dataset)
+        return getproperty(dataset, name)
     else
         throw(ArgumentError("No property $name for ProjectDataset"))
     end
 end
 
+function Base.show(io::IO, pd::ProjectDataset)
+    print(
+        io,
+        "JuliaHub.project_dataset((\"",
+        pd.owner,
+        "\", \"",
+        pd.name,
+        "\"); project=\"",
+        pd.project_uuid,
+        "\")",
+    )
+end
+function Base.show(io::IO, ::MIME"text/plain", pd::ProjectDataset)
+    printstyled(io, "ProjectDataset:"; bold=true)
+    print(io, " ", pd.name, " (", pd.dtype, ")")
+    print(io, "\n owner: ", pd.owner)
+    print(
+        io, "\n project: ", pd.project_uuid, " ",
+        pd.is_writable ? "(writable)" : "(not writable)",
+    )
+    print(io, "\n description: ", pd.description)
+    print(io, "\n versions: ", length(pd.versions))
+    print(io, "\n size: ", pd.size, " bytes")
+    isempty(pd.tags) || print(io, "\n tags: ", join(pd.tags, ", "))
+end
 
 """
     struct ProjectNotSetError <: JuliaHubException
@@ -51,7 +88,7 @@ function _project_uuid(auth::Authentication, project::Union{ProjectReference, No
 end
 
 """
-JuliaHub.project_dataset(dataset::DatasetReference; [project::ProjectReference], [auth]) -> Dataset
+    JuliaHub.project_dataset(dataset::DatasetReference; [project::ProjectReference], [auth]) -> Dataset
 
 Looks up a dataset in the context of a project.
 """
@@ -59,7 +96,7 @@ function project_dataset end
 
 function project_dataset(
     dataset::Dataset;
-    project::Union{ProjectReference, Nothing},
+    project::Union{ProjectReference, Nothing}=nothing,
     auth::Authentication=__auth__(),
 )
     project_uuid = _project_uuid(auth, project)
@@ -78,7 +115,7 @@ end
 
 function project_dataset(
     dsref::_DatasetRefTuple;
-    project::Union{ProjectReference, Nothing},
+    project::Union{ProjectReference, Nothing}=nothing,
     auth::Authentication=__auth__(),
 )
     username, dataset_name = dsref
@@ -98,7 +135,7 @@ end
 
 function project_dataset(
     dataset_name::AbstractString;
-    project::Union{ProjectReference, Nothing},
+    project::Union{ProjectReference, Nothing}=nothing,
     auth::Authentication=__auth__(),
 )
     return project_dataset((auth.username, dataset_name); project, auth)
@@ -142,10 +179,38 @@ function _project_datasets(auth::Authentication, project::UUIDs.UUID)
         JuliaHub._throw_invalidresponse(r; msg="Unable to fetch datasets.")
     end
     datasets, _ = JuliaHub._parse_response_json(r, Vector)
-    return map(_parse_dataset_list(datasets)) do dataset
-        @assert dataset._json["project"]["project_id"] == string(project)
-        ProjectDataset(project, dataset, dataset._json["project"]["is_writable"])
+    n_erroneous_datasets = 0
+    datasets = map(_parse_dataset_list(datasets)) do dataset
+        try
+            project_json = _get_json(dataset._json, "project", Dict)
+            project_json_uuid = _get_json(project_json, "project_id", String; msg=".project")
+            if project_json_uuid != string(project)
+                @debug "Invalid dataset in GET /datasets?project= response" dataset project_json_uuid project
+                n_erroneous_datasets += 1
+                return nothing
+            end
+            is_writable = _get_json(
+                project_json,
+                "is_writable",
+                Bool;
+                msg="Unable to parse .project in /datasets?project response",
+            )
+            return ProjectDataset(dataset, project, is_writable)
+        catch e
+            isa(e, JuliaHubError) || rethrow(e)
+            @debug "Invalid dataset in GET /datasets?project= response" dataset exception = (
+                e, catch_backtrace()
+            )
+            n_erroneous_datasets += 1
+            return nothing
+        end
     end
+    if n_erroneous_datasets > 0
+        @warn "The JuliaHub GET /datasets?project= response contains erroneous project datasets. Omitting $(n_erroneous_datasets) entries."
+    end
+    # We'll filter down to just ProjectDataset objects, and enforce
+    # type-stability of the array type here.
+    return ProjectDataset[pd for pd in datasets if isa(pd, ProjectDataset)]
 end
 
 """
@@ -174,7 +239,7 @@ Uploads a new version of a project-linked dataset.
 function upload_project_dataset end
 
 function upload_project_dataset(
-    dataset::Dataset,
+    ds::Dataset,
     local_path::AbstractString;
     progress::Bool=true,
     project::Union{ProjectReference, Nothing}=nothing,
@@ -185,13 +250,11 @@ function upload_project_dataset(
     dtype = _dataset_dtype(local_path)
 
     # Actually attempt the upload
-    r = _open_dataset_version(auth, dataset.uuid, project_uuid)
+    r = _open_dataset_version(auth, ds.uuid, project_uuid)
     if r.status in (400, 403, 404)
-        throw(
-            InvalidRequestError(
-                "Can't upload :cry:"
-            ),
-        )
+        # These response codes indicate a problem with the request
+        msg = "Unable to upload to dataset ($(ds.owner), $(ds.name)): $(r.json) (code: $(r.status))"
+        throw(InvalidRequestError(msg))
     elseif r.status != 200
         # Other response codes indicate a backend failure
         _throw_invalidresponse(r)
@@ -207,12 +270,14 @@ function upload_project_dataset(
     # Finalize the upload
     try
         # _close_dataset_version will also throw on non-200 responses
-        _close_dataset_version(auth, dataset_name, upload_config; local_path)
+        r = _close_dataset_version(auth, ds.uuid, upload_config; local_path)
+        if r.status != 200
+        end
     catch e
         throw(JuliaHubError("Finalizing upload failed", e, catch_backtrace()))
     end
     # If everything was successful, we'll return an updated DataSet object.
-    return dataset((username, dataset_name); auth)
+    return project_dataset(ds; project, auth)
 end
 
 function upload_project_dataset(
@@ -232,5 +297,24 @@ function _open_dataset_version(
         :POST,
         ("datasets", string(dataset_uuid), "versions"),
         JSON.json(body),
+    )
+end
+
+function _close_dataset_version(
+    auth::Authentication, dataset_uuid::UUID, upload_config; local_path
+)::_RESTResponse
+    body = Dict(
+        "upload_id" => upload_config["upload_id"],
+        "action" => "close",
+    )
+    if isnothing(local_path)
+        body["filename"] = local_path
+    end
+    return _restcall(
+        auth,
+        :POST,
+        ("datasets", string(dataset_uuid), "versions"),
+        JSON.json(body);
+        headers=["Content-Type" => "application/json"],
     )
 end

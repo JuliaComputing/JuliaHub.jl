@@ -145,9 +145,14 @@ function Dataset(d::Dict)
     )
 end
 
+function Base.propertynames(::Dataset)
+    return (:owner, :name, :uuid, :dtype, :size, :versions, :description, :tags)
+end
+
 function Base.show(io::IO, d::Dataset)
     print(io, "JuliaHub.dataset((\"", d.owner, "\", \"", d.name, "\"))")
 end
+
 function Base.show(io::IO, ::MIME"text/plain", d::Dataset)
     printstyled(io, "Dataset:"; bold=true)
     print(io, " ", d.name, " (", d.dtype, ")")
