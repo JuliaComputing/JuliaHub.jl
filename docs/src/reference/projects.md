@@ -22,12 +22,6 @@ will automatically.
 However, you can opt-out of this behavior by explicitly passing a `project=nothing` to
 [`JuliaHub.authenticate`](@ref).
 
-If you explicitly
-
-you can always pass `project=
-
-- `JULIAHUB_PROJECT_UUID`
-
 You can always verify that your operations are running in the context of the correct project
 by checking the [`Authentication`](@ref) object, e.g. via [`current_authentication`](@ref):
 
