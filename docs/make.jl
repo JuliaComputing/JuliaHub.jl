@@ -65,6 +65,7 @@ const PAGES_REFERENCE = [
     "reference/job-submission.md",
     "reference/jobs.md",
     "reference/datasets.md",
+    "reference/projects.md",
     "reference/exceptions.md",
 ]
 Mocking.apply(mocking_patch) do

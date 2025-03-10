@@ -168,6 +168,7 @@ end
         server::AbstractString = Pkg.pkg_server();
         force::Bool = false,
         maxcount::Integer = $(_DEFAULT_authenticate_maxcount),
+        [project::Union{AbstractString, UUIDs.UUID, Nothing}],
         [hook::Base.Callable]
     ) -> JuliaHub.Authentication
     JuliaHub.authenticate(server::AbstractString, token::Union{AbstractString, JuliaHub.Secret}) -> JuliaHub.Authentication
@@ -201,6 +202,33 @@ The returned [`Authentication`](@ref) object is also cached globally (overwritin
 cached authentications), making it unnecessary to pass the returned object manually to other
 function calls. This is useful for interactive use, but should not be used in library code,
 as different authentication calls may clash.
+
+# Project Context
+
+An [`Authentication`](@ref) object can also specify the default JuliaHub project.
+This can be set by passing the optional `project` argument, which works as follows:
+
+- If the `project` value is not passed, JuliaHub.jl will attempt to pick up the the project UUID
+  from the `JULIAHUB_PROJECT_UUID` environment variable, and will fall back to the non-project
+  context if that is not set.
+
+- If you pass an explicit UUID (either as a string or an `UUID` object), that will then be used
+  as the project. Note that a UUID passed as a string must be a syntactically correct UUID.
+
+- If you pass `nothing`, that make JuliaHub.jl ignore any values in the `JULIAHUB_PROJECT_UUID`
+  environment variable.
+
+!!! note "JULIAHUB_PROJECT_UUID"
+
+    Generally, in JuliaHub jobs and cloud IDE environments that are launched in the context of a
+    project, the `JULIAHUB_PROJECT_UUID` is automatically set, and JuliaHub.jl will pick it up
+    automatically, unless explicitly disabled with `project=nothing`.
+
+!!! warn "Project access checks"
+
+    When the [`Authentication`](@ref) object is constructed, access to or existence of the specified
+    project is not checked. However, if you attempt any project operations with with such an
+    authentication object, they will fail and throw an error.
 """
 function authenticate end
 

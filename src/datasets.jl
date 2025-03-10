@@ -1,9 +1,10 @@
 const _DOCS_nondynamic_datasets_object_warning = """
 !!! warning "Non-dynamic dataset objects"
 
-    [`Dataset`](@ref) objects represents the dataset metadata when the Julia object was created
-    (e.g. with [`dataset`](@ref)), and are not automatically kept up to date. To refresh the dataset
-    metadata, you can pass the existing [`Dataset`](@ref) to [`JuliaHub.dataset`](@ref).
+    [`Dataset`](@ref) and [`ProjectDataset`](@ref) objects represents the dataset metadata when the
+    Julia object was created (e.g. with [`dataset`](@ref)), and are not automatically kept up to date.
+    To refresh the dataset metadata, you can pass the existing [`Dataset`](@ref) to [`JuliaHub.dataset`](@ref),
+    or [`ProjectDataset`](@ref) to [`project_dataset`](@ref).
 """
 
 Base.@kwdef struct _DatasetStorage

@@ -1,10 +1,31 @@
 """
+    struct ProjectNotSetError <: JuliaHubException
+
+Exception thrown when the authentication object is not set to a project, nor was
+an explicit project UUID provided, but the operation requires a project to be
+specified.
+"""
+struct ProjectNotSetError <: JuliaHubException end
+
+function Base.showerror(io::IO, e::ProjectNotSetError)
+    print(io, "ProjectNotSetError: authentication object not associated with a project")
+end
+
+function _assert_projects_enabled(auth::Authentication)
+    # The different project APIs are only present in JuliaHub 6.9 and later.
+    if auth._api_version < v"0.2.0"
+        msg = "Project APIs got added in JuliaHub 6.9 (expected API version >= 0.2.0, got $(auth._api_version), for $(auth.server))"
+        throw(InvalidJuliaHubVersion(msg))
+    end
+end
+
+"""
     struct ProjectDataset
 
 A dataset object returned by the functions that return project dataset links.
 
-Has the same fields as [`Dataset`](@ref) plus the following fields
-that are specific to the project-dataset link:
+Has the same fields as [`Dataset`](@ref) plus the following fields that are specific
+to project-dataset links:
 
 - `project_uuid::UUID`: identifies the project in the context of which the dataset was listed
 - `is_writable :: Bool`: whether this dataset has been marked writable by the dataset owner
@@ -53,20 +74,20 @@ function Base.show(io::IO, ::MIME"text/plain", pd::ProjectDataset)
 end
 
 """
-    struct ProjectNotSetError <: JuliaHubException
+    const ProjectReference :: Type
 
-Exception thrown when the authentication object is not set to a project, but the
-operation is meant to take place in the context of a project.
+Type constraint on the argument that specifies the project in projects-related
+APIs that (e.g. [`project_datasets`](@ref)).
+
+Presently, you can specify the project by directly passing the project UUID.
+The UUID should be either a string (`<: AbstractString`) or an `UUIDs.UUID` object.
 """
-struct ProjectNotSetError <: JuliaHubException end
-function Base.showerror(io::IO, e::ProjectNotSetError)
-    print(io, "ProjectNotSetError: authentication object not associated with a project")
-end
-
 const ProjectReference = Union{AbstractString, UUIDs.UUID}
 
 # Parses the standard project::Union{ProjectReference, Nothing} we pass to
 # project_* function into a project UUID object (or throws the appropriate error).
+# If project is nothing, we fall back to the project_id of the authentication object,
+# if present.
 function _project_uuid(auth::Authentication, project::Union{ProjectReference, Nothing})::UUIDs.UUID
     if isnothing(project)
         if isnothing(auth.project_id)
@@ -88,17 +109,22 @@ function _project_uuid(auth::Authentication, project::Union{ProjectReference, No
 end
 
 """
-    JuliaHub.project_dataset(dataset::DatasetReference; [project::ProjectReference], [auth]) -> Dataset
+    JuliaHub.project_dataset(dataset::DatasetReference; [project::ProjectReference], [auth]) -> ProjectDataset
 
-Looks up a dataset in the context of a project.
+Looks up the specified dataset among the datasets attached to the project, returning a
+[`ProjectDataset`](@ref) object, or throwing an [`InvalidRequestError`](@ref) if the project
+does not have the dataset attached.
+
+$(_DOCS_nondynamic_datasets_object_warning)
 """
 function project_dataset end
 
 function project_dataset(
-    dataset::Dataset;
+    dataset::Union{Dataset, ProjectDataset};
     project::Union{ProjectReference, Nothing}=nothing,
     auth::Authentication=__auth__(),
 )
+    _assert_projects_enabled(auth)
     project_uuid = _project_uuid(auth, project)
     datasets = _project_datasets(auth, project_uuid)
     for project_dataset in datasets
@@ -142,9 +168,10 @@ function project_dataset(
 end
 
 """
-    JuliaHub.project_datasets([project::Union{AbstractString, UUID}]; [auth::Authentication]) -> Vector{Dataset}
+    JuliaHub.project_datasets([project::ProjectReference]; [auth::Authentication]) -> Vector{Dataset}
 
-Returns the list of datasets linked to the given project.
+Returns the list of datasets attached to the project, as a list of [`ProjectDataset`](@ref) objects.
+If the project is not explicitly specified, it uses the project of the authentication object.
 """
 function project_datasets end
 
@@ -239,7 +266,7 @@ Uploads a new version of a project-linked dataset.
 function upload_project_dataset end
 
 function upload_project_dataset(
-    ds::Dataset,
+    ds::Union{Dataset, ProjectDataset},
     local_path::AbstractString;
     progress::Bool=true,
     project::Union{ProjectReference, Nothing}=nothing,
@@ -281,8 +308,16 @@ function upload_project_dataset(
 end
 
 function upload_project_dataset(
-    ::Union{_DatasetRefTuple, AbstractString}
+    dataset::Union{_DatasetRefTuple, AbstractString},
+    local_path::AbstractString;
+    progress::Bool=true,
+    project::Union{ProjectReference, Nothing}=nothing,
+    # Authentication
+    auth::Authentication=__auth__(),
 )
+    project_uuid = _project_uuid(auth, project)
+    dataset = project_dataset(dataset; project=project_uuid, auth)
+    return upload_project_dataset(dataset, local_path; progress, project=project_uuid, auth)
 end
 
 # This calls the /datasets/{uuid}/versions?project={uuid} endpoint,
