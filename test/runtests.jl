@@ -182,7 +182,7 @@ end
             :Dataset, :DatasetReference, :DatasetVersion,
             :DefaultApp, :FileHash, :InvalidAuthentication, :InvalidRequestError, :Job,
             :WorkloadConfig, :JobFile, :JobLogMessage, :JobReference, :JobStatus,
-            :JuliaHub, :JuliaHubConnectionError, :JuliaHubError,
+            :JuliaHubConnectionError, :JuliaHubError,
             :JuliaHubException,
             :Limit, :NodeSpec, :PackageApp, :PackageJob, :Unlimited,
             :PermissionError, :script, :Secret, :UserApp,

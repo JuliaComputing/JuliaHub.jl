@@ -42,6 +42,9 @@ end
 # prefixed with an underscore.
 function _find_public_names()
     return filter(names(@__MODULE__; all=true)) do s
+        # We don't need to check or mark public the main module itself
+        (s == :JuliaHub) && return false
+        startswith(string(s), "_") && return false
         # Internal functions and types, prefixed by _
         startswith(string(s), "_") && return false
         # Internal macros, prefixed by _
