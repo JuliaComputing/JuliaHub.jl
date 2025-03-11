@@ -26,7 +26,7 @@ Objects have the following properties:
 - `.timestamp :: ZonedDateTime`: dataset version timestamp
 
 ```jldoctest
-julia> ds = JuliaHub.dataset("example-dataset")
+julia> dataset = JuliaHub.dataset("example-dataset")
 Dataset: example-dataset (Blob)
  owner: username
  description: An example dataset
@@ -34,12 +34,12 @@ Dataset: example-dataset (Blob)
  size: 388 bytes
  tags: tag1, tag2
 
-julia> ds.versions
+julia> dataset.versions
 2-element Vector{JuliaHub.DatasetVersion}:
- JuliaHub.DatasetVersion(dataset = ("username", "example-dataset"), version = 1)
- JuliaHub.DatasetVersion(dataset = ("username", "example-dataset"), version = 2)
+ JuliaHub.dataset(("username", "example-dataset")).versions[1]
+ JuliaHub.dataset(("username", "example-dataset")).versions[2]
 
-julia> ds.versions[end]
+julia> dataset.versions[end]
 DatasetVersion: example-dataset @ v2
  owner: username
  timestamp: 2022-10-14T01:39:43.237-04:00
@@ -69,14 +69,8 @@ end
 
 function Base.show(io::IO, dsv::DatasetVersion)
     owner, name = dsv._dsref
-    print(
-        io,
-        "JuliaHub.DatasetVersion(dataset = (\"",
-        owner,
-        "\", \"",
-        name,
-        "\"), version = $(dsv.id))",
-    )
+    dsref = string("(\"", owner, "\", \"", name, "\")")
+    print(io, "JuliaHub.dataset($dsref).versions[$(dsv.id)]")
 end
 function Base.show(io::IO, ::MIME"text/plain", dsv::DatasetVersion)
     owner, name = dsv._dsref
