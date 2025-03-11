@@ -214,13 +214,16 @@ end
         # Make sure that on Julia versions that support the `public` keyword,
         # we are also marking the right symbols as public.
         if Base.isdefined(Base, :ispublic)
-            @testset "ispublic" begin
-                for name in public_symbols
-                    @test Base.ispublic(JuliaHub, name)
-                end
-                for name in setdiff(names(JuliaHub; all=true), public_symbols)
-                    @test !Base.ispublic(JuliaHub, name)
-                end
+            @testset "ispublic: $(name)" for name in public_symbols
+                @test Base.ispublic(JuliaHub, name)
+            end
+            private_names = setdiff(
+                names(JuliaHub; all=true),
+                public_symbols,
+                [:JuliaHub],
+            )
+            @testset "!ispublic: $(name)" for name in private_names
+                @test !Base.ispublic(JuliaHub, name)
             end
         end
     end
