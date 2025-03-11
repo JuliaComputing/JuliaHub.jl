@@ -87,8 +87,8 @@ When downloading, you can also specify the version you wish to download (with th
 ```jldoctest example-dataset; filter = r"\"/.+/mydata\""
 julia> ds.versions
 2-element Vector{JuliaHub.DatasetVersion}:
- JuliaHub.DatasetVersion(dataset = ("username", "example-dataset"), version = 1)
- JuliaHub.DatasetVersion(dataset = ("username", "example-dataset"), version = 2)
+ JuliaHub.dataset(("username", "example-dataset")).versions[1]
+ JuliaHub.dataset(("username", "example-dataset")).versions[2]
 
 julia> ds.versions[1]
 DatasetVersion: example-dataset @ v1

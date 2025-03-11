@@ -25,8 +25,25 @@ Objects have the following properties:
 - `.size :: Int`: size of the dataset version in bytes
 - `.timestamp :: ZonedDateTime`: dataset version timestamp
 
-```
-julia> JuliaHub.datasets()
+```jldoctest
+julia> dataset = JuliaHub.dataset("example-dataset")
+Dataset: example-dataset (Blob)
+ owner: username
+ description: An example dataset
+ versions: 2
+ size: 388 bytes
+ tags: tag1, tag2
+
+julia> dataset.versions
+2-element Vector{JuliaHub.DatasetVersion}:
+ JuliaHub.dataset(("username", "example-dataset")).versions[1]
+ JuliaHub.dataset(("username", "example-dataset")).versions[2]
+
+julia> dataset.versions[end]
+DatasetVersion: example-dataset @ v2
+ owner: username
+ timestamp: 2022-10-14T01:39:43.237-04:00
+ size: 331 bytes
 ```
 
 See also: [`Dataset`](@ref), [`datasets`](@ref), [`dataset`](@ref).
@@ -46,21 +63,17 @@ struct DatasetVersion
         size = _get_json(json, "size", Int; msg)
         timestamp = _parse_tz(_get_json(json, "date", String; msg); msg)
         blobstore_path = _get_json(json, "blobstore_path", String; msg)
-        new((owner, name), version, size, timestamp, blobstore_path)
+        return new((owner, name), version, size, timestamp, blobstore_path)
     end
 end
 
 function Base.show(io::IO, dsv::DatasetVersion)
     owner, name = dsv._dsref
-    print(
-        io,
-        "JuliaHub.DatasetVersion(dataset = (\"",
-        owner,
-        "\", \"",
-        name,
-        "\"), version = $(dsv.id))",
-    )
+    dsref = string("(\"", owner, "\", \"", name, "\")")
+    print(io, "JuliaHub.dataset($dsref).versions[$(dsv.id)]")
+    return nothing
 end
+
 function Base.show(io::IO, ::MIME"text/plain", dsv::DatasetVersion)
     owner, name = dsv._dsref
     printstyled(io, "DatasetVersion:"; bold=true)
@@ -68,6 +81,7 @@ function Base.show(io::IO, ::MIME"text/plain", dsv::DatasetVersion)
     print(io, "\n owner: ", owner)
     print(io, "\n timestamp: ", dsv.timestamp)
     print(io, "\n size: ", dsv.size, " bytes")
+    return nothing
 end
 
 """
