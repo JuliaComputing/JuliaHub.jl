@@ -173,19 +173,7 @@ end
     # This set tests that we haven't accidentally added or removed any public-looking
     # functions (i.e. ones that are not prefixed by _ basically).
     @testset "Public API" begin
-        public_symbols = Set(
-            filter(names(JuliaHub; all=true)) do s
-                # Internal functions and types, prefixed by _
-                startswith(string(s), "_") && return false
-                # Internal macros, prefixed by _
-                startswith(string(s), "@_") && return false
-                # Strange generated functions
-                startswith(string(s), "#") && return false
-                # Some core functions that are not relevant for the package
-                s in [:eval, :include] && return false
-                return true
-            end,
-        )
+        public_symbols = Set(JuliaHub._find_public_names())
         expected_public_symbols = Set([
             Symbol("@script_str"),
             :AbstractJobConfig, :AbstractJuliaHubApp,
@@ -194,7 +182,7 @@ end
             :Dataset, :DatasetReference, :DatasetVersion,
             :DefaultApp, :FileHash, :InvalidAuthentication, :InvalidRequestError, :Job,
             :WorkloadConfig, :JobFile, :JobLogMessage, :JobReference, :JobStatus,
-            :JuliaHub, :JuliaHubConnectionError, :JuliaHubError,
+            :JuliaHubConnectionError, :JuliaHubError,
             :JuliaHubException,
             :Limit, :NodeSpec, :PackageApp, :PackageJob, :Unlimited,
             :PermissionError, :script, :Secret, :UserApp,
@@ -223,6 +211,21 @@ end
             extra_expected_symbols = $(sprint(show, MIME"text/plain"(), extra_expected_symbols))
             """
         @test isempty(extra_expected_symbols)
+        # Make sure that on Julia versions that support the `public` keyword,
+        # we are also marking the right symbols as public.
+        if Base.isdefined(Base, :ispublic)
+            @testset "ispublic: $(name)" for name in public_symbols
+                @test Base.ispublic(JuliaHub, name)
+            end
+            private_names = setdiff(
+                names(JuliaHub; all=true),
+                public_symbols,
+                [:JuliaHub],
+            )
+            @testset "!ispublic: $(name)" for name in private_names
+                @test !Base.ispublic(JuliaHub, name)
+            end
+        end
     end
 
     @testset "Utilities" begin

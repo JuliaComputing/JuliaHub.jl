@@ -4,6 +4,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## Unreleased
 
+### Added
+
+* All the public API names are now correctly marked `public` in Julia 1.11 and above. ([#83])
+
 ### Fixed
 
 * The `JuliaHub.update_dataset` function now correctly accepts the `license=(:fulltext, ...)` argument. ([#74])
@@ -141,3 +145,4 @@ Initial package release.
 [#53]: https://github.com/JuliaComputing/JuliaHub.jl/issues/53
 [#58]: https://github.com/JuliaComputing/JuliaHub.jl/issues/58
 [#74]: https://github.com/JuliaComputing/JuliaHub.jl/issues/74
+[#83]: https://github.com/JuliaComputing/JuliaHub.jl/issues/83
