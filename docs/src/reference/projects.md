@@ -33,7 +33,6 @@ julia> JuliaHub.current_authentication()
 ## Reference
 
 ```@docs
-ProjectDataset
 project_datasets
 project_dataset
 upload_project_dataset

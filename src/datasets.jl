@@ -1,10 +1,10 @@
 const _DOCS_nondynamic_datasets_object_warning = """
 !!! warning "Non-dynamic dataset objects"
 
-    [`Dataset`](@ref) and [`ProjectDataset`](@ref) objects represents the dataset metadata when the
-    Julia object was created (e.g. with [`dataset`](@ref)), and are not automatically kept up to date.
-    To refresh the dataset metadata, you can pass the existing [`Dataset`](@ref) to [`JuliaHub.dataset`](@ref),
-    or [`ProjectDataset`](@ref) to [`project_dataset`](@ref).
+    [`Dataset`](@ref) objects represents the dataset metadata when the Julia object was created
+    (e.g. with [`dataset`](@ref)), and are not automatically kept up to date.
+    To refresh the dataset metadata, you can pass an existing [`Dataset`](@ref) object
+    to [`JuliaHub.dataset`](@ref) or [`project_dataset`](@ref).
 """
 
 Base.@kwdef struct _DatasetStorage
@@ -72,6 +72,25 @@ function Base.show(io::IO, ::MIME"text/plain", dsv::DatasetVersion)
 end
 
 """
+    struct DatasetProjectLink
+
+Holds the project-dataset link metadata for datasets that were accessed via a project
+(e.g. when using [`project_datasets`](@ref)).
+
+- `.uuid :: UUID`: the UUID of the project
+- `.is_writable :: Bool`: whether the user has write access to the dataset via the
+  this project
+
+See also: [`project_dataset`](@ref), [`project_datasets`](@ref), [`upload_project_dataset`](@ref).
+
+$(_DOCS_no_constructors_admonition)
+"""
+struct DatasetProjectLink
+    uuid::UUIDs.UUID
+    is_writable::Bool
+end
+
+"""
     struct Dataset
 
 Information about a dataset stored on JuliaHub, and the following fields are considered to be
@@ -87,6 +106,13 @@ public API:
 - Fields to access user-provided dataset metadata:
   - `description :: String`: dataset description
   - `tags :: Vector{String}`: a list of tags
+- If the dataset was accessed via a project (e.g. via [`project_datasets`](@ref)), `.project` will
+  contain project metadata (see also: [`DatasetProjectLink`](@ref)). Otherwise this field is `nothing`.
+  - `project.uuid`: the UUID of the project
+  - `project.is_writable`: whether the user has write access to the dataset via the
+    this project
+  Note that two `Dataset` objects are considered to be equal (i.e. `==`) regardless of the `.project`
+  value -- it references the same dataset regardless of the project it was accessed in.
 
 !!! note "Canonical fully qualified dataset name"
 
@@ -108,6 +134,7 @@ Base.@kwdef struct Dataset
     # User-set metadata
     description::String
     tags::Vector{String}
+    project::Union{DatasetProjectLink, Nothing}
     # Additional metadata, but not part of public API
     _last_modified::Union{Nothing, TimeZones.ZonedDateTime}
     _downloadURL::String
@@ -117,11 +144,30 @@ Base.@kwdef struct Dataset
     _json::Dict
 end
 
-function Dataset(d::Dict)
+function Dataset(d::Dict; expected_project::Union{UUIDs.UUID, Nothing}=nothing)
     owner = d["owner"]["username"]
     name = d["name"]
     versions_json = _get_json_or(d, "versions", Vector, [])
     versions = sort([DatasetVersion(json; owner, name) for json in versions_json]; by=dsv -> dsv.id)
+    project = if !isnothing(expected_project)
+        project_json = _get_json(d, "project", Dict)
+        project_json_uuid = UUIDs.UUID(
+            _get_json(project_json, "project_id", String; msg=".project")
+        )
+        if project_json_uuid != expected_project
+            msg = "Project UUID mismatch in dataset response: $(project_json_uuid), requested $(project)"
+            throw(JuliaHubError(msg))
+        end
+        is_writable = _get_json(
+            project_json,
+            "is_writable",
+            Bool;
+            msg="Unable to parse .project in /datasets?project response",
+        )
+        DatasetProjectLink(project_json_uuid, is_writable)
+    else
+        nothing
+    end
     Dataset(;
         uuid=UUIDs.UUID(d["id"]),
         name, owner, versions,
@@ -129,6 +175,7 @@ function Dataset(d::Dict)
         description=d["description"],
         size=d["size"],
         tags=d["tags"],
+        project=project,
         _downloadURL=d["downloadURL"],
         _last_modified=_nothing_or(d["lastModified"]) do last_modified
             datetime_utc = Dates.DateTime(
@@ -151,7 +198,12 @@ function Base.propertynames(::Dataset)
 end
 
 function Base.show(io::IO, d::Dataset)
-    print(io, "JuliaHub.dataset((\"", d.owner, "\", \"", d.name, "\"))")
+    dsref = string("(\"", d.owner, "\", \"", d.name, "\")")
+    if isnothing(d.project)
+        print(io, "JuliaHub.dataset(", dsref, ")")
+    else
+        print(io, "JuliaHub.project_dataset(", dsref, "; project=", d.project.uuid, ")")
+    end
 end
 
 function Base.show(io::IO, ::MIME"text/plain", d::Dataset)
@@ -162,6 +214,13 @@ function Base.show(io::IO, ::MIME"text/plain", d::Dataset)
     print(io, "\n versions: ", length(d.versions))
     print(io, "\n size: ", d.size, " bytes")
     isempty(d.tags) || print(io, "\n tags: ", join(d.tags, ", "))
+    if !isnothing(d.project)
+        print(
+            io,
+            "\n project: ", d.project.uuid, " ",
+            d.project.is_writable ? "(writable)" : "(not writable)",
+        )
+    end
 end
 
 function Base.:(==)(d1::Dataset, d2::Dataset)
@@ -331,7 +390,9 @@ function datasets(
 end
 
 function _parse_dataset_list(
-    datasets::Vector; username::Union{AbstractString, Nothing}=nothing
+    datasets::Vector;
+    username::Union{AbstractString, Nothing}=nothing,
+    expected_project::Union{UUIDs.UUID, Nothing}=nothing,
 )::Vector{Dataset}
     # It might happen that some of the elements of the `datasets` array can not be parsed for some reason,
     # and the Dataset() constructor will throw. Rather than having `datasets` throw an error (as we would
@@ -348,8 +409,14 @@ function _parse_dataset_list(
             if !isnothing(username) && (dataset["owner"]["username"] != username)
                 return nothing
             end
-            return Dataset(dataset)
+            return Dataset(dataset; expected_project)
         catch e
+            # If we fail to parse the server response for a dataset, we should always get a JuliaHubError.
+            # Other errors types might indicate e.g. code errors, so we don't want to swallow those
+            # here, and instead throw immediately.
+            if !isa(e, JuliaHubError)
+                rethrow()
+            end
             @debug "Invalid dataset in GET /datasets response" dataset exception = (
                 e, catch_backtrace()
             )
