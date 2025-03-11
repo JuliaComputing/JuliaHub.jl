@@ -25,8 +25,25 @@ Objects have the following properties:
 - `.size :: Int`: size of the dataset version in bytes
 - `.timestamp :: ZonedDateTime`: dataset version timestamp
 
-```
-julia> JuliaHub.datasets()
+```jldoctest
+julia> ds = JuliaHub.dataset("example-dataset")
+Dataset: example-dataset (Blob)
+ owner: username
+ description: An example dataset
+ versions: 2
+ size: 388 bytes
+ tags: tag1, tag2
+
+julia> ds.versions
+2-element Vector{JuliaHub.DatasetVersion}:
+ JuliaHub.DatasetVersion(dataset = ("username", "example-dataset"), version = 1)
+ JuliaHub.DatasetVersion(dataset = ("username", "example-dataset"), version = 2)
+
+julia> ds.versions[end]
+DatasetVersion: example-dataset @ v2
+ owner: username
+ timestamp: 2022-10-14T01:39:43.237-04:00
+ size: 331 bytes
 ```
 
 See also: [`Dataset`](@ref), [`datasets`](@ref), [`dataset`](@ref).

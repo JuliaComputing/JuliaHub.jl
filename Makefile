@@ -17,6 +17,9 @@ docs-manifest:
 docs: docs/Manifest.toml
 	${JULIA} --project=docs/ docs/make.jl
 
+fix-doctests: docs/Manifest.toml
+	${JULIA} --project=docs/ docs/make.jl --fix-doctests
+
 changelog:
 	${JULIA} --project=docs/ docs/changelog.jl
 
