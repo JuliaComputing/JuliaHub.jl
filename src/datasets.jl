@@ -63,7 +63,7 @@ struct DatasetVersion
         size = _get_json(json, "size", Int; msg)
         timestamp = _parse_tz(_get_json(json, "date", String; msg); msg)
         blobstore_path = _get_json(json, "blobstore_path", String; msg)
-        new((owner, name), version, size, timestamp, blobstore_path)
+        return new((owner, name), version, size, timestamp, blobstore_path)
     end
 end
 
@@ -71,7 +71,9 @@ function Base.show(io::IO, dsv::DatasetVersion)
     owner, name = dsv._dsref
     dsref = string("(\"", owner, "\", \"", name, "\")")
     print(io, "JuliaHub.dataset($dsref).versions[$(dsv.id)]")
+    return nothing
 end
+
 function Base.show(io::IO, ::MIME"text/plain", dsv::DatasetVersion)
     owner, name = dsv._dsref
     printstyled(io, "DatasetVersion:"; bold=true)
@@ -79,6 +81,7 @@ function Base.show(io::IO, ::MIME"text/plain", dsv::DatasetVersion)
     print(io, "\n owner: ", owner)
     print(io, "\n timestamp: ", dsv.timestamp)
     print(io, "\n size: ", dsv.size, " bytes")
+    return nothing
 end
 
 """
