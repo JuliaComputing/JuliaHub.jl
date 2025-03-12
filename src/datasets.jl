@@ -155,7 +155,7 @@ function Dataset(d::Dict)
         dtype=_get_json(d, "type", AbstractString),
         description=_get_json(d, "description", AbstractString),
         size=_get_json(d, "size", Integer),
-        tags=_get_json(d, "tags", Vector{<:AbstractString}),
+        tags=_get_json(d, "tags", Vector),
         _downloadURL=_get_json(d, "downloadURL", AbstractString),
         _last_modified=_nothing_or(_get_json(d, "lastModified", AbstractString)) do last_modified
             datetime_utc = Dates.DateTime(
