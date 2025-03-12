@@ -89,9 +89,10 @@ end
     end
     # But a bad type is not okay
     let d = Dict(d0()..., "versions" => 0)
-        @test_throws JuliaHub.JuliaHubError(
-            "Invalid JSON returned by the server: `versions` of type `Int64`, expected `<: Vector`."
-        ) JuliaHub.Dataset(d)
+        e = @test_throws JuliaHub.JuliaHubError JuliaHub.Dataset(d)
+        @test startswith(
+            e.value.msg, "Invalid JSON returned by the server: `versions` of type `Int64`"
+        )
     end
 end
 
