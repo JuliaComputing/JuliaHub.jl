@@ -21,6 +21,61 @@
     )
 end
 
+# These tests mainly exercise the Dataset() constructor, to ensure that it throws the
+# correct error objects.
+@testset "Dataset" begin
+    d0 = () -> _dataset_json("test/test"; version_sizes=[42])
+    let ds = JuliaHub.Dataset(d0())
+        @test ds isa JuliaHub.Dataset
+        @test ds.uuid == Base.UUID("3c4441bd-04bd-59f2-5426-70de923e67c2")
+        @test ds.owner == "test"
+        @test ds.name == "test"
+        @test ds.description == "An example dataset"
+        @test ds.tags == ["tag1", "tag2"]
+        @test ds.dtype == "Blob"
+        @test ds.size == 42
+        @test length(ds.versions) == 1
+        @test ds.versions[1].id == 1
+        @test ds.versions[1].size == 42
+    end
+
+    # We don't verify dtype values (this list might expand in the future)
+    let d = Dict(d0()..., "type" => "Unknown Dtype")
+        ds = JuliaHub.Dataset(d)
+        @test ds.dtype == "Unknown Dtype"
+    end
+
+    # If there are critical fields missing, it will throw
+    @testset "required property: $(pname)" for pname in (
+        "id", "owner", "name", "type", "description", "tags",
+        "downloadURL", "lastModified", "credentials_url", "storage",
+    )
+        d = Dict(d0()...)
+        delete!(d, pname)
+        # TODO: should not be a KeyError though..
+        @test_throws KeyError JuliaHub.Dataset(d)
+    end
+    # We also need to be able to parse the UUID into UUIDs.UUID
+    let d = Dict(d0()..., "id" => "1234")
+        # TODO: should not be a ArgumentError though..
+        @test_throws ArgumentError JuliaHub.Dataset(d)
+    end
+
+    # Missing versions list is okay though. We assume that there are no
+    # versions then.
+    let d = d0()
+        delete!(d, "versions")
+        ds = JuliaHub.Dataset(d)
+        @test length(ds.versions) == 0
+    end
+    # But a bad type is not okay
+    let d = Dict(d0()..., "versions" => 0)
+        @test_throws JuliaHub.JuliaHubError(
+            "Invalid JSON returned by the server: `versions` of type `Int64`, expected `<: Vector`."
+        ) JuliaHub.Dataset(d)
+    end
+end
+
 @testset "JuliaHub.dataset(s)" begin
     empty!(MOCK_JULIAHUB_STATE)
     Mocking.apply(mocking_patch) do
@@ -119,7 +174,7 @@ end
             @test isempty(ds.versions)
         end
 
-        MOCK_JULIAHUB_STATE[:datasets_erroneous] = ["erroneous_dataset"]
+        MOCK_JULIAHUB_STATE[:datasets_erroneous] = ["bad-user/erroneous_dataset"]
         err_ds_warn = (
             :warn,
             "The JuliaHub GET /datasets response contains erroneous datasets. Omitting 1 entries.",
