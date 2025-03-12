@@ -131,30 +131,39 @@ Base.@kwdef struct Dataset
 end
 
 function Dataset(d::Dict)
-    owner = d["owner"]["username"]
-    name = d["name"]
+    owner = _get_json(
+        _get_json(d, "owner", Dict),
+        "username", String,
+    )
+    name = _get_json(d, "name", AbstractString)
     versions_json = _get_json_or(d, "versions", Vector, [])
-    versions = sort([DatasetVersion(json; owner, name) for json in versions_json]; by=dsv -> dsv.id)
+    versions = sort(
+        [DatasetVersion(json; owner, name) for json in versions_json];
+        by=dsv -> dsv.id,
+    )
+    _storage = let storage_json = _get_json(d, "storage", Dict)
+        _DatasetStorage(;
+            credentials_url=_get_json(d, "credentials_url", AbstractString),
+            region=_get_json(storage_json, "bucket_region", AbstractString),
+            bucket=_get_json(storage_json, "bucket", AbstractString),
+            prefix=_get_json(storage_json, "prefix", AbstractString),
+        )
+    end
     Dataset(;
-        uuid=UUIDs.UUID(d["id"]),
+        uuid=_get_json_convert(d, "id", UUIDs.UUID),
         name, owner, versions,
-        dtype=d["type"],
-        description=d["description"],
-        size=d["size"],
-        tags=d["tags"],
-        _downloadURL=d["downloadURL"],
-        _last_modified=_nothing_or(d["lastModified"]) do last_modified
+        dtype=_get_json(d, "type", AbstractString),
+        description=_get_json(d, "description", AbstractString),
+        size=_get_json(d, "size", Integer),
+        tags=_get_json(d, "tags", Vector{<:AbstractString}),
+        _downloadURL=_get_json(d, "downloadURL", AbstractString),
+        _last_modified=_nothing_or(_get_json(d, "lastModified", AbstractString)) do last_modified
             datetime_utc = Dates.DateTime(
                 last_modified, Dates.dateformat"YYYY-mm-ddTHH:MM:SS.ss"
             )
             _utc2localtz(datetime_utc)
         end,
-        _storage=_DatasetStorage(;
-            credentials_url=d["credentials_url"],
-            region=d["storage"]["bucket_region"],
-            bucket=d["storage"]["bucket"],
-            prefix=d["storage"]["prefix"],
-        ),
+        _storage,
         _json=d,
     )
 end

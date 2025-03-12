@@ -50,15 +50,34 @@ end
         "id", "owner", "name", "type", "description", "tags",
         "downloadURL", "lastModified", "credentials_url", "storage",
     )
-        d = Dict(d0()...)
-        delete!(d, pname)
-        # TODO: should not be a KeyError though..
-        @test_throws KeyError JuliaHub.Dataset(d)
+        let d = Dict(d0()...)
+            delete!(d, pname)
+            e = @test_throws JuliaHub.JuliaHubError JuliaHub.Dataset(d)
+            @test startswith(
+                e.value.msg,
+                "Invalid JSON returned by the server: `$pname` missing in the response.",
+            )
+        end
+        # Replace the value with a value that's of incorrect type
+        let d = Dict(d0()..., pname => missing)
+            e = @test_throws JuliaHub.JuliaHubError JuliaHub.Dataset(d)
+            @test startswith(
+                e.value.msg,
+                "Invalid JSON returned by the server: `$(pname)` of type `Missing`, expected",
+            )
+        end
     end
     # We also need to be able to parse the UUID into UUIDs.UUID
     let d = Dict(d0()..., "id" => "1234")
-        # TODO: should not be a ArgumentError though..
-        @test_throws ArgumentError JuliaHub.Dataset(d)
+        @test_throws JuliaHub.JuliaHubError(
+            "Invalid JSON returned by the server: `id` not a valid UUID string.\nServer returned '1234'."
+        ) JuliaHub.Dataset(d)
+    end
+    # And correctly throw for invalid owner.username
+    let d = Dict(d0()..., "owner" => nothing)
+        @test_throws JuliaHub.JuliaHubError(
+            "Invalid JSON returned by the server: `owner` of type `Nothing`, expected `<: Dict`."
+        ) JuliaHub.Dataset(d)
     end
 
     # Missing versions list is okay though. We assume that there are no

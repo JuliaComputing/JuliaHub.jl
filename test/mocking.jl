@@ -725,7 +725,7 @@ function _dataset_json(
     version_sizes=[],
 )
     zerotime = TimeZones.ZonedDateTime("2022-10-12T05:39:42.906+00:00")
-    username, dataset = split(dataset_name, '/'; limit=2)
+    username, dataset = string.(split(dataset_name, '/'; limit=2))
     return Dict{String, Any}(
         "id" => string(uuidhash(dataset_name)),
         "name" => dataset,
