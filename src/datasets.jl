@@ -360,6 +360,10 @@ function datasets(
             end
             return Dataset(dataset)
         catch e
+            # If Dataset() fails due to some unexpected value in one of the dataset JSON objects that
+            # JuliaHub.jl can not handle, it should only throw a JuliaHubError. So we rethrow on other
+            # error types, as filtering all of them out could potentially hide JuliaHub.jl bugs.
+            isa(e, JuliaHubError) || rethrow()
             @debug "Invalid dataset in GET /datasets response" dataset exception = (
                 e, catch_backtrace()
             )
