@@ -149,7 +149,7 @@ function Dataset(d::Dict)
             prefix=_get_json(storage_json, "prefix", AbstractString),
         )
     end
-    Dataset(;
+    return Dataset(;
         uuid=_get_json_convert(d, "id", UUIDs.UUID),
         name, owner, versions,
         dtype=_get_json(d, "type", AbstractString),
