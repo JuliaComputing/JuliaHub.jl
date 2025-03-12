@@ -77,3 +77,25 @@ end
     @test_throws JuliaHub.JuliaHubError JuliaHub._parse_tz("")
     @test_throws JuliaHub.JuliaHubError JuliaHub._parse_tz("bad-string")
 end
+
+@testset "_get_json_convert" begin
+    @test JuliaHub._get_json_convert(
+        Dict("id" => "123e4567-e89b-12d3-a456-426614174000"), "id", UUIDs.UUID
+    ) == UUIDs.UUID("123e4567-e89b-12d3-a456-426614174000")
+    # Error cases:
+    @test_throws JuliaHub.JuliaHubError(
+        "Invalid JSON returned by the server: `id` not a valid UUID string.\nServer returned '123'."
+    ) JuliaHub._get_json_convert(
+        Dict("id" => "123"), "id", UUIDs.UUID
+    )
+    @test_throws JuliaHub.JuliaHubError(
+        "Invalid JSON returned by the server: `id` of type `Int64`, expected `<: String`."
+    ) JuliaHub._get_json_convert(
+        Dict("id" => 123), "id", UUIDs.UUID
+    )
+    @test_throws JuliaHub.JuliaHubError(
+        "Invalid JSON returned by the server: `id` missing in the response.\nKeys present: _id_missing\njson: Dict{String, String} with 1 entry:\n  \"_id_missing\" => \"123e4567-e89b-12d3-a456-426614174000\""
+    ) JuliaHub._get_json_convert(
+        Dict("_id_missing" => "123e4567-e89b-12d3-a456-426614174000"), "id", UUIDs.UUID
+    )
+end
