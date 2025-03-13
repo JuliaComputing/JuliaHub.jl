@@ -11,7 +11,7 @@ import SHA
 import TimeZones
 import TOML
 import URIs
-import UUIDs
+using UUIDs: UUIDs, UUID
 
 const _LOCAL_TZ = Ref{Dates.TimeZone}()
 
@@ -30,6 +30,7 @@ include("jobs/request.jl")
 include("jobs/logging.jl")
 include("jobs/logging-kafka.jl")
 include("jobs/logging-legacy.jl")
+include("projects.jl")
 
 function __init__()
     # We'll only attempt to determine the local timezone once, when the package loads,

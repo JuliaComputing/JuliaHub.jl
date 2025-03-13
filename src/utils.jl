@@ -94,6 +94,25 @@ function Base.showerror(io::IO, e::PermissionError)
     isnothing(e.response) || print(io, '\n', e.response)
 end
 
+"""
+    struct InvalidJuliaHubVersion <: JuliaHubException
+
+Thrown if the requested operation is not supported by the JuliaHub instance.
+`.msg` contains a more detailed error message.
+
+!!! tip
+
+    This generally means that the functionality you are attempting to use requires a
+    newer JuliaHub version.
+"""
+struct InvalidJuliaHubVersion <: JuliaHubException
+    msg::String
+end
+
+function Base.showerror(io::IO, e::InvalidJuliaHubVersion)
+    print(io, "InvalidJuliaHubVersion: $(e.msg)")
+end
+
 _takebody!(r::HTTP.Response)::Vector{UInt8} = isa(r.body, IO) ? take!(r.body) : r.body
 _takebody!(r::HTTP.Response, ::Type{T}) where {T} = T(_takebody!(r))
 
@@ -174,6 +193,34 @@ function _get_json_or(
     msg::Union{AbstractString, Nothing}=nothing,
 )::Union{T, U} where {T, U}
     haskey(json, key) ? _get_json(json, key, T; msg) : default
+end
+
+# _get_json_convert is a _get_json-type helper that also does some sort of type conversion
+# parsing etc. The general signature is the following:
+#
+#   function _get_json_convert(
+#       json::Dict, key::AbstractString, ::Type{T};
+#       msg::Union{AbstractString, Nothing}=nothing
+#   )::T
+#
+# Although in practice we implement for each type separately, since the parsing/conversion logic
+# can vary dramatically.
+#
+# A key point, though, is that it will throw a JuliaHubError if the server response is somehow
+# invalid and we can't parse/convert it properly.
+function _get_json_convert(
+    json::Dict, key::AbstractString, ::Type{UUIDs.UUID}; msg::Union{AbstractString, Nothing}=nothing
+)::UUIDs.UUID
+    uuid_str = _get_json(json, key, String; msg)
+    uuid = tryparse(UUIDs.UUID, uuid_str)
+    if isnothing(uuid)
+        errormsg = """
+        Invalid JSON returned by the server: `$key` not a valid UUID string.
+        Server returned '$(uuid_str)'."""
+        isnothing(msg) || (errormsg = string(msg, '\n', errormsg))
+        throw(JuliaHubError(errormsg))
+    end
+    return uuid
 end
 
 """
