@@ -56,6 +56,20 @@ end
             @test ds.versions[2].id == 2
             @test ds.versions[2].size == 331
 
+            # Test that .versions repr()-s to a valid array
+            # and DatasetVersion reprs to a valid JuliaHub.dataset().versions[...]
+            # call.
+            let versions = eval(Meta.parse(string(ds.versions)))
+                @test versions isa Vector{JuliaHub.DatasetVersion}
+                @test length(versions) == 2
+                @test versions == ds.versions
+            end
+            let expr = Meta.parse(string(ds.versions[1]))
+                @test expr == :((JuliaHub.dataset(("username", "example-dataset"))).versions[1])
+                version = eval(expr)
+                @test version == ds.versions[1]
+            end
+
             ds_updated = JuliaHub.dataset("example-dataset")
             @test ds_updated isa JuliaHub.Dataset
             @test ds_updated.name == ds.name
