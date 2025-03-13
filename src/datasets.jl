@@ -158,15 +158,29 @@ Base.@kwdef struct Dataset
     _json::Dict
 end
 
-function Dataset(d::Dict; expected_project::Union{UUIDs.UUID, Nothing}=nothing)
-    owner = d["owner"]["username"]
-    name = d["name"]
+function Dataset(d::Dict)
+    owner = _get_json(
+        _get_json(d, "owner", Dict),
+        "username", String,
+    )
+    name = _get_json(d, "name", AbstractString)
     versions_json = _get_json_or(d, "versions", Vector, [])
-    versions = sort([DatasetVersion(json; owner, name) for json in versions_json]; by=dsv -> dsv.id)
+    versions = sort(
+        [DatasetVersion(json; owner, name) for json in versions_json];
+        by=dsv -> dsv.id,
+    )
+    _storage = let storage_json = _get_json(d, "storage", Dict)
+        _DatasetStorage(;
+            credentials_url=_get_json(d, "credentials_url", AbstractString),
+            region=_get_json(storage_json, "bucket_region", AbstractString),
+            bucket=_get_json(storage_json, "bucket", AbstractString),
+            prefix=_get_json(storage_json, "prefix", AbstractString),
+        )
+    end
     project = if !isnothing(expected_project)
         project_json = _get_json(d, "project", Dict)
         project_json_uuid = UUIDs.UUID(
-            _get_json(project_json, "project_id", String; msg=".project")
+            _get_json(project_json, "project_id", String)
         )
         if project_json_uuid != expected_project
             msg = "Project UUID mismatch in dataset response: $(project_json_uuid), requested $(project)"
@@ -182,27 +196,22 @@ function Dataset(d::Dict; expected_project::Union{UUIDs.UUID, Nothing}=nothing)
     else
         nothing
     end
-    Dataset(;
-        uuid=UUIDs.UUID(d["id"]),
+    return Dataset(;
+        uuid=_get_json_convert(d, "id", UUIDs.UUID),
         name, owner, versions,
-        dtype=d["type"],
-        description=d["description"],
-        size=d["size"],
-        tags=d["tags"],
-        project=project,
-        _downloadURL=d["downloadURL"],
-        _last_modified=_nothing_or(d["lastModified"]) do last_modified
+        dtype=_get_json(d, "type", AbstractString),
+        description=_get_json(d, "description", AbstractString),
+        size=_get_json(d, "size", Integer),
+        tags=_get_json(d, "tags", Vector),
+        project,
+        _downloadURL=_get_json(d, "downloadURL", AbstractString),
+        _last_modified=_nothing_or(_get_json(d, "lastModified", AbstractString)) do last_modified
             datetime_utc = Dates.DateTime(
                 last_modified, Dates.dateformat"YYYY-mm-ddTHH:MM:SS.ss"
             )
             _utc2localtz(datetime_utc)
         end,
-        _storage=_DatasetStorage(;
-            credentials_url=d["credentials_url"],
-            region=d["storage"]["bucket_region"],
-            bucket=d["storage"]["bucket"],
-            prefix=d["storage"]["prefix"],
-        ),
+        _storage,
         _json=d,
     )
 end
@@ -425,12 +434,19 @@ function _parse_dataset_list(
             end
             return Dataset(dataset; expected_project)
         catch e
+<<<<<<< HEAD
             # If we fail to parse the server response for a dataset, we should always get a JuliaHubError.
             # Other errors types might indicate e.g. code errors, so we don't want to swallow those
             # here, and instead throw immediately.
             if !isa(e, JuliaHubError)
                 rethrow()
             end
+=======
+            # If Dataset() fails due to some unexpected value in one of the dataset JSON objects that
+            # JuliaHub.jl can not handle, it should only throw a JuliaHubError. So we rethrow on other
+            # error types, as filtering all of them out could potentially hide JuliaHub.jl bugs.
+            isa(e, JuliaHubError) || rethrow()
+>>>>>>> mp/dataset-constructor-tests
             @debug "Invalid dataset in GET /datasets response" dataset exception = (
                 e, catch_backtrace()
             )
