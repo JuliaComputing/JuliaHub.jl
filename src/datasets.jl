@@ -434,19 +434,10 @@ function _parse_dataset_list(
             end
             return Dataset(dataset; expected_project)
         catch e
-<<<<<<< HEAD
-            # If we fail to parse the server response for a dataset, we should always get a JuliaHubError.
-            # Other errors types might indicate e.g. code errors, so we don't want to swallow those
-            # here, and instead throw immediately.
-            if !isa(e, JuliaHubError)
-                rethrow()
-            end
-=======
             # If Dataset() fails due to some unexpected value in one of the dataset JSON objects that
             # JuliaHub.jl can not handle, it should only throw a JuliaHubError. So we rethrow on other
             # error types, as filtering all of them out could potentially hide JuliaHub.jl bugs.
             isa(e, JuliaHubError) || rethrow()
->>>>>>> mp/dataset-constructor-tests
             @debug "Invalid dataset in GET /datasets response" dataset exception = (
                 e, catch_backtrace()
             )
