@@ -158,7 +158,7 @@ Base.@kwdef struct Dataset
     _json::Dict
 end
 
-function Dataset(d::Dict)
+function Dataset(d::Dict; expected_project::Union{UUID, Nothing}=nothing)
     owner = _get_json(
         _get_json(d, "owner", Dict),
         "username", String,
