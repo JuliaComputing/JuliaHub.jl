@@ -11,7 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Changed
 
 * The string `repr` of `DatasetVersion` (e.g. `dataset.versions`) is now valid Julia code. ([#84])
-* `JuliaHub.authenticate` will now fall back to force-authentication if the token in an existing `auth.toml` file is found to be invalid during authentication.
+* `JuliaHub.authenticate` will now fall back to force-authentication if the token in an existing `auth.toml` file is found to be invalid during authentication. ([#86])
 
 ### Fixed
 
@@ -152,3 +152,4 @@ Initial package release.
 [#74]: https://github.com/JuliaComputing/JuliaHub.jl/issues/74
 [#83]: https://github.com/JuliaComputing/JuliaHub.jl/issues/83
 [#84]: https://github.com/JuliaComputing/JuliaHub.jl/issues/84
+[#86]: https://github.com/JuliaComputing/JuliaHub.jl/issues/86
