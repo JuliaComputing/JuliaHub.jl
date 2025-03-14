@@ -30,7 +30,7 @@ end
 # In the general authenticate() tests, we mock the call to JuliaHub._authenticate()
 # So here we call a lower level JuliaHub._authenticat**ion** implementation, with
 # the REST calls mocked.
-@testset "JuliaHub._authenticate()" begin
+@testset "JuliaHub._authentication()" begin
     empty!(MOCK_JULIAHUB_STATE)
     server = URIs.URI("https://juliahub.example.org")
     token = JuliaHub.Secret("")
