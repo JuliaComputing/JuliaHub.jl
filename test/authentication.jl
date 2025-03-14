@@ -172,5 +172,12 @@ end
         delete!(MOCK_JULIAHUB_STATE, :auth_v1_status)
         MOCK_JULIAHUB_STATE[:auth_v1_username] = nothing
         @test_throws JuliaHub.AuthenticationError JuliaHub.authenticate(server, token)
+
+        # Test that we handle InvalidAuthentication correctly in _authentication()
+        empty!(MOCK_JULIAHUB_STATE)
+        MOCK_JULIAHUB_STATE[:auth_v1_status] = 401
+        @test_throws JuliaHub.AuthenticationError(
+            "The authentication token is invalid"
+        ) JuliaHub.authenticate(server, token)
     end
 end
