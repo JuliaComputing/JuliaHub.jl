@@ -282,12 +282,12 @@ function _authenticate(
             backup_path = string(
                 auth_toml.tokenpath,
                 ".",
-                bytes2hex(open(SHA.sha1, "CHANGELOG.md"))[1:8],
+                bytes2hex(open(SHA.sha1, auth_toml.tokenpath))[1:8],
                 ".backup",
             )
             mv(auth_toml.tokenpath, backup_path; force=true)
             @warn """
-            Existing token appears invalid, retrying with `force=true`.
+            Existing token for $(server_uri) appears invalid; forcing reauthentication.
             Existing auth.toml backed up in: $(backup_path)
             """
             # We assume that _authenticate_retry immediately returned the token,
