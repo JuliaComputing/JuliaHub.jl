@@ -50,7 +50,7 @@ mutable struct Authentication
         tokenpath::Union{AbstractString, Nothing}=nothing,
         email::Union{AbstractString, Nothing}=nothing,
         expires::Union{Integer, Nothing}=nothing,
-        project_uuid::Union{UUIDs.UUID, Nothing}=nothing,
+        project_id::Union{UUIDs.UUID, Nothing}=nothing,
     )
         # The authentication() function should take care of sanitizing the inputs here,
         # so it is fine to just error() here.
@@ -61,7 +61,7 @@ mutable struct Authentication
             @warn "Invalid auth.toml token path passed to Authentication, ignoring." tokenpath
             tokenpath = nothing
         end
-        new(server, username, token, project_uuid, api_version, tokenpath, email, expires)
+        new(server, username, token, project_id, api_version, tokenpath, email, expires)
     end
 end
 
@@ -232,10 +232,14 @@ This can be set by passing the optional `project` argument, which works as follo
 """
 function authenticate end
 
-function authenticate(server::AbstractString, token::Union{AbstractString, Secret})
+function authenticate(
+    server::AbstractString, token::Union{AbstractString, Secret};
+    project::Union{AbstractString, UUIDs.UUID, Nothing, Missing}=missing,
+)
     auth = _authentication(
         _juliahub_uri(server);
         token=isa(token, Secret) ? token : Secret(token),
+        project_id=_juliahub_project(project),
     )
     global __AUTH__[] = auth
     return auth
@@ -256,9 +260,9 @@ function authenticate(
             ),
         )
     end
-    project_uuid = _normalize_project(project)
+    project_id = _juliahub_project(project)
     server_uri = _juliahub_uri(server)
-    auth = Mocking.@mock _authenticate(server_uri; force, maxcount, hook, project_uuid)
+    auth = Mocking.@mock _authenticate(server_uri; force, maxcount, hook, project_id)
     global __AUTH__[] = auth
     return auth
 end
@@ -291,14 +295,14 @@ end
 function _authenticate(
     server_uri::URIs.URI;
     force::Bool, maxcount::Integer, hook::Union{Base.Callable, Nothing},
-    project_uuid::Union{UUID, Nothing},
+    project_id::Union{UUID, Nothing},
 )
     isnothing(hook) || PkgAuthentication.register_open_browser_hook(hook)
     try
         # _authenticate either returns a valid token, or throws
         auth_toml = _authenticate_retry(string(server_uri), 1; force, maxcount)
         # Note: _authentication may throw, which gets passed on to the user
-        _authentication(server_uri; project_uuid, auth_toml...)
+        _authentication(server_uri; project_id, auth_toml...)
     finally
         isnothing(hook) || PkgAuthentication.clear_open_browser_hook()
     end
@@ -371,7 +375,7 @@ function _authentication(
     email::Union{AbstractString, Nothing}=nothing,
     username::Union{AbstractString, Nothing}=nothing,
     tokenpath::Union{AbstractString, Nothing}=nothing,
-    project_uuid::Union{UUID, Nothing}=nothing,
+    project_id::Union{UUID, Nothing}=nothing,
 )
     # If something goes badly wrong in _get_api_information, it may throw. We won't really
     # be able to proceed, since we do not know what JuliaHub APIs to use, so we need to
@@ -409,12 +413,12 @@ function _authentication(
     end
     return Authentication(
         server, api.api_version, username, token;
-        email, expires, tokenpath, project_uuid,
+        email, expires, tokenpath, project_id,
     )
 end
 _authentication(server::AbstractString; kwargs...) = _authentication(URIs.URI(server); kwargs...)
 
-function _normalize_project(
+function _juliahub_project(
     project::Union{AbstractString, UUIDs.UUID, Nothing, Missing}
 )::Union{UUID, Nothing}
     if ismissing(project)
@@ -426,7 +430,7 @@ function _normalize_project(
         return project
     elseif isa(project, AbstractString)
         project_uuid = tryparse(UUIDs.UUID, project)
-        if isnothing(project)
+        if isnothing(project_uuid)
             throw(
                 ArgumentError(
                     "Invalid project_id passed to Authentication() - not a UUID: $(project)"
@@ -476,7 +480,8 @@ The `force`, `maxcount` and `hook` are relevant for interactive authentication, 
 same way as in the [`authenticate`](@ref) function.
 
 This is mostly meant to be used to re-acquire authentication tokens in long-running sessions, where
-the initial authentication token may have expired.
+the initial authentication token may have expired. If the original `auth` object was authenticated
+in the context of a project (i.e. `.project_id` is set), the project association will be retained.
 
 As [`Authentication`](@ref) objects are mutable, the token will be updated in all contexts
 where the reference to the [`Authentication`](@ref) has been passed to.
@@ -534,7 +539,7 @@ function reauthenticate!(
         end
     end
     @debug "reauthenticate! -- calling PkgAuthentication" auth.server
-    new_auth = _authenticate(auth.server; force, maxcount, hook)
+    new_auth = _authenticate(auth.server; force, maxcount, hook, project_id=auth.project_id)
     if new_auth.username != auth.username
         throw(
             AuthenticationError(

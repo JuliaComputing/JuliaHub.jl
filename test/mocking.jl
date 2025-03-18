@@ -23,10 +23,13 @@ end
 
 # Set up a mock authentication so that the __auth__() fallbacks would work and use this.
 const MOCK_USERNAME = "username"
-mockauth(server_uri) = JuliaHub.Authentication(
-    server_uri, JuliaHub._MISSING_API_VERSION, MOCK_USERNAME, JuliaHub.Secret("")
-)
-JuliaHub.__AUTH__[] = mockauth(URIs.URI("https://juliahub.com"))
+function mockauth(server_uri; project_id, kwargs...)
+    JuliaHub.Authentication(
+        server_uri, JuliaHub._MISSING_API_VERSION, MOCK_USERNAME, JuliaHub.Secret("");
+        project_id,
+    )
+end
+JuliaHub.__AUTH__[] = mockauth(URIs.URI("https://juliahub.com"); project_id=nothing)
 
 # The following Mocking.jl patches _rest_request, so the the rest calls would have fixed
 # reponses.
@@ -69,7 +72,7 @@ mocking_patch = [
     ),
     Mocking.@patch(
         function JuliaHub._authenticate(server_uri; kwargs...)
-            return mockauth(server_uri)
+            return mockauth(server_uri; kwargs...)
         end
     ),
     Mocking.@patch(
