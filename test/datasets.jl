@@ -157,7 +157,7 @@ end
                     s -> !startswith(string(s), "_"),
                     fieldnames(JuliaHub.Dataset),
                 )
-                @test Set(propertynames(pd._dataset)) == Set(expected)
+                @test Set(propertynames(ds)) == Set(expected)
             end
         end
         let ds = JuliaHub.dataset(("username", "example-dataset"); throw=false)

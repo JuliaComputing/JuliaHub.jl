@@ -217,7 +217,7 @@ function Dataset(d::Dict; expected_project::Union{UUID, Nothing}=nothing)
 end
 
 function Base.propertynames(::Dataset)
-    return (:owner, :name, :uuid, :dtype, :size, :versions, :description, :tags)
+    return (:owner, :name, :uuid, :dtype, :size, :versions, :description, :tags, :project)
 end
 
 function Base.show(io::IO, d::Dataset)
@@ -695,7 +695,7 @@ function upload_dataset end
         # Any other 404 or other non-200 response indicates a backend failure
         _throw_invalidresponse(r)
     end
-    upload_config = _check_dataset_upload_config(r, dtype)
+    upload_config = _check_dataset_upload_config(r, dtype; newly_created_dataset)
     # Upload the actual data
     try
         _upload_dataset(upload_config, local_path; progress)
@@ -720,7 +720,9 @@ function upload_dataset end
     return dataset((username, dataset_name); auth)
 end
 
-function _check_dataset_upload_config(r::_RESTResponse, expected_dtype::AbstractString)
+function _check_dataset_upload_config(
+    r::_RESTResponse, expected_dtype::AbstractString; newly_created_dataset::Bool
+)
     upload_config, _ = _parse_response_json(r, Dict)
     # Verify that the dtype of the remote dataset is what we expect it to be.
     if upload_config["dataset_type"] != expected_dtype

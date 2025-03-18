@@ -202,7 +202,7 @@ function upload_project_dataset(
         _throw_invalidresponse(r)
     end
     # ...
-    upload_config = _check_dataset_upload_config(r, dtype)
+    upload_config = _check_dataset_upload_config(r, dtype; newly_created_dataset=false)
     # Upload the actual data
     try
         _upload_dataset(upload_config, local_path; progress)

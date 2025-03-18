@@ -183,7 +183,7 @@ end
             :DefaultApp, :FileHash, :InvalidAuthentication, :InvalidRequestError, :Job,
             :WorkloadConfig, :JobFile, :JobLogMessage, :JobReference, :JobStatus,
             :JuliaHubConnectionError, :JuliaHubError,
-            :JuliaHubException,
+            :JuliaHubException, :InvalidJuliaHubVersion,
             :Limit, :NodeSpec, :PackageApp, :PackageJob, :Unlimited,
             :PermissionError, :script, :Secret, :UserApp,
             :application, :applications, :authenticate,
@@ -198,6 +198,8 @@ end
             :nodespec, :nodespecs, :reauthenticate!, :submit_job,
             :update_dataset, :upload_dataset, :wait_job,
             :request,
+            :ProjectReference, :ProjectNotSetError, :DatasetProjectLink,
+            :project_dataset, :project_datasets, :upload_project_dataset,
         ])
         extra_public_symbols = setdiff(public_symbols, expected_public_symbols)
         isempty(extra_public_symbols) || @warn """
