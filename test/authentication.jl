@@ -71,7 +71,7 @@ end
 # In the general authenticate() tests, we mock the call to JuliaHub._authenticate()
 # So here we call a lower level JuliaHub._authenticat**ion** implementation, with
 # the REST calls mocked.
-@testset "JuliaHub._authenticate()" begin
+@testset "JuliaHub._authentication()" begin
     empty!(MOCK_JULIAHUB_STATE)
     server = URIs.URI("https://juliahub.example.org")
     token = JuliaHub.Secret("")
@@ -232,5 +232,12 @@ end
         delete!(MOCK_JULIAHUB_STATE, :auth_v1_status)
         MOCK_JULIAHUB_STATE[:auth_v1_username] = nothing
         @test_throws JuliaHub.AuthenticationError JuliaHub.authenticate(server, token)
+
+        # Test that we handle InvalidAuthentication correctly in _authentication()
+        empty!(MOCK_JULIAHUB_STATE)
+        MOCK_JULIAHUB_STATE[:auth_v1_status] = 401
+        @test_throws JuliaHub.AuthenticationError(
+            "The authentication token is invalid"
+        ) JuliaHub.authenticate(server, token)
     end
 end

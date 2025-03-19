@@ -236,11 +236,16 @@ function authenticate(
     server::AbstractString, token::Union{AbstractString, Secret};
     project::Union{AbstractString, UUIDs.UUID, Nothing, Missing}=missing,
 )
-    auth = _authentication(
-        _juliahub_uri(server);
-        token=isa(token, Secret) ? token : Secret(token),
-        project_id=_juliahub_project(project),
-    )
+    auth = try
+        auth = _authentication(
+            _juliahub_uri(server);
+            token=isa(token, Secret) ? token : Secret(token),
+            project_id=_juliahub_project(project),
+        )
+    catch e
+        isa(e, InvalidAuthentication) || rethrow()
+        throw(AuthenticationError("The authentication token is invalid"))
+    end
     global __AUTH__[] = auth
     return auth
 end
@@ -302,7 +307,44 @@ function _authenticate(
         # _authenticate either returns a valid token, or throws
         auth_toml = _authenticate_retry(string(server_uri), 1; force, maxcount)
         # Note: _authentication may throw, which gets passed on to the user
-        _authentication(server_uri; project_id, auth_toml...)
+        try
+            _authentication(server_uri; project_id, auth_toml...)
+        catch e
+            # If the token in auth.toml is invalid, but it hasn't expired,
+            # PkgAuthentication won't catch that, and we attempt to use it (to get the
+            # API version etc). If the token is invalid, that fails with a 401 and
+            # _authentication() throws. In this case, we will go ahead and remove the token
+            # and try again (which should lead to the interactive authentication flow).
+            if !isa(e, InvalidAuthentication) || (maxcount <= 1)
+                rethrow()
+            end
+            # We'll back up the old auth.toml though, because the user did not ask
+            # us to remove it, so we don't want to delete the token for them either.
+            # To avoid overwriting an existing backup, we generate a unique name
+            # by hashing the file contents.
+            backup_path = string(
+                auth_toml.tokenpath,
+                ".",
+                bytes2hex(open(SHA.sha1, auth_toml.tokenpath))[1:8],
+                ".backup",
+            )
+            mv(auth_toml.tokenpath, backup_path; force=true)
+            @warn """
+            Existing token for $(server_uri) appears invalid; forcing reauthentication.
+            Existing auth.toml backed up in: $(backup_path)
+            """
+            # We assume that _authenticate_retry immediately returned the token,
+            # and didn't retry multiple times. So we just bump `count` by one here.
+            auth_toml = _authenticate_retry(string(server_uri), 2; force=true, maxcount)
+            try
+                _authentication(server_uri; project_id, auth_toml...)
+            catch e
+                # If it again fails with InvalidAuthentication, we give up. But we
+                # need to throw AuthenticationError.
+                isa(e, InvalidAuthentication) || rethrow()
+                throw(AuthenticationError("JuliaHub returned an invalid authentication token"))
+            end
+        end
     finally
         isnothing(hook) || PkgAuthentication.clear_open_browser_hook()
     end
@@ -384,6 +426,7 @@ function _authentication(
     api = try
         _get_api_information(string(server), token)
     catch e
+        isa(e, InvalidAuthentication) && rethrow()
         errmsg = """
         Unable to determine JuliaHub API version.
         _get_api_information failed with an exception:
