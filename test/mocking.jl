@@ -332,83 +332,25 @@ function _restcall_mocked(method, url, headers, payload; query)
             Dict("message" => "", "success" => true) |> jsonresponse(200)
         end
     elseif (method == :GET) && endswith(url, "datasets")
-        dataset_params = get(MOCK_JULIAHUB_STATE, :dataset_params, Dict())
-        dataset_version_sizes = get(MOCK_JULIAHUB_STATE, :dataset_version_sizes, nothing)
-        zerotime = TimeZones.ZonedDateTime("2022-10-12T05:39:42.906+00:00")
-        versions_json =
-            dataset -> begin
-                version_sizes = something(
-                    dataset_version_sizes,
-                    (dataset == "example-dataset") ? [57, 331] : [57],
-                )
-                Dict(
-                    "version" => string("v", length(version_sizes)),
-                    "versions" => map(enumerate(version_sizes)) do (i, sz)
-                        Dict(
-                            "version" => i,
-                            "blobstore_path" => string("u", 2),
-                            "size" => sz,
-                            "date" => string(zerotime + Dates.Day(i) + Dates.Millisecond(sz)),
-                        )
-                    end,
-                    "size" => isempty(version_sizes) ? 0 : sum(version_sizes),
-                )
-            end
-        #! format: off
-        shared = Dict(
-            "groups" => Any[],
-                "storage" => Dict(
-                    "bucket_region" => "us-east-1",
-                    "bucket" => "datasets-bucket",
-                    "prefix" => "datasets",
-                    "vendor" => "aws",
-                ),
-                "description" => get(dataset_params, "description", "An example dataset"),
-                "tags" => get(dataset_params, "tags", ["tag1", "tag2"]),
-                "license" => (
-                    "name" => "MIT License",
-                    "spdx_id" => "MIT",
-                    "text" => nothing,
-                    "url" => "https://opensource.org/licenses/MIT",
-                ),
-                "lastModified" => "2022-10-12T05:39:42.906",
-                "downloadURL" => "",
-                "credentials_url" => "...",
-        )
-        #! format: on
-        datasets = []
-        for dataset_full_id in existing_datasets
-            username, dataset = split(dataset_full_id, '/'; limit=2)
-            push!(datasets,
-                Dict(
-                    "id" => string(uuidhash(dataset_full_id)),
-                    "name" => dataset,
-                    "owner" => Dict(
-                        "username" => username,
-                        "type" => "User",
-                    ),
-                    "type" => occursin("blobtree", dataset) ? "BlobTree" : "Blob",
-                    "visibility" => occursin("public", dataset) ? "public" : "private",
-                    versions_json(dataset)...,
-                    shared...,
+        datasets = Dict[]
+        for dataset_name in existing_datasets
+            d = _dataset_json(
+                dataset_name;
+                params=get(MOCK_JULIAHUB_STATE, :dataset_params, Dict()),
+                version_sizes=something(
+                    get(MOCK_JULIAHUB_STATE, :dataset_version_sizes, nothing),
+                    endswith(dataset_name, "/example-dataset") ? [57, 331] : [57],
                 ),
             )
+            push!(datasets, d)
         end
-        for dataset in get(MOCK_JULIAHUB_STATE, :datasets_erroneous, String[])
-            push!(datasets,
-                Dict(
-                    "id" => string(uuidhash(dataset)),
-                    "name" => dataset,
-                    "owner" => Dict(
-                        "username" => nothing,
-                        "type" => "User",
-                    ),
-                    "type" => occursin("blobtree", dataset) ? "BlobTree" : "Blob",
-                    "visibility" => occursin("public", dataset) ? "public" : "private",
-                    versions_json(dataset)...,
-                    shared...,
-                ),
+        for dataset_name in get(MOCK_JULIAHUB_STATE, :datasets_erroneous, String[])
+            d = _dataset_json(
+                dataset_name;
+                version_sizes=(dataset_name == "example-dataset") ? [57, 331] : [57],
             )
+            d["owner"]["username"] = nothing
+            push!(datasets, d)
         end
         datasets |> jsonresponse(200)
     elseif (method == :DELETE) && endswith(url, DATASET_REGEX)
@@ -775,4 +717,53 @@ function _http_request_mocked(
         "Content-Length" => "7",
     ]
     HTTP.Response(200, headers, b"success")
+end
+
+function _dataset_json(
+    dataset_name::AbstractString;
+    params=Dict(),
+    version_sizes=[],
+)
+    zerotime = TimeZones.ZonedDateTime("2022-10-12T05:39:42.906+00:00")
+    username, dataset = string.(split(dataset_name, '/'; limit=2))
+    return Dict{String, Any}(
+        "id" => string(uuidhash(dataset_name)),
+        "name" => dataset,
+        "owner" => Dict{String, Any}(
+            "username" => username,
+            "type" => "User",
+        ),
+        "type" => occursin("blobtree", dataset) ? "BlobTree" : "Blob",
+        "visibility" => occursin("public", dataset) ? "public" : "private",
+        # versions
+        "version" => string("v", length(version_sizes)),
+        "versions" => map(enumerate(version_sizes)) do (i, sz)
+            Dict{String, Any}(
+                "version" => i,
+                "blobstore_path" => string("u", 2),
+                "size" => sz,
+                "date" => string(zerotime + Dates.Day(i) + Dates.Millisecond(sz)),
+            )
+        end,
+        "size" => isempty(version_sizes) ? 0 : sum(version_sizes),
+        # shared
+        "groups" => Any[],
+        "storage" => Dict{String, Any}(
+            "bucket_region" => "us-east-1",
+            "bucket" => "datasets-bucket",
+            "prefix" => "datasets",
+            "vendor" => "aws",
+        ),
+        "description" => get(params, "description", "An example dataset"),
+        "tags" => get(params, "tags", ["tag1", "tag2"]),
+        "license" => (
+            "name" => "MIT License",
+            "spdx_id" => "MIT",
+            "text" => nothing,
+            "url" => "https://opensource.org/licenses/MIT",
+        ),
+        "lastModified" => "2022-10-12T05:39:42.906",
+        "downloadURL" => "",
+        "credentials_url" => "...",
+    )
 end
