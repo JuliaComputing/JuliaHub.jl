@@ -417,7 +417,12 @@ function _restcall_mocked(method, url, headers, payload; query)
         end
         payload = JSON.parse(something(payload, "{}"))
         if isempty(payload) || !haskey(payload, "action")
-            if "$(MOCK_USERNAME)/$(dataset)" in existing_datasets
+            is_existing_dataset = if is_user
+                "$(MOCK_USERNAME)/$(dataset)" in existing_datasets
+            else
+                UUIDs.UUID(dataset) in uuidhash.(existing_datasets)
+            end
+            if is_existing_dataset
                 Dict{String, Any}(
                     "location" => Dict{String, Any}(
                         "bucket" => "",
@@ -440,7 +445,6 @@ function _restcall_mocked(method, url, headers, payload; query)
             end
         else
             @assert payload["action"] == "close"
-            dataset = payload["name"]
             Dict{String, Any}(
                 "size_bytes" => 8124,
                 "dataset_id" => "c1488c3f-0910-4f73-9c40-14f3c7a8696b",

@@ -166,5 +166,27 @@ end
     end
 end
 
+@testset "JuliaHub.upload_project_dataset()" begin
+    Mocking.apply(mocking_patch) do
+        @test JuliaHub.upload_project_dataset("example-dataset", @__FILE__) isa JuliaHub.Dataset
+        @test JuliaHub.upload_project_dataset(("anotheruser", "publicdataset"), @__FILE__) isa
+            JuliaHub.Dataset
+        @test_throws JuliaHub.InvalidRequestError JuliaHub.upload_project_dataset(
+            ("non-existent-user", "example-dataset"), @__FILE__
+        ) isa JuliaHub.Dataset
+        @test_throws JuliaHub.InvalidRequestError JuliaHub.upload_project_dataset(
+            "no-such-dataset", @__FILE__
+        )
+        dataset_noproject = JuliaHub.dataset("example-dataset")
+        @test dataset_noproject.project === nothing
+        dataset = JuliaHub.upload_project_dataset(dataset_noproject, @__FILE__)
+        @test dataset isa JuliaHub.Dataset
+        @test dataset.project isa JuliaHub.DatasetProjectLink
+        @test dataset.project.uuid === project_auth_2.project_id
+        @test dataset.project.is_writable === false
+        @test JuliaHub.upload_project_dataset(dataset_noproject, @__FILE__) isa JuliaHub.Dataset
+    end
+end
+
 # We'll restore the default (non-project) global auth
 JuliaHub.__AUTH__[] = DEFAULT_GLOBAL_MOCK_AUTH
