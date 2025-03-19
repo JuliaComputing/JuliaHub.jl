@@ -93,6 +93,12 @@ function list_datasets_prefix(prefix, args...; kwargs...)
 end
 
 @testset "JuliaHub.jl" begin
+    # JuliaHub.jl's behavior can be influenced by these two environment
+    # variables, so we explicitly unset them, just in case, to ensure that the
+    # tests run consistently.
+    delete!(ENV, "JULIA_PKG_SERVER")
+    delete!(ENV, "JULIAHUB_PROJECT_UUID")
+
     # Just to make sure the logic within is_enabled() is correct.
     @testset "is_enabled" begin
         # We need to unset the environment variables read by extra_enabled_live_tests()
@@ -244,6 +250,9 @@ end
     end
     @testset "Jobs" begin
         include("jobs.jl")
+    end
+    @testset "Projects" begin
+        include("projects.jl")
     end
     @testset "_PackageBundler" begin
         include("packagebundler.jl")

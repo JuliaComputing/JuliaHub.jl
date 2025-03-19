@@ -464,9 +464,10 @@ _authentication(server::AbstractString; kwargs...) = _authentication(URIs.URI(se
 function _juliahub_project(
     project::Union{AbstractString, UUIDs.UUID, Nothing, Missing}
 )::Union{UUID, Nothing}
-    if ismissing(project)
-        project = get(ENV, "JULIAHUB_PROJECT_UUID", nothing)
-    end
+    project = coalesce(
+        project,
+        get(ENV, "JULIAHUB_PROJECT_UUID", nothing),
+    )
     if isnothing(project)
         return nothing
     elseif isa(project, UUIDs.UUID)

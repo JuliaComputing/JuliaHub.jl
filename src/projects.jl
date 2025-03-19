@@ -59,7 +59,17 @@ end
 
 Looks up the specified dataset among the datasets attached to the project, returning a
 [`Dataset`](@ref) object, or throwing an [`InvalidRequestError`](@ref) if the project
-does not have the dataset attached.
+does not have such dataset attached.
+
+!!! note "Implicit dataset owner"
+
+    When passing just the dataset name for `dataset` (i.e. `<: AbstractString`), then, just
+    like for the non-project [`JuliaHub.dataset`](@ref) function, it is assumed that the owner
+    of the dataset should be the currently authenticated user.
+
+    However, a project may have multiple datasets with the same name attached to it, if they are
+    owned by different users. The best practice when accessing datasets in the context of projects is
+    to fully specify their name (i.e. also include the username).
 
 $(_DOCS_nondynamic_datasets_object_warning)
 """
@@ -118,15 +128,17 @@ end
 
 Returns the list of datasets attached to the project, as a list of [`Dataset`](@ref) objects.
 If the project is not explicitly specified, it uses the project of the authentication object.
+
+May throw a [`ProjectNotSetError`](@ref). Will throw an [`InvalidRequestError`] if the currently
+authenticated user does not have access to the project or the project does not exists.
 """
 function project_datasets end
 
 function project_datasets(; auth::Authentication=__auth__())
-    project_id = auth.project_id
-    if isnothing(project_id)
-        throw(ArgumentError("Not authenticated in the context of a project."))
+    if isnothing(auth.project_id)
+        throw(ProjectNotSetError())
     end
-    return _project_datasets(auth, project_id)
+    return _project_datasets(auth, auth.project_id::UUID)
 end
 
 function project_datasets(project::AbstractString; auth::Authentication=__auth__())
@@ -138,6 +150,7 @@ function project_datasets(project::AbstractString; auth::Authentication=__auth__
 end
 
 function _project_datasets(auth::Authentication, project::UUIDs.UUID)
+    _assert_projects_enabled(auth)
     r = JuliaHub._restcall(
         auth, :GET, ("datasets",), nothing;
         query=(; project=string(project)),
@@ -195,7 +208,7 @@ function upload_project_dataset(
     r = _open_dataset_version(auth, ds.uuid, project_uuid)
     if r.status in (400, 403, 404)
         # These response codes indicate a problem with the request
-        msg = "Unable to upload to dataset ($(ds.owner), $(ds.name)): $(r.json) (code: $(r.status))"
+        msg = "Unable to upload to dataset ($(ds.owner), $(ds.name)): $(r.body) (code: $(r.status))"
         throw(InvalidRequestError(msg))
     elseif r.status != 200
         # Other response codes indicate a backend failure
