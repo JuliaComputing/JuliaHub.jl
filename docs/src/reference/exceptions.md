@@ -24,6 +24,8 @@ InvalidRequestError
 JuliaHubConnectionError
 JuliaHubError
 PermissionError
+ProjectNotSetError
+InvalidJuliaHubVersion
 ```
 
 ## Index
