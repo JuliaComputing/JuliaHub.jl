@@ -63,7 +63,7 @@ end
         end
 
     is_enabled("datasets-projects"; disabled_by_default=true) &&
-        @testset "Large datasets" begin
+        @testset "Project-dataset integration" begin
             include("projects-live.jl")
         end
 
