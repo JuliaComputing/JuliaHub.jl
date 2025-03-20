@@ -11,14 +11,21 @@ project_auth_2 = mockauth(
     project_id=UUIDs.UUID("00000000-0000-0000-0000-000000000002"),
 )
 @testset "project_auth_*" begin
-    @test project_auth_0.project_id === nothing
-    @test project_auth_0._api_version === v"0.0.0-legacy"
-
-    @test project_auth_1.project_id === UUIDs.UUID("00000000-0000-0000-0000-000000000001")
-    @test project_auth_1._api_version === v"0.0.1"
-
-    @test project_auth_2.project_id === UUIDs.UUID("00000000-0000-0000-0000-000000000002")
-    @test project_auth_2._api_version === v"0.2.0"
+    let auth = project_auth_0
+        @test auth.project_id === nothing
+        @test auth._api_version === v"0.0.0-legacy"
+        @test_throws JuliaHub.InvalidJuliaHubVersion JuliaHub._assert_projects_enabled(auth)
+    end
+    let auth = project_auth_1
+        @test auth.project_id === UUIDs.UUID("00000000-0000-0000-0000-000000000001")
+        @test auth._api_version === v"0.0.1"
+        @test_throws JuliaHub.InvalidJuliaHubVersion JuliaHub._assert_projects_enabled(auth)
+    end
+    let auth = project_auth_2
+        @test auth.project_id === UUIDs.UUID("00000000-0000-0000-0000-000000000002")
+        @test auth._api_version === v"0.2.0"
+        @test JuliaHub._assert_projects_enabled(auth) === nothing
+    end
 end
 
 @testset "_project_uuid()" begin
@@ -74,7 +81,7 @@ end
             @test JuliaHub.project_datasets(; auth=project_auth_2) isa Vector{JuliaHub.Dataset}
         end
 
-        @testset "datasets" begin
+        @testset "default project" begin
             datasets = JuliaHub.project_datasets()
             @test length(datasets) === 3
             @testset "dataset: $(dataset.name)" for dataset in datasets
@@ -83,6 +90,36 @@ end
                 @test dataset.project.uuid === project_auth_2.project_id
                 @test dataset.project.is_writable === false
             end
+        end
+
+        # These tests that we send project_auth_1.project_id to the backend
+        @testset "explicit project" begin
+            datasets = JuliaHub.project_datasets(
+                project_auth_1.project_id;
+                auth=project_auth_2,
+            )
+            @test length(datasets) === 3
+            @testset "dataset: $(dataset.name)" for dataset in datasets
+                @test dataset isa JuliaHub.Dataset
+                @test dataset.project isa JuliaHub.DatasetProjectLink
+                @test dataset.project.uuid === project_auth_1.project_id
+                @test dataset.project.is_writable === false
+            end
+
+            # Automatic parsing of string project_ids
+            datasets = JuliaHub.project_datasets(
+                string(project_auth_1.project_id);
+                auth=project_auth_2,
+            )
+            @test length(datasets) === 3
+            @testset "dataset: $(dataset.name)" for dataset in datasets
+                @test dataset isa JuliaHub.Dataset
+                @test dataset.project isa JuliaHub.DatasetProjectLink
+                @test dataset.project.uuid === project_auth_1.project_id
+                @test dataset.project.is_writable === false
+            end
+
+            @test_throws ArgumentError datasets = JuliaHub.project_datasets("foo")
         end
     end
 end

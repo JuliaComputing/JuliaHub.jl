@@ -1,6 +1,8 @@
 # Can be used to prefix test-related data on the instance (like dataset names)
 # to avoid clashes with test suites running in parallel.
 TESTID = Random.randstring(8)
+TEST_PREFIX = "JuliaHubTest_$(TESTID)"
+TESTDATA = joinpath(@__DIR__, "testdata")
 
 # Authenticate the test session
 JULIAHUB_SERVER = get(ENV, "JULIAHUB_SERVER") do
@@ -14,6 +16,22 @@ else
 end
 @info "Authentication / API version: $(auth._api_version)"
 extra_enabled_live_tests(; print_info=true)
+
+function _delete_test_dataset(auth, dataset)
+    try
+        @info "Deleting dataset: $dataset"
+        JuliaHub.delete_dataset(dataset; auth)
+    catch err
+        if isa(err, JuliaHub.InvalidRequestError)
+            println("$dataset not deleted: $(err)")
+        else
+            @warn "Failed to delete dataset '$dataset'" exception = (err, catch_backtrace())
+            if err isa JuliaHub.JuliaHubError && !isnothing(err.exception)
+                @info "JuliaHubError inner exception" exception = err.exception
+            end
+        end
+    end
+end
 
 @testset "JuliaHub.jl LIVE tests" begin
     @testset "Authentication" begin
@@ -42,6 +60,11 @@ extra_enabled_live_tests(; print_info=true)
     is_enabled("datasets-large") &&
         @testset "Large datasets" begin
             include("datasets-large-live.jl")
+        end
+
+    is_enabled("datasets-projects"; disabled_by_default=true) &&
+        @testset "Large datasets" begin
+            include("projects-live.jl")
         end
 
     if is_enabled("jobs")

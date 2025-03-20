@@ -132,21 +132,15 @@ If the project is not explicitly specified, it uses the project of the authentic
 May throw a [`ProjectNotSetError`](@ref). Will throw an [`InvalidRequestError`] if the currently
 authenticated user does not have access to the project or the project does not exists.
 """
-function project_datasets end
-
-function project_datasets(; auth::Authentication=__auth__())
-    if isnothing(auth.project_id)
-        throw(ProjectNotSetError())
-    end
-    return _project_datasets(auth, auth.project_id::UUID)
-end
-
-function project_datasets(project::AbstractString; auth::Authentication=__auth__())
-    project_uuid = tryparse(UUIDs.UUID, project)
+function project_datasets(
+    project::Union{ProjectReference, Nothing}=nothing;
+    auth::Authentication=__auth__(),
+)
+    project_uuid = _project_uuid(auth, project)
     if isnothing(project_uuid)
         throw(ArgumentError("`project` must be a UUID, got '$(project)'"))
     end
-    return project_datasets(project_uuid; auth)
+    return _project_datasets(auth, project_uuid)
 end
 
 function _project_datasets(auth::Authentication, project::UUIDs.UUID)
@@ -169,9 +163,17 @@ function _project_datasets(auth::Authentication, project::UUIDs.UUID)
 end
 
 """
-    JuliaHub.upload_project_dataset(dataset::DatasetReference, local_path; [auth,] kwargs...) -> Dataset
+    JuliaHub.upload_project_dataset(
+        dataset::DatasetReference, local_path;
+        progress=true,
+        [project::ProjectReference],
+        [auth::Authentication],
+    ) -> Dataset
 
 Uploads a new version of a project-linked dataset.
+
+By default, the new dataset version will be associated with the project of the current authentication
+session (if any), but this can be overridden by passing `project`.
 
 !!! note "Permissions"
 
