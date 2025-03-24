@@ -138,7 +138,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
         with:
-          version: "1.9"
+          # we'll restrict doctests to a minor version, to avoid failures due
+          # to printing differences between Julia (minor) versions
+          version: "1.11"
       - uses: julia-actions/julia-buildpkg@v1
       - name: Set up documentation environment
         run: make docs-manifest
