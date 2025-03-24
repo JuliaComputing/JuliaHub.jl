@@ -20,6 +20,9 @@ docs: docs/Manifest.toml
 fix-doctests: docs/Manifest.toml
 	${JULIA} --project=docs/ docs/make.jl --fix-doctests
 
+check-doctests: docs/Manifest.toml
+	${JULIA} --project=docs/ docs/make.jl --doctest
+
 changelog:
 	${JULIA} --project=docs/ docs/changelog.jl
 
