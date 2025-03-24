@@ -8,7 +8,7 @@ help:
 
 docs/Manifest.toml: docs/Project.toml
 	@echo "Instantiating the docs/ environment:"
-	${JULIA} --color=yes --project=docs/ -e 'using Pkg; Pkg.develop(path="."); Pkg.instantiate()'
+	${JULIA} --color=yes --project=docs/ -e 'using Pkg; Pkg.instantiate()'
 
 docs-manifest:
 	rm -f docs/Manifest.toml
