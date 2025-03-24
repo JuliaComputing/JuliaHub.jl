@@ -1,13 +1,13 @@
 """
     struct ProjectNotSetError <: JuliaHubException
 
-Exception thrown when the authentication object is not set to a project, nor was
-an explicit project UUID provided, but the operation requires a project to be
-specified.
+Exception thrown by a project-related operation that requires a project to be specified,
+but neither an explicit project reference was provided, nor was the project set for the
+authentication object.
 """
 struct ProjectNotSetError <: JuliaHubException end
 
-function Base.showerror(io::IO, e::ProjectNotSetError)
+function Base.showerror(io::IO, ::ProjectNotSetError)
     print(io, "ProjectNotSetError: authentication object not associated with a project")
 end
 
@@ -61,14 +61,25 @@ Looks up the specified dataset among the datasets attached to the project, retur
 [`Dataset`](@ref) object, or throwing an [`InvalidRequestError`](@ref) if the project
 does not have such dataset attached.
 
+```jldoctest; setup = :(Main.projectauth_setup!()), teardown = :(Main.projectauth_teardown!())
+julia> JuliaHub.project_dataset(("username", "blobtree/example"))
+Dataset: blobtree/example (BlobTree)
+ owner: username
+ description: An example dataset
+ versions: 1
+ size: 57 bytes
+ tags: tag1, tag2
+ project: cd6c9ee3-d15f-414f-a762-7e1d3faed835 (not writable)
+```
+
 !!! note "Implicit dataset owner"
 
     When passing just the dataset name for `dataset` (i.e. `<: AbstractString`), then, just
     like for the non-project [`JuliaHub.dataset`](@ref) function, it is assumed that the owner
     of the dataset should be the currently authenticated user.
 
-    However, a project may have multiple datasets with the same name attached to it, if they are
-    owned by different users. The best practice when accessing datasets in the context of projects is
+    However, a project may have multiple datasets with the same name attached to it (if they are
+    owned by different users). The best practice when accessing datasets in the context of projects is
     to fully specify their name (i.e. also include the username).
 
 $(_DOCS_nondynamic_datasets_object_warning)
@@ -131,6 +142,17 @@ If the project is not explicitly specified, it uses the project of the authentic
 
 May throw a [`ProjectNotSetError`](@ref). Will throw an [`InvalidRequestError`] if the currently
 authenticated user does not have access to the project or the project does not exists.
+
+```jldoctest; setup = :(Main.projectauth_setup!()), teardown = :(Main.projectauth_teardown!())
+julia> JuliaHub.current_authentication()
+JuliaHub.Authentication("https://juliahub.com", "username", *****; project_id = "cd6c9ee3-d15f-414f-a762-7e1d3faed835")
+
+julia> JuliaHub.project_datasets()
+3-element Vector{JuliaHub.Dataset}:
+ JuliaHub.project_dataset(("username", "example-dataset"); project=cd6c9ee3-d15f-414f-a762-7e1d3faed835)
+ JuliaHub.project_dataset(("anotheruser", "publicdataset"); project=cd6c9ee3-d15f-414f-a762-7e1d3faed835)
+ JuliaHub.project_dataset(("username", "blobtree/example"); project=cd6c9ee3-d15f-414f-a762-7e1d3faed835)
+```
 """
 function project_datasets(
     project::Union{ProjectReference, Nothing}=nothing;

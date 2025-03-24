@@ -9,6 +9,10 @@ import TimeZones
 ENV["TZ"] = "America/New_York"
 JuliaHub._LOCAL_TZ[] = TimeZones.localzone()
 
+# Patching of the API responses. Also sets JuliaHub.__AUTH__.
+include("../test/mocking.jl")
+
+# We don't want doctests to interfere with each other
 DocMeta.setdocmeta!(
     JuliaHub, :DocTestSetup,
     quote
@@ -18,8 +22,16 @@ DocMeta.setdocmeta!(
     recursive=true,
 )
 
-# Patching of the API responses. Also sets JuliaHub.__AUTH__.
-include("../test/mocking.jl")
+# For project-related APIs, we need a different authentication object.
+# So we set up small setup and teardown functions here too.
+const DEFAULT_PROJECT_AUTH = mockauth(
+    URIs.URI("https://juliahub.com");
+    api_version=v"0.2.0",
+    project_id=UUIDs.UUID("cd6c9ee3-d15f-414f-a762-7e1d3faed835"),
+)
+projectauth_setup!() = JuliaHub.__AUTH__[] = DEFAULT_PROJECT_AUTH
+projectauth_teardown!() = JuliaHub.__AUTH__[] = DEFAULT_GLOBAL_MOCK_AUTH
+
 # The following setup function is reused in both at-setup blocks, but also in
 # doctestsetup.
 function setup_job_results_file!()
