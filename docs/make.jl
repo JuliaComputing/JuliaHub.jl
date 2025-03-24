@@ -32,6 +32,19 @@ const DEFAULT_PROJECT_AUTH = mockauth(
 projectauth_setup!() = JuliaHub.__AUTH__[] = DEFAULT_PROJECT_AUTH
 projectauth_teardown!() = JuliaHub.__AUTH__[] = DEFAULT_GLOBAL_MOCK_AUTH
 
+function env_setup!(; project=false)
+    ENV["JULIA_PKG_SERVER"] = "juliahub.com"
+    if project
+        ENV["JULIAHUB_PROJECT_UUID"] = "b1a95ba8-43e6-4eb6-b280-3c5cbe0fa0b9"
+    end
+    return nothing
+end
+function env_teardown!()
+    delete!(ENV, "JULIA_PKG_SERVER")
+    delete!(ENV, "JULIAHUB_PROJECT_UUID")
+    return nothing
+end
+
 # The following setup function is reused in both at-setup blocks, but also in
 # doctestsetup.
 function setup_job_results_file!()

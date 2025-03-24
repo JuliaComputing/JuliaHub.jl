@@ -229,6 +229,39 @@ This can be set by passing the optional `project` argument, which works as follo
     When the [`Authentication`](@ref) object is constructed, access to or existence of the specified
     project is not checked. However, if you attempt any project operations with with such an
     authentication object, they will fail and throw an error.
+
+# Examples
+
+If `JULIA_PKG_SERVER` is set, `authenticate()` will pick it up automatically,
+although it can also be overridden by setting the instance hostname explicitly:
+
+```jldoctest; setup = :(Main.env_setup!()), teardown = :(Main.env_teardown!())
+julia> ENV["JULIA_PKG_SERVER"]
+"juliahub.com"
+
+julia> JuliaHub.authenticate()
+JuliaHub.Authentication("https://juliahub.com", "username", *****)
+
+julia> JuliaHub.authenticate("mycompany.juliahub.com")
+JuliaHub.Authentication("https://mycompany.juliahub.com", "username", *****)
+```
+
+If `JULIAHUB_PROJECT_UUID` is set to point to a JuliaHub Project (e.g. in JuliaHub cloud
+environments), it will also get automatically picked up, but can also be overridden:
+
+```jldoctest; setup = :(Main.env_setup!(; project=true)), teardown = :(Main.env_teardown!())
+julia> ENV["JULIAHUB_PROJECT_UUID"]
+"b1a95ba8-43e6-4eb6-b280-3c5cbe0fa0b9"
+
+julia> JuliaHub.authenticate()
+JuliaHub.Authentication("https://juliahub.com", "username", *****; project_id = "b1a95ba8-43e6-4eb6-b280-3c5cbe0fa0b9")
+
+julia> JuliaHub.authenticate(; project = "7ed96f69-a765-4de6-ac00-04a38684ce1c")
+JuliaHub.Authentication("https://juliahub.com", "username", *****; project_id = "7ed96f69-a765-4de6-ac00-04a38684ce1c")
+
+julia> JuliaHub.authenticate(; project = nothing)
+JuliaHub.Authentication("https://juliahub.com", "username", *****)
+```
 """
 function authenticate end
 
