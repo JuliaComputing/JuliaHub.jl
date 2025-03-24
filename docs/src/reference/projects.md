@@ -25,9 +25,9 @@ However, you can opt-out of this behavior by explicitly passing a `project=nothi
 You can always verify that your operations are running in the context of the correct project
 by checking the [`Authentication`](@ref) object, e.g. via [`current_authentication`](@ref):
 
-```wip-jldoctest
+```jldoctest; setup = :(using JuliaHub; Main.projectauth_setup!()), teardown = :(Main.projectauth_teardown!())
 julia> JuliaHub.current_authentication()
-...
+JuliaHub.Authentication("https://juliahub.com", "username", *****; project_id = "cd6c9ee3-d15f-414f-a762-7e1d3faed835")
 ```
 
 ## Reference

@@ -200,7 +200,9 @@ session (if any), but this can be overridden by passing `project`.
 !!! note "Permissions"
 
     Note that in order for this to work, you need to have edit rights on the projects and
-    the dataset needs to have been marked writable by the dataset owner.
+    the dataset needs to have been marked writable by the dataset owner. However, unlike for
+    normal datasets uploads (with [`upload_dataset`](@ref)), you do not need to be the dataset
+    owner to upload new versions.
 
 !!! tip
 
