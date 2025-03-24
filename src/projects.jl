@@ -36,10 +36,11 @@ const ProjectReference = Union{AbstractString, UUIDs.UUID}
 # if present.
 function _project_uuid(auth::Authentication, project::Union{ProjectReference, Nothing})::UUIDs.UUID
     if isnothing(project)
-        if isnothing(auth.project_id)
+        project_id = project_id
+        if isnothing(project_id)
             throw(ProjectNotSetError())
         else
-            return auth.project_id
+            return project_id
         end
     elseif isa(project, UUIDs.UUID)
         return project
