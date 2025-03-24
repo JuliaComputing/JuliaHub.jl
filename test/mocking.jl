@@ -805,6 +805,6 @@ function _dataset_json(
         "lastModified" => "2022-10-12T05:39:42.906",
         "downloadURL" => "",
         "credentials_url" => "...",
-        project...
+        project...,
     )
 end
