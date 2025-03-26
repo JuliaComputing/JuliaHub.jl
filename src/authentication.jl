@@ -259,6 +259,15 @@ end
 function _authenticate(
     server_uri::URIs.URI; force::Bool, maxcount::Integer, hook::Union{Base.Callable, Nothing}
 )
+    # So this is a bit weird, but we want to ensure that the global _LOCAL_TZ[] is initialized
+    # in a somewhat reliable way. Generally, constructing the authentication object is the first
+    # thing that you do in a session, so we just call _localtz() here, even though we don't
+    # need it. This will ensure that the _LOCAL_TZ[] timezone object "cache" is populated
+    # as soon as you start using JuliaHub.jl, but _not_ when you load it, due to the effect
+    # that has on load time -- this function is pretty heavy, so the _localtz() call is not
+    # significant anyway.
+    _localtz()
+
     isnothing(hook) || PkgAuthentication.register_open_browser_hook(hook)
     try
         # _authenticate either returns a valid token, or throws
