@@ -430,14 +430,16 @@ function _parse_tz(timestamp_str::AbstractString; msg::Union{AbstractString, Not
     return TimeZones.astimezone(timestamp, _localtz())
 end
 
-# It's quite easy to make TimeZones.localzone() fail and throw.
-# So this wraps it, and adds a UTC fallback (which seems like the sensible
-# default) in the case where somehow the local timezone is not configured properly.
+# This function is internally used where we need to pass the local timezone
+# for datetime printing or parsing functions.
 function _localtz()::Dates.TimeZone
     global _LOCAL_TZ
     if isassigned(_LOCAL_TZ)
         return _LOCAL_TZ[]
     else
+        # It's quite easy to make TimeZones.localzone() fail and throw.
+        # So this wraps it, and adds a UTC fallback (which seems like the sensible
+        # default) in the case where somehow the local timezone is not configured properly.
         tz = try
             TimeZones.localzone()
         catch e
