@@ -397,7 +397,7 @@ end
 _utc2localtz(timestamp::Number) = _utc2localtz(Dates.unix2datetime(timestamp))
 function _utc2localtz(datetime_utc::Dates.DateTime)::TimeZones.ZonedDateTime
     datetimez_utc = TimeZones.ZonedDateTime(datetime_utc, TimeZones.tz"UTC")
-    return TimeZones.astimezone(datetimez_utc, _LOCAL_TZ[])
+    return TimeZones.astimezone(datetimez_utc, _localtz())
 end
 # Special version of _utc2localtz to handle integer ms timestamp
 function _ms_utc2localtz(timestamp::Integer)::TimeZones.ZonedDateTime
@@ -446,17 +446,26 @@ function _parse_tz(timestamp_str::AbstractString; msg::Union{AbstractString, Not
         end
         throw(JuliaHubError(errmsg))
     end
-    return TimeZones.astimezone(timestamp, _LOCAL_TZ[])
+    return TimeZones.astimezone(timestamp, _localtz())
 end
 
-# It's quite easy to make TimeZones.localzone() fail and throw.
-# So this wraps it, and adds a UTC fallback (which seems like the sensible
-# default) in the case where somehow the local timezone is not configured properly.
-function _localtz()
-    try
-        TimeZones.localzone()
-    catch e
-        @debug "Unable to determine local timezone" exception = (e, catch_backtrace())
-        TimeZones.tz"UTC"
+# This function is internally used where we need to pass the local timezone
+# for datetime printing or parsing functions.
+function _localtz()::Dates.TimeZone
+    global _LOCAL_TZ
+    if isassigned(_LOCAL_TZ)
+        return _LOCAL_TZ[]
+    else
+        # It's quite easy to make TimeZones.localzone() fail and throw.
+        # So this wraps it, and adds a UTC fallback (which seems like the sensible
+        # default) in the case where somehow the local timezone is not configured properly.
+        tz = try
+            TimeZones.localzone()
+        catch e
+            @debug "Unable to determine local timezone" exception = (e, catch_backtrace())
+            TimeZones.tz"UTC"
+        end
+        _LOCAL_TZ[] = tz
+        return tz
     end
 end
