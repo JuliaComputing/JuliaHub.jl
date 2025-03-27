@@ -43,6 +43,8 @@ When working with JuliaHub.jl in JuliaHub cloud environment, such as in JuliaHub
 The `JULIA_PKG_SERVER` should always be correctly set up, and the `auth.toml` file will also be present and up-to-date.
 This means that [`authenticate`](@ref) should automatically be able to authenticate your session, and you should never be prompted for interactive authentication.
 
+This also extends to JuliaHub Projects support --- if an IDE has been launched withing the context of a project, the environment will have the `JULIAHUB_PROJECT_UUID` environment set, and the authentication object will be automatically linked to the correct project.
+
 !!! tip "No need to authenticate()"
 
     As in a JuliaHub environment everything is already set up and pointing to the correct server, you do not need to call [`authenticate`](@ref) yourself, nor set up `JULIA_PKG_SERVER`.

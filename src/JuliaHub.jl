@@ -11,7 +11,7 @@ import SHA
 import TimeZones
 import TOML
 import URIs
-import UUIDs
+using UUIDs: UUIDs, UUID
 
 # We cache the local timezone in a global, so that we don't have to call
 # TimeZones.localzone() every time we do a TZ operation. However, we only
@@ -34,6 +34,7 @@ include("jobs/request.jl")
 include("jobs/logging.jl")
 include("jobs/logging-kafka.jl")
 include("jobs/logging-legacy.jl")
+include("projects.jl")
 
 # JuliaHub.jl follows the convention that all private names are
 # prefixed with an underscore.
