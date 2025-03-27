@@ -225,7 +225,7 @@ function Base.show(io::IO, d::Dataset)
     if isnothing(d.project)
         print(io, "JuliaHub.dataset(", dsref, ")")
     else
-        print(io, "JuliaHub.project_dataset(", dsref, "; project=", d.project.uuid, ")")
+        print(io, "JuliaHub.project_dataset(", dsref, "; project=\"", d.project.uuid, "\")")
     end
 end
 

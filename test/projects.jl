@@ -121,6 +121,27 @@ end
 
             @test_throws ArgumentError datasets = JuliaHub.project_datasets("foo")
         end
+
+        # show() methods on Dataset objects that print as project_dataset()-s
+        JuliaHub.__AUTH__[] = project_auth_2
+        @testset "show methods" begin
+            datasets = JuliaHub.project_datasets(project_auth_1.project_id)
+            @test length(datasets) === 3
+            let ex = Meta.parse(string(datasets[1]))
+                @test ex.head == :call
+                @test ex.args[1] == :(JuliaHub.project_dataset)
+
+                ds = eval(ex)
+                @test ds isa JuliaHub.Dataset
+                @test ds == datasets[1]
+                @test ds != datasets[2]
+            end
+            let datasets_eval = eval(Meta.parse(string(datasets)))
+                @test datasets_eval isa Vector{JuliaHub.Dataset}
+                @test length(datasets_eval) == length(datasets)
+                @test datasets_eval == datasets
+            end
+        end
     end
 end
 
