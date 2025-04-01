@@ -13,6 +13,7 @@ precompile(JuliaHub.jobs, ())
 precompile(JuliaHub.job, (Job,))
 precompile(JuliaHub.job, (String,))
 
+precompile(JuliaHub.nodespecs, ())
 precompile(JuliaHub.batchimages, ())
 precompile(JuliaHub.batchimages, (String,))
 precompile(JuliaHub.appbundle, (String,))
