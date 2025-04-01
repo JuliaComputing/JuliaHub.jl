@@ -62,4 +62,6 @@ macro _mark_names_public()
 end
 @_mark_names_public
 
+include("precompile.jl")
+
 end
