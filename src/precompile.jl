@@ -7,7 +7,7 @@ precompile(JuliaHub.datasets, ())
 precompile(JuliaHub.datasets, (String,))
 precompile(JuliaHub.dataset, (Dataset,))
 precompile(JuliaHub.dataset, (String,))
-precompile(JuliaHub.dataset, (Tuple{String,String},))
+precompile(JuliaHub.dataset, (Tuple{String, String},))
 
 precompile(JuliaHub.jobs, ())
 precompile(JuliaHub.job, (Job,))
