@@ -19,6 +19,7 @@ precompile(JuliaHub.batchimages, (String,))
 precompile(JuliaHub.appbundle, (String,))
 precompile(JuliaHub.appbundle, (String, String))
 precompile(JuliaHub.submit_job, (WorkloadConfig,))
+precompile(JuliaHub.submit_job, (BatchJob,))
 
 # Precompile the basic show() methods for all public types
 for sym in JuliaHub._find_public_names()
