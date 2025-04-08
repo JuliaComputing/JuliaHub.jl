@@ -150,9 +150,9 @@ JuliaHub.Authentication("https://juliahub.com", "username", *****; project_id = 
 
 julia> JuliaHub.project_datasets()
 3-element Vector{JuliaHub.Dataset}:
- JuliaHub.project_dataset(("username", "example-dataset"); project=cd6c9ee3-d15f-414f-a762-7e1d3faed835)
- JuliaHub.project_dataset(("anotheruser", "publicdataset"); project=cd6c9ee3-d15f-414f-a762-7e1d3faed835)
- JuliaHub.project_dataset(("username", "blobtree/example"); project=cd6c9ee3-d15f-414f-a762-7e1d3faed835)
+ JuliaHub.project_dataset(("username", "example-dataset"); project="cd6c9ee3-d15f-414f-a762-7e1d3faed835")
+ JuliaHub.project_dataset(("anotheruser", "publicdataset"); project="cd6c9ee3-d15f-414f-a762-7e1d3faed835")
+ JuliaHub.project_dataset(("username", "blobtree/example"); project="cd6c9ee3-d15f-414f-a762-7e1d3faed835")
 ```
 """
 function project_datasets(
