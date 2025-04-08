@@ -215,7 +215,7 @@ This can be set by passing the optional `project` argument, which works as follo
 - If you pass an explicit UUID (either as a string or an `UUID` object), that will then be used
   as the project. Note that a UUID passed as a string must be a syntactically correct UUID.
 
-- If you pass `nothing`, that make JuliaHub.jl ignore any values in the `JULIAHUB_PROJECT_UUID`
+- Passing `nothing` makes JuliaHub.jl ignore any values in the `JULIAHUB_PROJECT_UUID`
   environment variable.
 
 !!! note "JULIAHUB_PROJECT_UUID"
