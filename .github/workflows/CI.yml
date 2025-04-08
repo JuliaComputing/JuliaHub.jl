@@ -22,10 +22,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Run the CI on: lowest supported, LTS, latest, and nightly.
+        # Note that we can't run too many parallel CI jobs, since the live
+        # tests will run into the platform job limit.
         version:
           - "1.6"
-          - "1.8"
-          - "1.9"
+          - "1.10"
+          - "1"
           - "nightly"
         os:
           - ubuntu-latest
