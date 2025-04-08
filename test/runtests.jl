@@ -39,6 +39,9 @@ function extra_enabled_live_tests(; print_info=false)
     if get(ENV, "JULIAHUBJL_LIVE_EXPOSED_PORT_TESTS", "") == "true"
         push!(testnames, "jobs-exposed-port")
     end
+    if get(ENV, "JULIAHUBJL_LIVE_PROJECTS_TESTS", "") == "true"
+        push!(testnames, "datasets-projects")
+    end
     if print_info && !isempty(testnames)
         testname_list = join(string.(" - ", testnames), '\n')
         @info """
@@ -93,6 +96,12 @@ function list_datasets_prefix(prefix, args...; kwargs...)
 end
 
 @testset "JuliaHub.jl" begin
+    # JuliaHub.jl's behavior can be influenced by these two environment
+    # variables, so we explicitly unset them, just in case, to ensure that the
+    # tests run consistently.
+    delete!(ENV, "JULIA_PKG_SERVER")
+    delete!(ENV, "JULIAHUB_PROJECT_UUID")
+
     # Just to make sure the logic within is_enabled() is correct.
     @testset "is_enabled" begin
         # We need to unset the environment variables read by extra_enabled_live_tests()
@@ -183,7 +192,7 @@ end
             :DefaultApp, :FileHash, :InvalidAuthentication, :InvalidRequestError, :Job,
             :WorkloadConfig, :JobFile, :JobLogMessage, :JobReference, :JobStatus,
             :JuliaHubConnectionError, :JuliaHubError,
-            :JuliaHubException,
+            :JuliaHubException, :InvalidJuliaHubVersion,
             :Limit, :NodeSpec, :PackageApp, :PackageJob, :Unlimited,
             :PermissionError, :script, :Secret, :UserApp,
             :application, :applications, :authenticate,
@@ -198,6 +207,8 @@ end
             :nodespec, :nodespecs, :reauthenticate!, :submit_job,
             :update_dataset, :upload_dataset, :wait_job,
             :request,
+            :ProjectReference, :ProjectNotSetError, :DatasetProjectLink,
+            :project_dataset, :project_datasets, :upload_project_dataset,
         ])
         extra_public_symbols = setdiff(public_symbols, expected_public_symbols)
         isempty(extra_public_symbols) || @warn """
@@ -242,6 +253,9 @@ end
     end
     @testset "Jobs" begin
         include("jobs.jl")
+    end
+    @testset "Projects" begin
+        include("projects.jl")
     end
     @testset "_PackageBundler" begin
         include("packagebundler.jl")

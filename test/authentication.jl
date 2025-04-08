@@ -1,28 +1,69 @@
+@testset "_juliahub_project" begin
+    uuid1 = "80c74bbd-fd5a-4f99-a647-0eec08183ed4"
+    uuid2 = "24d0f8a7-4c3f-4168-aef4-e49248f3cb40"
+    withenv("JULIAHUB_PROJECT_UUID" => nothing) do
+        @test JuliaHub._juliahub_project(uuid1) == UUIDs.UUID(uuid1)
+        @test_throws ArgumentError JuliaHub._juliahub_project("invalid")
+        @test JuliaHub._juliahub_project(nothing) === nothing
+        @test JuliaHub._juliahub_project(missing) === nothing
+    end
+    withenv("JULIAHUB_PROJECT_UUID" => uuid1) do
+        @test JuliaHub._juliahub_project(uuid2) == UUIDs.UUID(uuid2)
+        @test_throws ArgumentError JuliaHub._juliahub_project("invalid")
+        @test JuliaHub._juliahub_project(nothing) === nothing
+        @test JuliaHub._juliahub_project(missing) === UUIDs.UUID(uuid1)
+    end
+end
+
 @testset "JuliaHub.authenticate()" begin
     empty!(MOCK_JULIAHUB_STATE)
     Mocking.apply(mocking_patch) do
-        withenv("JULIA_PKG_SERVER" => nothing) do
+        withenv("JULIA_PKG_SERVER" => nothing, "JULIAHUB_PROJECT_UUID" => nothing) do
             @test_throws JuliaHub.AuthenticationError JuliaHub.authenticate()
             @test JuliaHub.authenticate("https://juliahub.example.org") isa JuliaHub.Authentication
             @test JuliaHub.authenticate("juliahub.example.org") isa JuliaHub.Authentication
         end
-        withenv("JULIA_PKG_SERVER" => "juliahub.example.org") do
+        withenv("JULIA_PKG_SERVER" => "juliahub.example.org", "JULIAHUB_PROJECT_UUID" => nothing) do
             @test JuliaHub.authenticate() isa JuliaHub.Authentication
         end
-        withenv("JULIA_PKG_SERVER" => "https://juliahub.example.org") do
+        withenv(
+            "JULIA_PKG_SERVER" => "https://juliahub.example.org", "JULIAHUB_PROJECT_UUID" => nothing
+        ) do
             @test JuliaHub.authenticate() isa JuliaHub.Authentication
         end
-        # Conflicting declarations, argument takes precendence
-        withenv("JULIA_PKG_SERVER" => "https://juliahub-one.example.org") do
+        # Conflicting declarations, explicit argument takes precedence
+        withenv(
+            "JULIA_PKG_SERVER" => "https://juliahub-one.example.org",
+            "JULIAHUB_PROJECT_UUID" => nothing,
+        ) do
             auth = JuliaHub.authenticate("https://juliahub-two.example.org")
             @test auth isa JuliaHub.Authentication
             @test auth.server == URIs.URI("https://juliahub-two.example.org")
+            @test auth.project_id === nothing
             # check_authentication
             MOCK_JULIAHUB_STATE[:invalid_authentication] = false
             @test JuliaHub.check_authentication(; auth) === true
             MOCK_JULIAHUB_STATE[:invalid_authentication] = true
             @test JuliaHub.check_authentication(; auth) === false
             delete!(MOCK_JULIAHUB_STATE, :invalid_authentication)
+        end
+
+        # Projects integration
+        uuid1 = "80c74bbd-fd5a-4f99-a647-0eec08183ed4"
+        uuid2 = "24d0f8a7-4c3f-4168-aef4-e49248f3cb40"
+        withenv(
+            "JULIA_PKG_SERVER" => nothing,
+            "JULIAHUB_PROJECT_UUID" => uuid1,
+        ) do
+            auth = JuliaHub.authenticate("https://juliahub.example.org")
+            @test auth.server == URIs.URI("https://juliahub.example.org")
+            @test auth.project_id === UUIDs.UUID(uuid1)
+            auth = JuliaHub.authenticate("https://juliahub.example.org"; project=uuid2)
+            @test auth.server == URIs.URI("https://juliahub.example.org")
+            @test auth.project_id === UUIDs.UUID(uuid2)
+            auth = JuliaHub.authenticate("https://juliahub.example.org"; project=nothing)
+            @test auth.server == URIs.URI("https://juliahub.example.org")
+            @test auth.project_id === nothing
         end
     end
 end
@@ -140,6 +181,25 @@ end
             @test a._api_version == v"0.0.1"
             @test a._email === nothing
             @test a._expires === nothing
+        end
+        # Projects integration
+        # The JuliaHub.authenticate(server, token) method also takes the `project`
+        # keyword, and also falls back to the JULIAHUB_PROJECT_UUID.
+        uuid1 = "80c74bbd-fd5a-4f99-a647-0eec08183ed4"
+        uuid2 = "24d0f8a7-4c3f-4168-aef4-e49248f3cb40"
+        withenv(
+            "JULIA_PKG_SERVER" => nothing,
+            "JULIAHUB_PROJECT_UUID" => uuid1,
+        ) do
+            auth = JuliaHub.authenticate(server, token)
+            @test auth.server == URIs.URI("https://juliahub.example.org")
+            @test auth.project_id === UUIDs.UUID(uuid1)
+            auth = JuliaHub.authenticate(server, token; project=uuid2)
+            @test auth.server == URIs.URI("https://juliahub.example.org")
+            @test auth.project_id === UUIDs.UUID(uuid2)
+            auth = JuliaHub.authenticate(server, token; project=nothing)
+            @test auth.server == URIs.URI("https://juliahub.example.org")
+            @test auth.project_id === nothing
         end
         # On old instances, we handle if /api/v1 404s
         MOCK_JULIAHUB_STATE[:auth_v1_status] = 404

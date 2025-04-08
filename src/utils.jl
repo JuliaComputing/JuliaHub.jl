@@ -94,6 +94,25 @@ function Base.showerror(io::IO, e::PermissionError)
     isnothing(e.response) || print(io, '\n', e.response)
 end
 
+"""
+    struct InvalidJuliaHubVersion <: JuliaHubException
+
+Thrown if the requested operation is not supported by the JuliaHub instance.
+`.msg` contains a more detailed error message.
+
+!!! tip
+
+    This generally means that the functionality you are attempting to use requires a
+    newer JuliaHub version.
+"""
+struct InvalidJuliaHubVersion <: JuliaHubException
+    msg::String
+end
+
+function Base.showerror(io::IO, e::InvalidJuliaHubVersion)
+    print(io, "InvalidJuliaHubVersion: $(e.msg)")
+end
+
 _takebody!(r::HTTP.Response)::Vector{UInt8} = isa(r.body, IO) ? take!(r.body) : r.body
 _takebody!(r::HTTP.Response, ::Type{T}) where {T} = T(_takebody!(r))
 

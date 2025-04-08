@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+* With JuliaHub instances v6.9 and above, JuliaHub.jl now supports project-dataset operations. ([#15], [#82])
+
+  This includes the following new features:
+
+  - Authentication objects can now be associated with projects.
+    If the `JULIAHUB_PROJECT_UUID` environment variable is set, JuliaHub.jl will pick it up automatically..
+  - The `project_dataset` and `project_datasets` functions allow for listing datasets attached to a project.
+  - `upload_project_dataset` can be used to upload a new version of a dataset.
+
 * All the public API names are now correctly marked `public` in Julia 1.11 and above. ([#83])
 
 ### Changed
@@ -134,6 +143,7 @@ Initial package release.
 [#12]: https://github.com/JuliaComputing/JuliaHub.jl/issues/12
 [#13]: https://github.com/JuliaComputing/JuliaHub.jl/issues/13
 [#14]: https://github.com/JuliaComputing/JuliaHub.jl/issues/14
+[#15]: https://github.com/JuliaComputing/JuliaHub.jl/issues/15
 [#18]: https://github.com/JuliaComputing/JuliaHub.jl/issues/18
 [#28]: https://github.com/JuliaComputing/JuliaHub.jl/issues/28
 [#31]: https://github.com/JuliaComputing/JuliaHub.jl/issues/31
@@ -150,6 +160,7 @@ Initial package release.
 [#53]: https://github.com/JuliaComputing/JuliaHub.jl/issues/53
 [#58]: https://github.com/JuliaComputing/JuliaHub.jl/issues/58
 [#74]: https://github.com/JuliaComputing/JuliaHub.jl/issues/74
+[#82]: https://github.com/JuliaComputing/JuliaHub.jl/issues/82
 [#83]: https://github.com/JuliaComputing/JuliaHub.jl/issues/83
 [#84]: https://github.com/JuliaComputing/JuliaHub.jl/issues/84
 [#86]: https://github.com/JuliaComputing/JuliaHub.jl/issues/86
