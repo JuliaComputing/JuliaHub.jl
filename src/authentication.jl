@@ -267,7 +267,7 @@ function authenticate end
 
 function authenticate(
     server::AbstractString, token::Union{AbstractString, Secret};
-    project::Union{AbstractString, UUIDs.UUID, Nothing, Missing}=missing,
+    project::Union{AbstractString, UUIDs.UUID, Nothing}=_juliahub_project(missing),
 )
     auth = try
         auth = _authentication(
@@ -288,7 +288,7 @@ function authenticate(
     force::Bool=false,
     maxcount::Integer=_DEFAULT_authenticate_maxcount,
     hook::Union{Base.Callable, Nothing}=nothing,
-    project::Union{AbstractString, UUIDs.UUID, Nothing, Missing}=missing,
+    project::Union{AbstractString, UUIDs.UUID, Nothing}=_juliahub_project(missing),
 )
     maxcount >= 1 || throw(ArgumentError("maxcount must be >= 1, got '$maxcount'"))
     if !isnothing(hook) && !hasmethod(hook, Tuple{AbstractString})
