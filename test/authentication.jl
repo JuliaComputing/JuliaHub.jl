@@ -7,11 +7,24 @@
         @test JuliaHub._juliahub_project(nothing) === nothing
         @test JuliaHub._juliahub_project(missing) === nothing
     end
+    withenv("JULIAHUB_PROJECT_UUID" => "") do
+        @test JuliaHub._juliahub_project(uuid1) == UUIDs.UUID(uuid1)
+        @test_throws ArgumentError JuliaHub._juliahub_project("invalid")
+        @test_throws ArgumentError JuliaHub._juliahub_project("")
+        @test JuliaHub._juliahub_project(nothing) === nothing
+        @test JuliaHub._juliahub_project(missing) === nothing
+    end
+    withenv("JULIAHUB_PROJECT_UUID" => "  ") do
+        @test JuliaHub._juliahub_project(missing) === nothing
+    end
     withenv("JULIAHUB_PROJECT_UUID" => uuid1) do
         @test JuliaHub._juliahub_project(uuid2) == UUIDs.UUID(uuid2)
         @test_throws ArgumentError JuliaHub._juliahub_project("invalid")
         @test JuliaHub._juliahub_project(nothing) === nothing
         @test JuliaHub._juliahub_project(missing) === UUIDs.UUID(uuid1)
+    end
+    withenv("JULIAHUB_PROJECT_UUID" => "  $(uuid1) ") do
+        @test JuliaHub._juliahub_project(missing) == UUIDs.UUID(uuid1)
     end
 end
 
