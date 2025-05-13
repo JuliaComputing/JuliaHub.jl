@@ -1,3 +1,10 @@
+# # LIMITATIONS ON EXTERNAL USE: external users are only allowed to depend
+# # on certain fields exposed in this query. No backwards compatibility
+# # guarantees are made for the fields marked "DISALLOWED".
+#
+# external_query = true
+# roles = ["default"]
+
 query UserInfo {
   users(limit: 1) {
     id
@@ -6,6 +13,8 @@ query UserInfo {
     emails {
       email
     }
+    # DISALLOWED: .features is disallowed for external users
+    # No guarantees are made about the contents or validity of this field.
     features: user_feature_maps {
       feature {
         name
@@ -13,6 +22,8 @@ query UserInfo {
         product_id
       }
     }
+    # DISALLOWED: .get_started_viewed is disallowed for external users
+    # No guarantees are made about the contents or validity of this field.
     get_started_viewed
     groups: user_groups(where: { _not: { is_deleted: { _eq: true } } }) {
       id: group_id
@@ -30,9 +41,13 @@ query UserInfo {
       }
     }
     accepted_tos
+    # DISALLOWED: .accepted_tos_time is disallowed for external users
+    # No guarantees are made about the contents or validity of this field.
     accepted_tos_time
     survey_submitted_time
   }
+  # DISALLOWED: .features is disallowed for external users
+  # No guarantees are made about the contents or validity of this field.
   features(where: { public: { _eq: true } }) {
     id
     name
