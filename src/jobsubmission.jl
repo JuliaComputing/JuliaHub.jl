@@ -22,6 +22,7 @@ struct _JobSubmission1
     # Job image configuration
     product_name::Union{String, Nothing}
     image::Union{String, Nothing}
+    image_tag::Union{String, Nothing}
     image_sha256::Union{String, Nothing}
     sysimage_build::Union{String, Nothing}
     sysimage_manifest_sha::Union{String, Nothing}
@@ -56,6 +57,7 @@ struct _JobSubmission1
         # Job image configuration
         product_name::Union{AbstractString, Nothing}=nothing,
         image::Union{AbstractString, Nothing}=nothing,
+        image_tag::Union{AbstractString, Nothing}=nothing,
         image_sha256::Union{AbstractString, Nothing}=nothing,
         sysimage_build::Union{Bool, Nothing}=nothing,
         sysimage_manifest_sha::Union{AbstractString, Nothing}=nothing,
@@ -138,7 +140,8 @@ struct _JobSubmission1
             appbundle, appbundle_upload_info,
             registry_name, package_name, branch_name, git_revision,
             # Job image configuration
-            product_name, image, image_sha256, string(sysimage_build), sysimage_manifest_sha,
+            product_name, image, image_tag, image_sha256,
+            string(sysimage_build), sysimage_manifest_sha,
             # Compute configuration
             node_class, string(cpu),
             string(nworkers), _string_or_nothing(elastic), _string_or_nothing(min_workers_required),
@@ -1311,7 +1314,12 @@ function _job_submit_args(
             end
             batch.image._cpu_image_key
         end
-        (; product_name=batch.image.product, image)
+        (;
+            product_name=batch.image.product,
+            image,
+            image_tag=batch.image._image_tag,
+            image_sha256=batch.image._image_sha,
+        )
     else
         (;)
     end

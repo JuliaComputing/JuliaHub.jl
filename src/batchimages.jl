@@ -17,6 +17,8 @@ Base.@kwdef struct BatchImage
     image::String
     _cpu_image_key::Union{String, Nothing}
     _gpu_image_key::Union{String, Nothing}
+    _image_tag::Union{String, Nothing}
+    _image_sha::Union{String, Nothing}
     _is_product_default::Bool
     _interactive_product_name::Union{String, Nothing}
 end
@@ -34,6 +36,8 @@ function Base.show(io::IO, ::MIME"text/plain", image::BatchImage)
     print(io, '\n', " image: ", image.image)
     isnothing(image._cpu_image_key) || print(io, "\n CPU image: ", image._cpu_image_key)
     isnothing(image._gpu_image_key) || print(io, "\n GPU image: ", image._gpu_image_key)
+    isnothing(image._image_tag) || print(io, ":$(image._image_tag)")
+    isnothing(image._image_sha) || print(io, ":$(image._image_sha)")
     if !isnothing(image._interactive_product_name)
         print(io, "\n Features:")
         print(io, "\n  - Expose Port: ✓")
@@ -214,6 +218,8 @@ Base.@kwdef mutable struct _ImageKeys
     isdefault::Bool = false
     cpu::Union{String, Nothing} = nothing
     gpu::Union{String, Nothing} = nothing
+    tag::Union{String, Nothing} = nothing
+    sha::Union{String, Nothing} = nothing
 end
 
 function _group_images(images; image_group::AbstractString)
@@ -231,9 +237,13 @@ function _group_images(images; image_group::AbstractString)
         end
         image_key_name = _get_json(image, "image_key_name", String)
         display_name = _get_json(image, "display_name", String)
+        tag = _get_json_or(image, "image_tag", Union{String, Nothing})
+        sha = _get_json_or(image, "image_sha", Union{String, Nothing})
         image_type = _parse_image_group_entry_type(image)
         isnothing(image_type) && continue # invalid image type will return a nothing, which we will ignore
-        imagekeys = get!(grouped_images, display_name, _ImageKeys(; isdefault=image_type.isdefault))
+        imagekeys = get!(
+            grouped_images, display_name, _ImageKeys(; isdefault=image_type.isdefault, tag, sha)
+        )
         # If this image key set is already problematic, no point in checking further
         imagekeys.error && continue
         # We make sure that there are no conflicts with base- and option- image types
@@ -333,6 +343,8 @@ function _batchimages_62(auth::Authentication)
                 _gpu_image_key            = imagekey.gpu,
                 _is_product_default       = imagekey.isdefault,
                 _interactive_product_name = interactive_product_name,
+                _image_tag                = imagekey.tag,
+                _image_sha                = imagekey.sha,
             )
         end
     end
