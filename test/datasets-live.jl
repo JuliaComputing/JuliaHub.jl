@@ -1,31 +1,14 @@
 import HTTP, JSON, JuliaHub
-function _get_user_groups_rest(auth::JuliaHub.Authentication)
-    r = HTTP.get(
-        JuliaHub._url(auth, "user", "groups"),
-        JuliaHub._authheaders(auth),
-    )
-    r.status == 200 && return String.(JSON.parse(String(r.body)))
-    JuliaHub._throw_invalidresponse(r)
-end
-function _get_user_groups_gql(auth::JuliaHub.Authentication)
+function _get_user_groups(auth::JuliaHub.Authentication)::Vector{String}
     # Note: this query is newer than the one we use in src/userinfo.jl, and works
     # with newer JuliaHub versions, whereas the other one specifically works with
-    # older versions.
+    # older versions. This specific query has been tested with JuliaHub 6.8+
     userinfo_gql = read(joinpath(@__DIR__, "userInfo.gql"), String)
-    r = JuliaHub._gql_request(auth, userinfo_gql)
-    r.status == 200 || error("Invalid response from GQL ($(r.status))\n$(r.body)")
-    user = only(r.json["data"]["users"])
-    String[g["group"]["name"] for g in user["groups"]]
-end
-function _get_user_groups(auth::JuliaHub.Authentication)::Vector{String}
-    rest_exception = try
-        return _get_user_groups_rest(auth)
-    catch e
-        @debug "Failed to fetch user groups via REST API" exception = (e, catch_backtrace())
-        e, catch_backtrace()
-    end
     try
-        return _get_user_groups_gql(auth)
+        r = JuliaHub._gql_request(auth, userinfo_gql)
+        r.status == 200 || error("Invalid response from GQL ($(r.status))\n$(r.body)")
+        user = only(r.json["data"]["users"])
+        return String[g["group"]["name"] for g in user["groups"]]
     catch e
         @error "Unable to determine valid user groups"
         @error "> REST API failure" exception = rest_exception

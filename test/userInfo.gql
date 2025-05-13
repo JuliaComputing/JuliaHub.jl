@@ -6,7 +6,15 @@ query UserInfo {
     emails {
       email
     }
-    groups: user_groups {
+    features: user_feature_maps {
+      feature {
+        name
+        id
+        product_id
+      }
+    }
+    get_started_viewed
+    groups: user_groups(where: { _not: { is_deleted: { _eq: true } } }) {
       id: group_id
       group {
         name
@@ -22,6 +30,11 @@ query UserInfo {
       }
     }
     accepted_tos
+    accepted_tos_time
     survey_submitted_time
+  }
+  features(where: { public: { _eq: true } }) {
+    id
+    name
   }
 }
