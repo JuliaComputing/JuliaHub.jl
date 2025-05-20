@@ -1,8 +1,3 @@
-struct _Registry
-    uuid::UUIDs.UUID
-    name::String
-end
-
 function _parse_registry(registry_dict::Dict)
     name, uuid = try
         registry_dict["name"], tryparse(UUIDs.UUID, registry_dict["uuid"])
@@ -10,10 +5,18 @@ function _parse_registry(registry_dict::Dict)
         @error "Invalid registry value in API response" exception = (e, catch_backtrace())
         return nothing
     end
-    return _Registry(uuid, name)
+    return Experimental.Registry(uuid, name)
 end
 
-function _registries(auth)
+"""
+    JuliaHub.Experimental.registries() -> Vector{Experimental.Registry}
+
+Return the list of registries configured on the JuliaHub instance.
+
+$(Experimental._DOCS_EXPERIMENTAL_API)
+"""
+function Experimental.registries(auth::Authentication)
+    # NOTE: this API endpoint is not considered stable as of now
     r = _restcall(auth, :GET, ("app", "packages", "registries"), nothing)
     if r.status != 200 || !r.json["success"]
         throw(JuliaHubError("Invalid response from JuliaHub (code $(r.status))\n$(r.body)"))
@@ -22,9 +25,9 @@ function _registries(auth)
 end
 
 """
-    JuliaHub._register_package(
+    JuliaHub.Experimental.register_package(
         auth::Authentication,
-        registry::Union{AbstractString, _Registry},
+        registry::Union{AbstractString, Registry},
         repository_url::AbstractString;
         # Optional keyword arguments:
         [notes::AbstractString,]
@@ -43,20 +46,19 @@ using JuliaHub
 auth = JuliaHub.authenticate("juliahub.com")
 JuliaHub._registries(auth)
 
-r = JuliaHub._register_package(
+r = JuliaHub.Experimental.register_package(
     auth,
     "MyInternalRegistry",
     "https://github.com/MyUser/MyPackage.jl";
     notes = "This was initiated via JuliaHub.jl",
 )
+```
 
-!!! warning "Experimental API"
-
-    This API is not part of the public API and does not adhere to semantic versioning.
+$(Experimental._DOCS_EXPERIMENTAL_API)
 """
-function _register_package(
+function Experimental.register_package(
     auth::Authentication,
-    registry::Union{AbstractString, _Registry},
+    registry::Union{AbstractString, Experimental.Registry},
     repository_url::AbstractString;
     notes::Union{AbstractString, Nothing}=nothing,
     branch::Union{AbstractString, Nothing}=nothing,
@@ -76,12 +78,13 @@ function _register_package(
         git_server_type
     end
     # Interpret the registry argument
-    registry_name::String = if isa(registry, _Registry)
+    registry_name::String = if isa(registry, Experimental.Registry)
         registry.name
     else
         String(registry)
     end
-    # ...
+    # Do the package registration POST request.
+    # NOTE: this API endpoint is not considered stable as of now
     body = Dict(
         "requests" => [
             Dict(
@@ -136,6 +139,7 @@ struct _RegistrationStatus
 end
 
 function _registration_status(auth::Authentication, id::AbstractString)
+    # NOTE: this API endpoint is not considered stable as of now
     r = _restcall(
         auth,
         :POST,
