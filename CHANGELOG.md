@@ -2,6 +2,36 @@
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Version [v0.1.13] - 2025-04-28
+
+### Fixed
+
+* Setting `JULIAHUB_PROJECT_UUID` to an empty (or whitespace-only) string is now treated the same as unsetting it. ([#92])
+
+## Version [v0.1.12] - 2025-04-25
+
+### Added
+
+* With JuliaHub instances v6.9 and above, JuliaHub.jl now supports project-dataset operations. ([#15], [#82])
+
+  This includes the following new features:
+
+  - Authentication objects can now be associated with projects.
+    If the `JULIAHUB_PROJECT_UUID` environment variable is set, JuliaHub.jl will pick it up automatically..
+  - The `project_dataset` and `project_datasets` functions allow for listing datasets attached to a project.
+  - `upload_project_dataset` can be used to upload a new version of a dataset.
+
+* All the public API names are now correctly marked `public` in Julia 1.11 and above. ([#83])
+
+### Changed
+
+* The string `repr` of `DatasetVersion` (e.g. `dataset.versions`) is now valid Julia code. ([#84])
+* `JuliaHub.authenticate` will now fall back to force-authentication if the token in an existing `auth.toml` file is found to be invalid during authentication. ([#86])
+
+### Fixed
+
+* The `JuliaHub.update_dataset` function now correctly accepts the `license=(:fulltext, ...)` argument. ([#74])
+
 ## Version [v0.1.11] - 2024-06-27
 
 ### Added
@@ -110,6 +140,8 @@ Initial package release.
 [v0.1.9]: https://github.com/JuliaComputing/JuliaHub.jl/releases/tag/v0.1.9
 [v0.1.10]: https://github.com/JuliaComputing/JuliaHub.jl/releases/tag/v0.1.10
 [v0.1.11]: https://github.com/JuliaComputing/JuliaHub.jl/releases/tag/v0.1.11
+[v0.1.12]: https://github.com/JuliaComputing/JuliaHub.jl/releases/tag/v0.1.12
+[v0.1.13]: https://github.com/JuliaComputing/JuliaHub.jl/releases/tag/v0.1.13
 [#1]: https://github.com/JuliaComputing/JuliaHub.jl/issues/1
 [#2]: https://github.com/JuliaComputing/JuliaHub.jl/issues/2
 [#3]: https://github.com/JuliaComputing/JuliaHub.jl/issues/3
@@ -119,6 +151,7 @@ Initial package release.
 [#12]: https://github.com/JuliaComputing/JuliaHub.jl/issues/12
 [#13]: https://github.com/JuliaComputing/JuliaHub.jl/issues/13
 [#14]: https://github.com/JuliaComputing/JuliaHub.jl/issues/14
+[#15]: https://github.com/JuliaComputing/JuliaHub.jl/issues/15
 [#18]: https://github.com/JuliaComputing/JuliaHub.jl/issues/18
 [#28]: https://github.com/JuliaComputing/JuliaHub.jl/issues/28
 [#31]: https://github.com/JuliaComputing/JuliaHub.jl/issues/31
@@ -134,3 +167,9 @@ Initial package release.
 [#52]: https://github.com/JuliaComputing/JuliaHub.jl/issues/52
 [#53]: https://github.com/JuliaComputing/JuliaHub.jl/issues/53
 [#58]: https://github.com/JuliaComputing/JuliaHub.jl/issues/58
+[#74]: https://github.com/JuliaComputing/JuliaHub.jl/issues/74
+[#82]: https://github.com/JuliaComputing/JuliaHub.jl/issues/82
+[#83]: https://github.com/JuliaComputing/JuliaHub.jl/issues/83
+[#84]: https://github.com/JuliaComputing/JuliaHub.jl/issues/84
+[#86]: https://github.com/JuliaComputing/JuliaHub.jl/issues/86
+[#92]: https://github.com/JuliaComputing/JuliaHub.jl/issues/92

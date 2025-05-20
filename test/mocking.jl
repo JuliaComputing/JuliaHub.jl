@@ -23,10 +23,23 @@ end
 
 # Set up a mock authentication so that the __auth__() fallbacks would work and use this.
 const MOCK_USERNAME = "username"
-mockauth(server_uri) = JuliaHub.Authentication(
-    server_uri, JuliaHub._MISSING_API_VERSION, MOCK_USERNAME, JuliaHub.Secret("")
+function mockauth(
+    server_uri;
+    project_id::Union{UUIDs.UUID, Nothing},
+    api_version::VersionNumber,
+    kwargs...,
 )
-JuliaHub.__AUTH__[] = mockauth(URIs.URI("https://juliahub.com"))
+    JuliaHub.Authentication(
+        server_uri, api_version, MOCK_USERNAME, JuliaHub.Secret("");
+        project_id,
+    )
+end
+const DEFAULT_GLOBAL_MOCK_AUTH = mockauth(
+    URIs.URI("https://juliahub.com");
+    api_version=JuliaHub._MISSING_API_VERSION,
+    project_id=nothing,
+)
+JuliaHub.__AUTH__[] = DEFAULT_GLOBAL_MOCK_AUTH
 
 # The following Mocking.jl patches _rest_request, so the the rest calls would have fixed
 # reponses.
@@ -69,7 +82,12 @@ mocking_patch = [
     ),
     Mocking.@patch(
         function JuliaHub._authenticate(server_uri; kwargs...)
-            return mockauth(server_uri)
+            project_id = get(kwargs, :project_id, nothing)
+            return mockauth(
+                server_uri;
+                api_version=JuliaHub._MISSING_API_VERSION,
+                project_id,
+            )
         end
     ),
     Mocking.@patch(
@@ -135,7 +153,7 @@ const MOCK_JULIAHUB_DEFAULT_JOB_FILES = Any[
 function _restcall_mocked(method, url, headers, payload; query)
     GET_JOB_REGEX = r"api/rest/jobs/([a-z0-9-]+)"
     DATASET_REGEX = r"user/datasets/([A-Za-z0-9%-]+)"
-    DATASET_VERSIONS_REGEX = r"user/datasets/([A-Za-z0-9%-]+)/versions"
+    DATASET_VERSIONS_REGEX = r"(user/)?datasets/([A-Za-z0-9%-]+)/versions"
     # MOCK_JULIAHUB_STATE[:existing_datasets], if set, must be mutable (i.e. Vector), since
     # new dataset creation requests will push! to it.
     #
@@ -332,83 +350,30 @@ function _restcall_mocked(method, url, headers, payload; query)
             Dict("message" => "", "success" => true) |> jsonresponse(200)
         end
     elseif (method == :GET) && endswith(url, "datasets")
-        dataset_params = get(MOCK_JULIAHUB_STATE, :dataset_params, Dict())
-        dataset_version_sizes = get(MOCK_JULIAHUB_STATE, :dataset_version_sizes, nothing)
-        zerotime = TimeZones.ZonedDateTime("2022-10-12T05:39:42.906+00:00")
-        versions_json =
-            dataset -> begin
-                version_sizes = something(
-                    dataset_version_sizes,
-                    (dataset == "example-dataset") ? [57, 331] : [57],
-                )
-                Dict(
-                    "version" => string("v", length(version_sizes)),
-                    "versions" => map(enumerate(version_sizes)) do (i, sz)
-                        Dict(
-                            "version" => i,
-                            "blobstore_path" => string("u", 2),
-                            "size" => sz,
-                            "date" => string(zerotime + Dates.Day(i) + Dates.Millisecond(sz)),
-                        )
-                    end,
-                    "size" => isempty(version_sizes) ? 0 : sum(version_sizes),
-                )
-            end
-        #! format: off
-        shared = Dict(
-            "groups" => Any[],
-                "storage" => Dict(
-                    "bucket_region" => "us-east-1",
-                    "bucket" => "datasets-bucket",
-                    "prefix" => "datasets",
-                    "vendor" => "aws",
+        # Note: query will be `nothing` if it's unset in _restcall, so we need
+        # to handle that case too.
+        project_uuid = get(something(query, (;)), :project, nothing)
+        datasets = Dict[]
+        for dataset_name in existing_datasets
+            d = _dataset_json(
+                dataset_name;
+                params=get(MOCK_JULIAHUB_STATE, :dataset_params, Dict()),
+                version_sizes=something(
+                    get(MOCK_JULIAHUB_STATE, :dataset_version_sizes, nothing),
+                    endswith(dataset_name, "/example-dataset") ? [57, 331] : [57],
                 ),
-                "description" => get(dataset_params, "description", "An example dataset"),
-                "tags" => get(dataset_params, "tags", ["tag1", "tag2"]),
-                "license" => (
-                    "name" => "MIT License",
-                    "spdx_id" => "MIT",
-                    "text" => nothing,
-                    "url" => "https://opensource.org/licenses/MIT",
-                ),
-                "lastModified" => "2022-10-12T05:39:42.906",
-                "downloadURL" => "",
-                "credentials_url" => "...",
-        )
-        #! format: on
-        datasets = []
-        for dataset_full_id in existing_datasets
-            username, dataset = split(dataset_full_id, '/'; limit=2)
-            push!(datasets,
-                Dict(
-                    "id" => string(uuidhash(dataset_full_id)),
-                    "name" => dataset,
-                    "owner" => Dict(
-                        "username" => username,
-                        "type" => "User",
-                    ),
-                    "type" => occursin("blobtree", dataset) ? "BlobTree" : "Blob",
-                    "visibility" => occursin("public", dataset) ? "public" : "private",
-                    versions_json(dataset)...,
-                    shared...,
-                ),
+                project_uuid,
             )
+            push!(datasets, d)
         end
-        for dataset in get(MOCK_JULIAHUB_STATE, :datasets_erroneous, String[])
-            push!(datasets,
-                Dict(
-                    "id" => string(uuidhash(dataset)),
-                    "name" => dataset,
-                    "owner" => Dict(
-                        "username" => nothing,
-                        "type" => "User",
-                    ),
-                    "type" => occursin("blobtree", dataset) ? "BlobTree" : "Blob",
-                    "visibility" => occursin("public", dataset) ? "public" : "private",
-                    versions_json(dataset)...,
-                    shared...,
-                ),
+        for dataset_name in get(MOCK_JULIAHUB_STATE, :datasets_erroneous, String[])
+            d = _dataset_json(
+                dataset_name;
+                version_sizes=(dataset_name == "example-dataset") ? [57, 331] : [57],
+                project_uuid,
             )
+            d["owner"]["username"] = nothing
+            push!(datasets, d)
         end
         datasets |> jsonresponse(200)
     elseif (method == :DELETE) && endswith(url, DATASET_REGEX)
@@ -447,9 +412,17 @@ function _restcall_mocked(method, url, headers, payload; query)
             Dict("repo_id" => string(UUIDs.uuid4())) |> jsonresponse(200)
         end
     elseif (method == :POST) && endswith(url, DATASET_VERSIONS_REGEX)
-        dataset = URIs.unescapeuri(match(DATASET_VERSIONS_REGEX, url)[1])
-        if isnothing(payload)
-            if "$(MOCK_USERNAME)/$(dataset)" in existing_datasets
+        dataset, is_user = let m = match(DATASET_VERSIONS_REGEX, url)
+            URIs.unescapeuri(m[2]), m[1] == "user/"
+        end
+        payload = JSON.parse(something(payload, "{}"))
+        if isempty(payload) || !haskey(payload, "action")
+            is_existing_dataset = if is_user
+                "$(MOCK_USERNAME)/$(dataset)" in existing_datasets
+            else
+                UUIDs.UUID(dataset) in uuidhash.(existing_datasets)
+            end
+            if is_existing_dataset
                 Dict{String, Any}(
                     "location" => Dict{String, Any}(
                         "bucket" => "",
@@ -471,9 +444,7 @@ function _restcall_mocked(method, url, headers, payload; query)
                 JuliaHub._RESTResponse(404, "Dataset $(dataset) does not exist")
             end
         else
-            payload = JSON.parse(payload)
             @assert payload["action"] == "close"
-            dataset = payload["name"]
             Dict{String, Any}(
                 "size_bytes" => 8124,
                 "dataset_id" => "c1488c3f-0910-4f73-9c40-14f3c7a8696b",
@@ -753,7 +724,7 @@ function _auth_apiv1_mocked()
     end
     d = Dict{String, Any}(
         "timezone" => Dict{String, Any}("abbreviation" => "Etc/UTC", "utc_offset" => "+00:00"),
-        "api_version" => "0.0.1",
+        "api_version" => get(MOCK_JULIAHUB_STATE, :auth_v1_api_version, "0.0.1"),
     )
     username = get(MOCK_JULIAHUB_STATE, :auth_v1_username, MOCK_USERNAME)
     if !isnothing(username)
@@ -775,4 +746,65 @@ function _http_request_mocked(
         "Content-Length" => "7",
     ]
     HTTP.Response(200, headers, b"success")
+end
+
+function _dataset_json(
+    dataset_name::AbstractString;
+    project_uuid=nothing,
+    params=Dict(),
+    version_sizes=[],
+)
+    zerotime = TimeZones.ZonedDateTime("2022-10-12T05:39:42.906+00:00")
+    username, dataset = string.(split(dataset_name, '/'; limit=2))
+    project = if !isnothing(project_uuid)
+        Dict{String, Any}(
+            "project" => Dict(
+                "project_id" => project_uuid,
+                "is_writable" => false,
+            ),
+        )
+    else
+        Dict{String, Any}()
+    end
+    return Dict{String, Any}(
+        "id" => string(uuidhash(dataset_name)),
+        "name" => dataset,
+        "owner" => Dict{String, Any}(
+            "username" => username,
+            "type" => "User",
+        ),
+        "type" => occursin("blobtree", dataset) ? "BlobTree" : "Blob",
+        "visibility" => occursin("public", dataset) ? "public" : "private",
+        # versions
+        "version" => string("v", length(version_sizes)),
+        "versions" => map(enumerate(version_sizes)) do (i, sz)
+            Dict{String, Any}(
+                "version" => i,
+                "blobstore_path" => string("u", 2),
+                "size" => sz,
+                "date" => string(zerotime + Dates.Day(i) + Dates.Millisecond(sz)),
+            )
+        end,
+        "size" => isempty(version_sizes) ? 0 : sum(version_sizes),
+        # shared
+        "groups" => Any[],
+        "storage" => Dict{String, Any}(
+            "bucket_region" => "us-east-1",
+            "bucket" => "datasets-bucket",
+            "prefix" => "datasets",
+            "vendor" => "aws",
+        ),
+        "description" => get(params, "description", "An example dataset"),
+        "tags" => get(params, "tags", ["tag1", "tag2"]),
+        "license" => (
+            "name" => "MIT License",
+            "spdx_id" => "MIT",
+            "text" => nothing,
+            "url" => "https://opensource.org/licenses/MIT",
+        ),
+        "lastModified" => "2022-10-12T05:39:42.906",
+        "downloadURL" => "",
+        "credentials_url" => "...",
+        project...,
+    )
 end

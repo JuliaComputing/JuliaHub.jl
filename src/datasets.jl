@@ -2,8 +2,9 @@ const _DOCS_nondynamic_datasets_object_warning = """
 !!! warning "Non-dynamic dataset objects"
 
     [`Dataset`](@ref) objects represents the dataset metadata when the Julia object was created
-    (e.g. with [`dataset`](@ref)), and are not automatically kept up to date. To refresh the dataset
-    metadata, you can pass the existing [`Dataset`](@ref) to [`JuliaHub.dataset`](@ref).
+    (e.g. with [`dataset`](@ref)), and are not automatically kept up to date.
+    To refresh the dataset metadata, you can pass an existing [`Dataset`](@ref) object
+    to [`JuliaHub.dataset`](@ref) or [`project_dataset`](@ref).
 """
 
 Base.@kwdef struct _DatasetStorage
@@ -25,8 +26,25 @@ Objects have the following properties:
 - `.size :: Int`: size of the dataset version in bytes
 - `.timestamp :: ZonedDateTime`: dataset version timestamp
 
-```
-julia> JuliaHub.datasets()
+```jldoctest
+julia> dataset = JuliaHub.dataset("example-dataset")
+Dataset: example-dataset (Blob)
+ owner: username
+ description: An example dataset
+ versions: 2
+ size: 388 bytes
+ tags: tag1, tag2
+
+julia> dataset.versions
+2-element Vector{JuliaHub.DatasetVersion}:
+ JuliaHub.dataset(("username", "example-dataset")).versions[1]
+ JuliaHub.dataset(("username", "example-dataset")).versions[2]
+
+julia> dataset.versions[end]
+DatasetVersion: example-dataset @ v2
+ owner: username
+ timestamp: 2022-10-14T01:39:43.237-04:00
+ size: 331 bytes
 ```
 
 See also: [`Dataset`](@ref), [`datasets`](@ref), [`dataset`](@ref).
@@ -46,21 +64,17 @@ struct DatasetVersion
         size = _get_json(json, "size", Int; msg)
         timestamp = _parse_tz(_get_json(json, "date", String; msg); msg)
         blobstore_path = _get_json(json, "blobstore_path", String; msg)
-        new((owner, name), version, size, timestamp, blobstore_path)
+        return new((owner, name), version, size, timestamp, blobstore_path)
     end
 end
 
 function Base.show(io::IO, dsv::DatasetVersion)
     owner, name = dsv._dsref
-    print(
-        io,
-        "JuliaHub.DatasetVersion(dataset = (\"",
-        owner,
-        "\", \"",
-        name,
-        "\"), version = $(dsv.id))",
-    )
+    dsref = string("(\"", owner, "\", \"", name, "\")")
+    print(io, "JuliaHub.dataset($dsref).versions[$(dsv.id)]")
+    return nothing
 end
+
 function Base.show(io::IO, ::MIME"text/plain", dsv::DatasetVersion)
     owner, name = dsv._dsref
     printstyled(io, "DatasetVersion:"; bold=true)
@@ -68,6 +82,26 @@ function Base.show(io::IO, ::MIME"text/plain", dsv::DatasetVersion)
     print(io, "\n owner: ", owner)
     print(io, "\n timestamp: ", dsv.timestamp)
     print(io, "\n size: ", dsv.size, " bytes")
+    return nothing
+end
+
+"""
+    struct DatasetProjectLink
+
+Holds the project-dataset link metadata for datasets that were accessed via a project
+(e.g. when using [`project_datasets`](@ref)).
+
+- `.uuid :: UUID`: the UUID of the project
+- `.is_writable :: Bool`: whether the user has write access to the dataset via the
+  this project
+
+See also: [`project_dataset`](@ref), [`project_datasets`](@ref), [`upload_project_dataset`](@ref).
+
+$(_DOCS_no_constructors_admonition)
+"""
+struct DatasetProjectLink
+    uuid::UUIDs.UUID
+    is_writable::Bool
 end
 
 """
@@ -86,6 +120,13 @@ public API:
 - Fields to access user-provided dataset metadata:
   - `description :: String`: dataset description
   - `tags :: Vector{String}`: a list of tags
+- If the dataset was accessed via a project (e.g. via [`project_datasets`](@ref)), `.project` will
+  contain project metadata (see also: [`DatasetProjectLink`](@ref)). Otherwise this field is `nothing`.
+  - `project.uuid`: the UUID of the project
+  - `project.is_writable`: whether the user has write access to the dataset via the
+    this project
+  Note that two `Dataset` objects are considered to be equal (i.e. `==`) regardless of the `.project`
+  value -- it references the same dataset regardless of the project it was accessed in.
 
 !!! note "Canonical fully qualified dataset name"
 
@@ -107,6 +148,7 @@ Base.@kwdef struct Dataset
     # User-set metadata
     description::String
     tags::Vector{String}
+    project::Union{DatasetProjectLink, Nothing}
     # Additional metadata, but not part of public API
     _last_modified::Union{Nothing, TimeZones.ZonedDateTime}
     _downloadURL::String
@@ -116,38 +158,77 @@ Base.@kwdef struct Dataset
     _json::Dict
 end
 
-function Dataset(d::Dict)
-    owner = d["owner"]["username"]
-    name = d["name"]
+function Dataset(d::Dict; expected_project::Union{UUID, Nothing}=nothing)
+    owner = _get_json(
+        _get_json(d, "owner", Dict),
+        "username", String,
+    )
+    name = _get_json(d, "name", AbstractString)
     versions_json = _get_json_or(d, "versions", Vector, [])
-    versions = sort([DatasetVersion(json; owner, name) for json in versions_json]; by=dsv -> dsv.id)
-    Dataset(;
-        uuid=UUIDs.UUID(d["id"]),
+    versions = sort(
+        [DatasetVersion(json; owner, name) for json in versions_json];
+        by=dsv -> dsv.id,
+    )
+    _storage = let storage_json = _get_json(d, "storage", Dict)
+        _DatasetStorage(;
+            credentials_url=_get_json(d, "credentials_url", AbstractString),
+            region=_get_json(storage_json, "bucket_region", AbstractString),
+            bucket=_get_json(storage_json, "bucket", AbstractString),
+            prefix=_get_json(storage_json, "prefix", AbstractString),
+        )
+    end
+    project = if !isnothing(expected_project)
+        project_json = _get_json(d, "project", Dict)
+        project_json_uuid = UUIDs.UUID(
+            _get_json(project_json, "project_id", String)
+        )
+        if project_json_uuid != expected_project
+            msg = "Project UUID mismatch in dataset response: $(project_json_uuid), requested $(project)"
+            throw(JuliaHubError(msg))
+        end
+        is_writable = _get_json(
+            project_json,
+            "is_writable",
+            Bool;
+            msg="Unable to parse .project in /datasets?project response",
+        )
+        DatasetProjectLink(project_json_uuid, is_writable)
+    else
+        nothing
+    end
+    return Dataset(;
+        uuid=_get_json_convert(d, "id", UUIDs.UUID),
         name, owner, versions,
-        dtype=d["type"],
-        description=d["description"],
-        size=d["size"],
-        tags=d["tags"],
-        _downloadURL=d["downloadURL"],
-        _last_modified=_nothing_or(d["lastModified"]) do last_modified
+        dtype=_get_json(d, "type", AbstractString),
+        description=_get_json(d, "description", AbstractString),
+        size=_get_json(d, "size", Integer),
+        tags=_get_json(d, "tags", Vector),
+        project,
+        _downloadURL=_get_json(d, "downloadURL", AbstractString),
+        _last_modified=_nothing_or(_get_json(d, "lastModified", AbstractString)) do last_modified
             datetime_utc = Dates.DateTime(
                 last_modified, Dates.dateformat"YYYY-mm-ddTHH:MM:SS.ss"
             )
             _utc2localtz(datetime_utc)
         end,
-        _storage=_DatasetStorage(;
-            credentials_url=d["credentials_url"],
-            region=d["storage"]["bucket_region"],
-            bucket=d["storage"]["bucket"],
-            prefix=d["storage"]["prefix"],
-        ),
+        _storage,
         _json=d,
     )
 end
 
-function Base.show(io::IO, d::Dataset)
-    print(io, "JuliaHub.dataset((\"", d.owner, "\", \"", d.name, "\"))")
+function Base.propertynames(::Dataset)
+    return (:owner, :name, :uuid, :dtype, :size, :versions, :description, :tags, :project)
 end
+
+function Base.show(io::IO, d::Dataset)
+    dsref = string("(\"", d.owner, "\", \"", d.name, "\")")
+    if isnothing(d.project)
+        print(io, "JuliaHub.dataset(", dsref, ")")
+    else
+        print(io, "JuliaHub.project_dataset(", dsref, "; project=\"", d.project.uuid, "\")")
+    end
+end
+
 function Base.show(io::IO, ::MIME"text/plain", d::Dataset)
     printstyled(io, "Dataset:"; bold=true)
     print(io, " ", d.name, " (", d.dtype, ")")
@@ -156,6 +237,13 @@ function Base.show(io::IO, ::MIME"text/plain", d::Dataset)
     print(io, "\n versions: ", length(d.versions))
     print(io, "\n size: ", d.size, " bytes")
     isempty(d.tags) || print(io, "\n tags: ", join(d.tags, ", "))
+    if !isnothing(d.project)
+        print(
+            io,
+            "\n project: ", d.project.uuid, " ",
+            d.project.is_writable ? "(writable)" : "(not writable)",
+        )
+    end
 end
 
 function Base.:(==)(d1::Dataset, d2::Dataset)
@@ -320,6 +408,15 @@ function datasets(
             JuliaHubError("Error while retrieving datasets from the server", e, catch_backtrace())
         )
     end
+    # Note: unless `shared` is `true`, we filter down to the datasets owned by `username`.
+    return _parse_dataset_list(datasets; username=shared ? nothing : username)
+end
+
+function _parse_dataset_list(
+    datasets::Vector;
+    username::Union{AbstractString, Nothing}=nothing,
+    expected_project::Union{UUIDs.UUID, Nothing}=nothing,
+)::Vector{Dataset}
     # It might happen that some of the elements of the `datasets` array can not be parsed for some reason,
     # and the Dataset() constructor will throw. Rather than having `datasets` throw an error (as we would
     # normally do for invalid backend responses), in this case we handle the situation more gracefully,
@@ -331,12 +428,16 @@ function datasets(
     datasets = map(datasets) do dataset
         try
             # We also use the `nothing` method for filtering out datasets that are not owned by the
-            # current `username` if `shared = false`.
-            if !shared && (dataset["owner"]["username"] != username)
+            # current `username`. If `username = nothing`, no filtering is done.
+            if !isnothing(username) && (dataset["owner"]["username"] != username)
                 return nothing
             end
-            return Dataset(dataset)
+            return Dataset(dataset; expected_project)
         catch e
+            # If Dataset() fails due to some unexpected value in one of the dataset JSON objects that
+            # JuliaHub.jl can not handle, it should only throw a JuliaHubError. So we rethrow on other
+            # error types, as filtering all of them out could potentially hide JuliaHub.jl bugs.
+            isa(e, JuliaHubError) || rethrow()
             @debug "Invalid dataset in GET /datasets response" dataset exception = (
                 e, catch_backtrace()
             )
@@ -465,9 +566,15 @@ const _DOCS_datasets_metadata_fields = """
 * `description`: description of the dataset (a string)
 * `tags`: an iterable of strings of all the tags of the dataset
 * `visibility`: a string with possible values `public` or `private`
-* `license`: a valid SPDX license identifier, or a tuple `(:fulltext, license_text)`, where
-  `license_text` is the full text string of a custom license
+* `license`: a valid SPDX license identifier (as a string or in a
+  `(:spdx, licence_identifier)` tuple), or a tuple `(:fulltext, license_text)`,
+  where `license_text` is the full text string of a custom license
 * `groups`: an iterable of valid group names
+
+!!! compat "JuliaHub.jl v0.1.12"
+
+    The `license = (:fulltext, ...)` form requires v0.1.12, and `license = (:text, ...)`
+    is deprecated since that version.
 """
 
 """
@@ -576,7 +683,7 @@ function upload_dataset end
     #
     # Acquire an upload for the dataset. By this point, the dataset with this name
     # should definitely exist, although race conditions are always a possibility.
-    r = _open_dataset_version(dataset_name; auth)
+    r = _open_dataset_version(auth, dataset_name)
     if (r.status == 404) && !create
         # A non-existent dataset if create=false indicates a user error.
         throw(
@@ -588,23 +695,7 @@ function upload_dataset end
         # Any other 404 or other non-200 response indicates a backend failure
         _throw_invalidresponse(r)
     end
-    upload_config, _ = _parse_response_json(r, Dict)
-    # Verify that the dtype of the remote dataset is what we expect it to be.
-    if upload_config["dataset_type"] != dtype
-        if newly_created_dataset
-            # If we just created the dataset, then there has been some strange error if dtypes
-            # do not match.
-            throw(JuliaHubError("Dataset types do not match."))
-        else
-            # Otherwise, it's a user error (i.e. they are trying to update dataset with the wrong
-            # dtype).
-            throw(
-                InvalidRequestError(
-                    "Local data type ($dtype) does not match existing dataset dtype $(upload_config["dataset_type"])"
-                ),
-            )
-        end
-    end
+    upload_config = _check_dataset_upload_config(r, dtype; newly_created_dataset)
     # Upload the actual data
     try
         _upload_dataset(upload_config, local_path; progress)
@@ -614,7 +705,7 @@ function upload_dataset end
     # Finalize the upload
     try
         # _close_dataset_version will also throw on non-200 responses
-        _close_dataset_version(dataset_name, upload_config; local_path, auth)
+        _close_dataset_version(auth, dataset_name, upload_config; local_path)
     catch e
         throw(JuliaHubError("Finalizing upload failed", e, catch_backtrace()))
     end
@@ -627,6 +718,29 @@ function upload_dataset end
     end
     # If everything was successful, we'll return an updated DataSet object.
     return dataset((username, dataset_name); auth)
+end
+
+function _check_dataset_upload_config(
+    r::_RESTResponse, expected_dtype::AbstractString; newly_created_dataset::Bool
+)
+    upload_config, _ = _parse_response_json(r, Dict)
+    # Verify that the dtype of the remote dataset is what we expect it to be.
+    if upload_config["dataset_type"] != expected_dtype
+        if newly_created_dataset
+            # If we just created the dataset, then there has been some strange error if dtypes
+            # do not match.
+            throw(JuliaHubError("Dataset types do not match."))
+        else
+            # Otherwise, it's a user error (i.e. they are trying to update dataset with the wrong
+            # dtype).
+            throw(
+                InvalidRequestError(
+                    "Local data type ($expected_dtype) does not match existing dataset dtype $(upload_config["dataset_type"])"
+                ),
+            )
+        end
+    end
+    return upload_config
 end
 
 function _dataset_dtype(local_path::AbstractString)
@@ -678,7 +792,7 @@ function _new_dataset(
     )
 end
 
-function _open_dataset_version(name; auth::Authentication=__auth__())::_RESTResponse
+function _open_dataset_version(auth::Authentication, name::AbstractString)::_RESTResponse
     _restcall(auth, :POST, "user", "datasets", name, "versions")
 end
 
@@ -729,7 +843,7 @@ function _upload_dataset(upload_config, local_path; progress::Bool)
 end
 
 function _close_dataset_version(
-    name, upload_config; local_path=nothing, auth::Authentication=__auth__()
+    auth::Authentication, name, upload_config; local_path=nothing
 )::_RESTResponse
     body = Dict(
         "name" => name,
@@ -983,7 +1097,14 @@ function update_dataset end
         cmd, license_value = license
         params["license"] = if cmd == :spdx
             Dict("spdx_id" => license_value)
-        elseif cmd == :text
+        elseif cmd in (:fulltext, :text)
+            if cmd == :text
+                Base.depwarn(
+                    "Passing license=(:text, ...) is deprecated, use license=(:fulltext, ...) instead.",
+                    :update_dataset;
+                    force=true,
+                )
+            end
             Dict("text" => license_value)
         else
             throw(ArgumentError("Invalid license argument: $(cmd) ∉ [:spdx, :text]"))

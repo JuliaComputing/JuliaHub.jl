@@ -39,6 +39,9 @@ function extra_enabled_live_tests(; print_info=false)
     if get(ENV, "JULIAHUBJL_LIVE_EXPOSED_PORT_TESTS", "") == "true"
         push!(testnames, "jobs-exposed-port")
     end
+    if get(ENV, "JULIAHUBJL_LIVE_PROJECTS_TESTS", "") == "true"
+        push!(testnames, "datasets-projects")
+    end
     if print_info && !isempty(testnames)
         testname_list = join(string.(" - ", testnames), '\n')
         @info """
@@ -93,6 +96,12 @@ function list_datasets_prefix(prefix, args...; kwargs...)
 end
 
 @testset "JuliaHub.jl" begin
+    # JuliaHub.jl's behavior can be influenced by these two environment
+    # variables, so we explicitly unset them, just in case, to ensure that the
+    # tests run consistently.
+    delete!(ENV, "JULIA_PKG_SERVER")
+    delete!(ENV, "JULIAHUB_PROJECT_UUID")
+
     # Just to make sure the logic within is_enabled() is correct.
     @testset "is_enabled" begin
         # We need to unset the environment variables read by extra_enabled_live_tests()
@@ -173,19 +182,7 @@ end
     # This set tests that we haven't accidentally added or removed any public-looking
     # functions (i.e. ones that are not prefixed by _ basically).
     @testset "Public API" begin
-        public_symbols = Set(
-            filter(names(JuliaHub; all=true)) do s
-                # Internal functions and types, prefixed by _
-                startswith(string(s), "_") && return false
-                # Internal macros, prefixed by _
-                startswith(string(s), "@_") && return false
-                # Strange generated functions
-                startswith(string(s), "#") && return false
-                # Some core functions that are not relevant for the package
-                s in [:eval, :include] && return false
-                return true
-            end,
-        )
+        public_symbols = Set(JuliaHub._find_public_names())
         expected_public_symbols = Set([
             Symbol("@script_str"),
             :AbstractJobConfig, :AbstractJuliaHubApp,
@@ -194,8 +191,8 @@ end
             :Dataset, :DatasetReference, :DatasetVersion,
             :DefaultApp, :FileHash, :InvalidAuthentication, :InvalidRequestError, :Job,
             :WorkloadConfig, :JobFile, :JobLogMessage, :JobReference, :JobStatus,
-            :JuliaHub, :JuliaHubConnectionError, :JuliaHubError,
-            :JuliaHubException,
+            :JuliaHubConnectionError, :JuliaHubError,
+            :JuliaHubException, :InvalidJuliaHubVersion,
             :Limit, :NodeSpec, :PackageApp, :PackageJob, :Unlimited,
             :PermissionError, :script, :Secret, :UserApp,
             :application, :applications, :authenticate,
@@ -210,6 +207,8 @@ end
             :nodespec, :nodespecs, :reauthenticate!, :submit_job,
             :update_dataset, :upload_dataset, :wait_job,
             :request,
+            :ProjectReference, :ProjectNotSetError, :DatasetProjectLink,
+            :project_dataset, :project_datasets, :upload_project_dataset,
         ])
         extra_public_symbols = setdiff(public_symbols, expected_public_symbols)
         isempty(extra_public_symbols) || @warn """
@@ -223,6 +222,21 @@ end
             extra_expected_symbols = $(sprint(show, MIME"text/plain"(), extra_expected_symbols))
             """
         @test isempty(extra_expected_symbols)
+        # Make sure that on Julia versions that support the `public` keyword,
+        # we are also marking the right symbols as public.
+        if Base.isdefined(Base, :ispublic)
+            @testset "ispublic: $(name)" for name in public_symbols
+                @test Base.ispublic(JuliaHub, name)
+            end
+            private_names = setdiff(
+                names(JuliaHub; all=true),
+                public_symbols,
+                [:JuliaHub],
+            )
+            @testset "!ispublic: $(name)" for name in private_names
+                @test !Base.ispublic(JuliaHub, name)
+            end
+        end
     end
 
     @testset "Utilities" begin
@@ -239,6 +253,9 @@ end
     end
     @testset "Jobs" begin
         include("jobs.jl")
+    end
+    @testset "Projects" begin
+        include("projects.jl")
     end
     @testset "_PackageBundler" begin
         include("packagebundler.jl")

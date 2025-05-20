@@ -94,6 +94,25 @@ function Base.showerror(io::IO, e::PermissionError)
     isnothing(e.response) || print(io, '\n', e.response)
 end
 
+"""
+    struct InvalidJuliaHubVersion <: JuliaHubException
+
+Thrown if the requested operation is not supported by the JuliaHub instance.
+`.msg` contains a more detailed error message.
+
+!!! tip
+
+    This generally means that the functionality you are attempting to use requires a
+    newer JuliaHub version.
+"""
+struct InvalidJuliaHubVersion <: JuliaHubException
+    msg::String
+end
+
+function Base.showerror(io::IO, e::InvalidJuliaHubVersion)
+    print(io, "InvalidJuliaHubVersion: $(e.msg)")
+end
+
 _takebody!(r::HTTP.Response)::Vector{UInt8} = isa(r.body, IO) ? take!(r.body) : r.body
 _takebody!(r::HTTP.Response, ::Type{T}) where {T} = T(_takebody!(r))
 
@@ -174,6 +193,34 @@ function _get_json_or(
     msg::Union{AbstractString, Nothing}=nothing,
 )::Union{T, U} where {T, U}
     haskey(json, key) ? _get_json(json, key, T; msg) : default
+end
+
+# _get_json_convert is a _get_json-type helper that also does some sort of type conversion
+# parsing etc. The general signature is the following:
+#
+#   function _get_json_convert(
+#       json::Dict, key::AbstractString, ::Type{T};
+#       msg::Union{AbstractString, Nothing}=nothing
+#   )::T
+#
+# Although in practice we implement for each type separately, since the parsing/conversion logic
+# can vary dramatically.
+#
+# A key point, though, is that it will throw a JuliaHubError if the server response is somehow
+# invalid and we can't parse/convert it properly.
+function _get_json_convert(
+    json::Dict, key::AbstractString, ::Type{UUIDs.UUID}; msg::Union{AbstractString, Nothing}=nothing
+)::UUIDs.UUID
+    uuid_str = _get_json(json, key, String; msg)
+    uuid = tryparse(UUIDs.UUID, uuid_str)
+    if isnothing(uuid)
+        errormsg = """
+        Invalid JSON returned by the server: `$key` not a valid UUID string.
+        Server returned '$(uuid_str)'."""
+        isnothing(msg) || (errormsg = string(msg, '\n', errormsg))
+        throw(JuliaHubError(errormsg))
+    end
+    return uuid
 end
 
 """
@@ -350,7 +397,7 @@ end
 _utc2localtz(timestamp::Number) = _utc2localtz(Dates.unix2datetime(timestamp))
 function _utc2localtz(datetime_utc::Dates.DateTime)::TimeZones.ZonedDateTime
     datetimez_utc = TimeZones.ZonedDateTime(datetime_utc, TimeZones.tz"UTC")
-    return TimeZones.astimezone(datetimez_utc, _LOCAL_TZ[])
+    return TimeZones.astimezone(datetimez_utc, _localtz())
 end
 # Special version of _utc2localtz to handle integer ms timestamp
 function _ms_utc2localtz(timestamp::Integer)::TimeZones.ZonedDateTime
@@ -399,17 +446,26 @@ function _parse_tz(timestamp_str::AbstractString; msg::Union{AbstractString, Not
         end
         throw(JuliaHubError(errmsg))
     end
-    return TimeZones.astimezone(timestamp, _LOCAL_TZ[])
+    return TimeZones.astimezone(timestamp, _localtz())
 end
 
-# It's quite easy to make TimeZones.localzone() fail and throw.
-# So this wraps it, and adds a UTC fallback (which seems like the sensible
-# default) in the case where somehow the local timezone is not configured properly.
-function _localtz()
-    try
-        TimeZones.localzone()
-    catch e
-        @debug "Unable to determine local timezone" exception = (e, catch_backtrace())
-        TimeZones.tz"UTC"
+# This function is internally used where we need to pass the local timezone
+# for datetime printing or parsing functions.
+function _localtz()::Dates.TimeZone
+    global _LOCAL_TZ
+    if isassigned(_LOCAL_TZ)
+        return _LOCAL_TZ[]
+    else
+        # It's quite easy to make TimeZones.localzone() fail and throw.
+        # So this wraps it, and adds a UTC fallback (which seems like the sensible
+        # default) in the case where somehow the local timezone is not configured properly.
+        tz = try
+            TimeZones.localzone()
+        catch e
+            @debug "Unable to determine local timezone" exception = (e, catch_backtrace())
+            TimeZones.tz"UTC"
+        end
+        _LOCAL_TZ[] = tz
+        return tz
     end
 end
