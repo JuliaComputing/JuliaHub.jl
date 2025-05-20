@@ -1,5 +1,5 @@
 """
-    module JuliaHub.Experimental
+    module Experimental
 
 Home for experimental JuliaHub.jl APIs.
 
