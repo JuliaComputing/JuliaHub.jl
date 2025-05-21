@@ -1,6 +1,6 @@
 # Experimental APIs
 
-> 🐉 Hic Sunt Dracones.
+> 🐉 Hic Sunt Dracones
 
 The [`JuliaHub.Experimental`](@ref) module contains various experimental APIs.
 
