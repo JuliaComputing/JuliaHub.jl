@@ -72,7 +72,11 @@ function Experimental.register_package(
         if startswith(repository_url, "https://github.com")
             "github"
         else
-            throw(ArgumentError("Unable to determine git_server_type for repository: $(repository_url)"))
+            throw(
+                ArgumentError(
+                    "Unable to determine git_server_type for repository: $(repository_url)"
+                ),
+            )
         end
     else
         git_server_type
@@ -94,8 +98,8 @@ function Experimental.register_package(
                 "notes" => something(notes, ""),
                 "subdir" => subdirectory,
                 "git_server_type" => git_server_type,
-            )
-        ]
+            ),
+        ],
     )
     r = _restcall(
         auth,
