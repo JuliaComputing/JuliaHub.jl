@@ -92,6 +92,7 @@ const PAGES_REFERENCE = [
     "reference/datasets.md",
     "reference/projects.md",
     "reference/exceptions.md",
+    "reference/experimental.md",
 ]
 Mocking.apply(mocking_patch) do
     makedocs(;
