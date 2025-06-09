@@ -22,6 +22,7 @@ const _LOCAL_TZ = Ref{Dates.TimeZone}()
 include("utils.jl")
 include("authentication.jl")
 include("restapi.jl")
+include("experimental.jl")
 include("userinfo.jl")
 include("applications.jl")
 include("batchimages.jl")
@@ -34,6 +35,7 @@ include("jobs/request.jl")
 include("jobs/logging.jl")
 include("jobs/logging-kafka.jl")
 include("jobs/logging-legacy.jl")
+include("packages.jl")
 include("projects.jl")
 
 # JuliaHub.jl follows the convention that all private names are
@@ -42,7 +44,8 @@ function _find_public_names()
     return filter(names(@__MODULE__; all=true)) do s
         # We don't need to check or mark public the main module itself
         (s == :JuliaHub) && return false
-        startswith(string(s), "_") && return false
+        # The Experimental module (or anything within it) is not public.
+        (s == :Experimental) && return false
         # Internal functions and types, prefixed by _
         startswith(string(s), "_") && return false
         # Internal macros, prefixed by _
