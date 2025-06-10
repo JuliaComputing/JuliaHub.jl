@@ -190,7 +190,7 @@ function _batchimages_legacy(auth::Authentication)
 end
 
 function _api_product_image_groups(auth::Authentication)
-    r = _restcall(auth, :GET, "juliaruncloud", "product_image_groups")
+    r = _restcall(auth, :GET, "juliaruncloud", "product_image_groups"; query=[("extended", "true")])
     r.status == 200 || _throw_invalidresponse(r)
     return _parse_response_json(r, Dict)
 end
