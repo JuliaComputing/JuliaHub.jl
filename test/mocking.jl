@@ -468,7 +468,7 @@ function _restcall_mocked(method, url, headers, payload; query)
         else
             serve_kafka(logengine, method, Dict(query))
         end
-    elseif (method == :GET) && endswith(url, "/juliaruncloud/product_image_groups")
+    elseif (method == :GET) && occursin("/juliaruncloud/product_image_groups", url)
         Dict(
             "image_groups" => Dict(
                 "base_and_opt" => [
