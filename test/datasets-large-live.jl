@@ -1,6 +1,5 @@
 @info "Uploading test data with prefix: JuliaHubLargeTest_$(TESTID)"
 dataset_name = "JuliaHubLargeTest_$(TESTID)_Blob"
-large_data_file = joinpath(TESTDATA, "large.dat")
 try
     lf_ds, lf_filesize = mktemp() do path, io
         chunk = ones(UInt8, 1024^2)
@@ -29,6 +28,4 @@ finally
     catch err
         @warn "Failed to delete dataset '$(dataset_name)'" exception = (err, catch_backtrace())
     end
-    # Also clean up the
-    rm(large_data_file; force=true)
 end
