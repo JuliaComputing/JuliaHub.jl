@@ -1,6 +1,6 @@
 @testset "[LIVE] Windows batch job" begin
     windows_batch_image = try
-        JuliaHub.batchimage("winworkstation-batch", "default"; auth)
+        JuliaHub.batchimage("winworkstation-batch"; auth)
     catch e
         isa(e, JuliaHub.InvalidRequestError) || rethrow(e)
         @warn """
