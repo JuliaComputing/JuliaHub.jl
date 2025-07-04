@@ -12,7 +12,7 @@ try
         r = JuliaHub.upload_dataset(
             dataset_name, path;
             description="some blob", tags=["x", "y", "z"],
-            auth
+            auth,
         )
         r, filesize(path)
     end
