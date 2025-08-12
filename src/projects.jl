@@ -241,6 +241,7 @@ function upload_project_dataset(
         # Other response codes indicate a backend failure
         _throw_invalidresponse(r)
     end
+    _check_internal_error(r; var="POST /user/datasets/{name}/versions")
     # ...
     upload_config = _check_dataset_upload_config(r, dtype; newly_created_dataset=false)
     # Upload the actual data
