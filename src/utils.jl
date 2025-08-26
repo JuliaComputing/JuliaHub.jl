@@ -361,31 +361,6 @@ function _json_check_success(json::Dict; var::AbstractString)
     return nothing
 end
 
-# Check that the API response is not a legacy 200 internal error, where
-# we return
-#
-# {"success": false, "interal_error": true, "message": "..."}
-#
-# on internal errors. If it detects that this is an internal error, it throws
-# a JuliaHubError. Returns `nothing` otherwise.
-function _check_internal_error(r::_RESTResponse; var::AbstractString)
-    if !(r.status == 200)
-        return nothing
-    end
-    success = _get_json_or(r.json, "success", Any, nothing)
-    internal_error = _get_json_or(r.json, "internal_error", Any, nothing)
-    if (success === false) && (internal_error === true)
-        e = JuliaHubError(
-            """
-            Internal Server Error 200 response from JuliaHub ($var):
-            JSON: $(sprint(show, MIME("text/plain"), r.json))
-            """,
-        )
-        throw(e)
-    end
-    return nothing
-end
-
 # Performs the print of f(::IO), but prepends `indent` spaces in front of
 # each line, to make it indented.
 function _print_indented(io::IO, f; indent::Integer)
