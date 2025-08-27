@@ -440,7 +440,9 @@ end
         # that gets reported over a 200.
         @test JuliaHub.upload_dataset("example-dataset-200-error-1", @__FILE__) isa JuliaHub.Dataset
         MOCK_JULIAHUB_STATE[:internal_error_200] = true
-        @test_throws JuliaHub.JuliaHubError JuliaHub.upload_dataset("example-dataset-200-error", @__FILE__)
+        @test_throws JuliaHub.JuliaHubError JuliaHub.upload_dataset(
+            "example-dataset-200-error", @__FILE__
+        )
         MOCK_JULIAHUB_STATE[:internal_error_200] = false
     end
     empty!(MOCK_JULIAHUB_STATE)
