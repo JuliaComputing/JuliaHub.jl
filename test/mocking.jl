@@ -46,6 +46,14 @@ JuliaHub.__AUTH__[] = DEFAULT_GLOBAL_MOCK_AUTH
 Mocking.activate()
 const MOCK_JULIAHUB_STATE = Dict{Symbol, Any}()
 jsonresponse(status) = d -> JuliaHub._RESTResponse(status, JSON.json(d))
+function internal_error_200_response()
+    d = Dict(
+        "success" => false,
+        "internal_error" => true,
+        "message" => "Internal Server Error",
+    )
+    return JuliaHub._RESTResponse(200, JSON.json(d))
+end
 mocking_patch = [
     Mocking.@patch(
         JuliaHub._rest_request_mockable(args...; kwargs...) = _restcall_mocked(args...; kwargs...)
@@ -412,6 +420,9 @@ function _restcall_mocked(method, url, headers, payload; query)
             Dict("repo_id" => string(UUIDs.uuid4())) |> jsonresponse(200)
         end
     elseif (method == :POST) && endswith(url, DATASET_VERSIONS_REGEX)
+        if get(MOCK_JULIAHUB_STATE, :internal_error_200, false)
+            return internal_error_200_response()
+        end
         dataset, is_user = let m = match(DATASET_VERSIONS_REGEX, url)
             URIs.unescapeuri(m[2]), m[1] == "user/"
         end

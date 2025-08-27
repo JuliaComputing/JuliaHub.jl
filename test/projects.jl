@@ -243,6 +243,10 @@ end
         @test dataset.project.uuid === project_auth_2.project_id
         @test dataset.project.is_writable === false
         @test JuliaHub.upload_project_dataset(dataset_noproject, @__FILE__) isa JuliaHub.Dataset
+
+        MOCK_JULIAHUB_STATE[:internal_error_200] = true
+        @test_throws JuliaHub.JuliaHubError JuliaHub.upload_project_dataset(dataset_noproject, @__FILE__)
+        MOCK_JULIAHUB_STATE[:internal_error_200] = false
     end
 end
 

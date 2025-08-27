@@ -695,7 +695,6 @@ function upload_dataset end
         # Any other 404 or other non-200 response indicates a backend failure
         _throw_invalidresponse(r)
     end
-    _check_internal_error(r; var="POST /user/datasets/{name}/versions")
     upload_config = _check_dataset_upload_config(r, dtype; newly_created_dataset)
     # Upload the actual data
     try
@@ -794,7 +793,9 @@ function _new_dataset(
 end
 
 function _open_dataset_version(auth::Authentication, name::AbstractString)::_RESTResponse
-    _restcall(auth, :POST, "user", "datasets", name, "versions")
+    r = _restcall(auth, :POST, "user", "datasets", name, "versions")
+    _check_internal_error(r; var="POST /user/datasets/{name}/versions")
+    return r
 end
 
 function _upload_dataset(upload_config, local_path; progress::Bool)

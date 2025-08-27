@@ -241,7 +241,6 @@ function upload_project_dataset(
         # Other response codes indicate a backend failure
         _throw_invalidresponse(r)
     end
-    _check_internal_error(r; var="POST /user/datasets/{name}/versions")
     # ...
     upload_config = _check_dataset_upload_config(r, dtype; newly_created_dataset=false)
     # Upload the actual data
@@ -283,12 +282,14 @@ function _open_dataset_version(
     auth::Authentication, dataset_uuid::UUID, project_uuid::UUID
 )::_RESTResponse
     body = Dict("project" => string(project_uuid))
-    return JuliaHub._restcall(
+    r = JuliaHub._restcall(
         auth,
         :POST,
         ("datasets", string(dataset_uuid), "versions"),
         JSON.json(body),
     )
+    _check_internal_error(r; var="POST /user/datasets/{name}/versions")
+    return r
 end
 
 function _close_dataset_version(

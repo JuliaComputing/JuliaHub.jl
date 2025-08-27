@@ -435,6 +435,13 @@ end
         @test_throws TypeError JuliaHub.upload_dataset(
             "example-dataset-license", @__FILE__; replace=true, license=(:fulltext, 1234)
         )
+
+        # Make sure we throw a JuliaHubError when we encounter an internal backend error
+        # that gets reported over a 200.
+        @test JuliaHub.upload_dataset("example-dataset-200-error-1", @__FILE__) isa JuliaHub.Dataset
+        MOCK_JULIAHUB_STATE[:internal_error_200] = true
+        @test_throws JuliaHub.JuliaHubError JuliaHub.upload_dataset("example-dataset-200-error", @__FILE__)
+        MOCK_JULIAHUB_STATE[:internal_error_200] = false
     end
     empty!(MOCK_JULIAHUB_STATE)
 end
