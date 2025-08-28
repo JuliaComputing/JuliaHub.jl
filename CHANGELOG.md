@@ -2,6 +2,12 @@
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Fixed
+
+* Top-level `.juliabundleignore` files are now correctly handled when using `JuliaHub.appbundle`. ([#99], [#100])
+
 ## Version [v0.1.14] - 2025-06-11
 
 ### Added
@@ -186,3 +192,5 @@ Initial package release.
 [#92]: https://github.com/JuliaComputing/JuliaHub.jl/issues/92
 [#94]: https://github.com/JuliaComputing/JuliaHub.jl/issues/94
 [#96]: https://github.com/JuliaComputing/JuliaHub.jl/issues/96
+[#99]: https://github.com/JuliaComputing/JuliaHub.jl/issues/99
+[#100]: https://github.com/JuliaComputing/JuliaHub.jl/issues/100
