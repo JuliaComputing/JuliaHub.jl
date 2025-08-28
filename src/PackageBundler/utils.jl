@@ -95,6 +95,7 @@ function get_bundleignore(file, top)
     end
     return patterns, top
 end
+
 """
     path_filterer(top)
 
