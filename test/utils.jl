@@ -101,3 +101,23 @@ end
         Dict("_id_missing" => "123e4567-e89b-12d3-a456-426614174000"), "id", UUIDs.UUID
     )
 end
+
+@testset "_max_appbundle_dir_size" begin
+    # We check here that the `.juliabundleignore` is honored by making
+    # sure that the calculated total file size of the Pkg3/ directory is
+    dir = joinpath(@__DIR__, "fixtures", "ignorefiles", "Pkg3")
+
+    appbundle_files = String[]
+    JuliaHub._walk_appbundle_files(dir) do filepath
+        push!(appbundle_files, relpath(filepath, dir))
+    end
+    @test sort(appbundle_files) == [
+        ".gitignore", ".juliabundleignore", "Project.toml", "README.md",
+        joinpath("src", "Pkg3.jl"), joinpath("src", "bar"), joinpath("src", "fooo"),
+        joinpath("test", "fooo", "test"), joinpath("test", "runtests.jl"),
+    ]
+
+    # The files that are not meant to be included in the /Pkg3/ bundle here are
+    # all 50 byte files. Should they should show up in the total size here.
+    @test JuliaHub._max_appbundle_dir_size(dir) == (405, true)
+end

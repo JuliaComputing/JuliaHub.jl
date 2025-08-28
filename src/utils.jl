@@ -304,22 +304,55 @@ function Base.show(io::IO, filehash::FileHash)
 end
 
 # Estimates the size of the bundle directory
-function _max_appbundle_dir_size(dir; maxsize=100 * 1024 * 1024)
+function _max_appbundle_dir_size(dir::AbstractString; maxsize=100 * 1024 * 1024)
     sz = 0
-    pred = _PackageBundler.path_filterer(dir)
-    for (root, _, files) in walkdir(dir)
-        for file in files
-            file = joinpath(root, file)
-            if !pred(file)
-                @debug "ignoring $file in dir size measurement"
-                continue
-            end
+    _walk_appbundle_files(dir) do filepath
+        if sz > maxsize
+            return _WalkFilesReturnEarly()
+        end
+        sz += filesize(filepath)
+    end
+    return sz, sz <= maxsize
+end
 
-            sz > maxsize && return sz, false
-            sz += filesize(file)
+function _walk_appbundle_files(f::Base.Callable, dir::AbstractString)
+    # Note: even if if `path_filterer` says that directory `foo/bar`
+    # should not be included, it will still likely return `true` for
+    # any files in there, like `foo/bar/baz`. So we need to make sure
+    # we stop recursing into subdirectories.
+    pred = _PackageBundler.path_filterer(dir)
+    _walkfiles(dir; descend=pred) do filepath
+        if !pred(filepath)
+            @debug "ignoring file in _walk_appbundle_files: $(file)"
+            return nothing
+        end
+        return f(filepath)
+    end
+end
+
+struct _WalkFilesReturnEarly end
+
+# Calls `f` on any non-directory in `root`.
+# `descend` gets called on any directory, and if it returns false,
+function _walkfiles(f::Base.Callable, root::AbstractString; descend::Base.Callable)
+    if !isdir(root)
+        error("Not a directory: $(root)")
+    end
+    directories = String[root]
+    while !isempty(directories)
+        dir = popfirst!(directories)
+        for subpath in readdir(dir; join=true)
+            if isdir(subpath)
+                if descend(subpath)::Bool
+                    push!(directories, subpath)
+                end
+            else
+                if f(subpath) === _WalkFilesReturnEarly()
+                    break
+                end
+            end
         end
     end
-    return sz, sz < maxsize
 end
 
 function _json_get(d::Dict, key, ::Type{T}; var::AbstractString, parse=false) where {T}
