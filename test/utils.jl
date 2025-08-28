@@ -119,5 +119,13 @@ end
 
     # The files that are not meant to be included in the /Pkg3/ bundle here are
     # all 50 byte files. Should they should show up in the total size here.
-    @test JuliaHub._max_appbundle_dir_size(dir) == (405, true)
+    #
+    # Note: on windows, the files may be checked out with different line endings,
+    # so the total file size may be slightly different.
+    sz, sz_is_low = JuliaHub._max_appbundle_dir_size(dir)
+    @test sz_is_low
+    @test sz in (Sys.iswindows() ? (405, 432) : (405,))
+
+    _, sz_low = JuliaHub._max_appbundle_dir_size(dir; maxsize=200)
+    @test !sz_low
 end

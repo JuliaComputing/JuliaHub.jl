@@ -323,7 +323,7 @@ function _walk_appbundle_files(f::Base.Callable, dir::AbstractString)
     pred = _PackageBundler.path_filterer(dir)
     _walkfiles(dir; descend=pred) do filepath
         if !pred(filepath)
-            @debug "ignoring file in _walk_appbundle_files: $(file)"
+            @debug "ignoring file in _walk_appbundle_files: $(filepath)"
             return nothing
         end
         return f(filepath)
