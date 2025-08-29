@@ -79,6 +79,31 @@ function _parse_response_json(r::_RESTResponse, ::Type{T})::Tuple{T, String} whe
     return _parse_response_json(r.body, T)
 end
 
+# Check that the API response is not a legacy 200 internal error, where
+# we return
+#
+# {"success": false, "interal_error": true, "message": "..."}
+#
+# on internal errors. If it detects that this is an internal error, it throws
+# a JuliaHubError. Returns `nothing` otherwise.
+function _check_internal_error(r::_RESTResponse; var::AbstractString)
+    if !(r.status == 200)
+        return nothing
+    end
+    success = _get_json_or(r.json, "success", Any, nothing)
+    internal_error = _get_json_or(r.json, "internal_error", Any, nothing)
+    if (success === false) && (internal_error === true)
+        e = JuliaHubError(
+            """
+            Internal Server Error 200 response from JuliaHub ($var):
+            JSON: $(sprint(show, MIME("text/plain"), r.json))
+            """,
+        )
+        throw(e)
+    end
+    return nothing
+end
+
 # _restcall calls _rest_request_mockable which calls _rest_request_http. The reason for this
 # indirection is that the signature of _rest_request_mockable is extremely simple and therefore
 # each to hook into with Mockable.
