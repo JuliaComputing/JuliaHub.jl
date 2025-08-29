@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+* Top-level `.juliabundleignore` files are now correctly handled when using `JuliaHub.appbundle`. ([#99], [#100])
 * The `JuliaHub.upload_dataset` now correctly throws a `JuliaHubError` on certain backend errors. ([#103])
 
 ## Version [v0.1.14] - 2025-06-11
@@ -192,3 +193,5 @@ Initial package release.
 [#92]: https://github.com/JuliaComputing/JuliaHub.jl/issues/92
 [#94]: https://github.com/JuliaComputing/JuliaHub.jl/issues/94
 [#96]: https://github.com/JuliaComputing/JuliaHub.jl/issues/96
+[#99]: https://github.com/JuliaComputing/JuliaHub.jl/issues/99
+[#100]: https://github.com/JuliaComputing/JuliaHub.jl/issues/100

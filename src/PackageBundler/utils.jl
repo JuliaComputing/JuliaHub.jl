@@ -77,7 +77,7 @@ function get_bundleignore(file, top)
     dir = dirname(file)
     patterns = Set{Any}()
     try
-        while dir != top
+        while true
             if isfile(joinpath(dir, ".juliabundleignore"))
                 union!(
                     patterns,
@@ -85,7 +85,7 @@ function get_bundleignore(file, top)
                 )
                 return patterns, dir
             end
-            if dir == dirname(dir)
+            if dir == dirname(dir) || dir == top
                 break
             end
             dir = dirname(dir)
