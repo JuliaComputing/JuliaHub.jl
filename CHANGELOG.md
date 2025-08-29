@@ -160,6 +160,7 @@ Initial package release.
 [v0.1.12]: https://github.com/JuliaComputing/JuliaHub.jl/releases/tag/v0.1.12
 [v0.1.13]: https://github.com/JuliaComputing/JuliaHub.jl/releases/tag/v0.1.13
 [v0.1.14]: https://github.com/JuliaComputing/JuliaHub.jl/releases/tag/v0.1.14
+[v0.1.15]: https://github.com/JuliaComputing/JuliaHub.jl/releases/tag/v0.1.15
 [#1]: https://github.com/JuliaComputing/JuliaHub.jl/issues/1
 [#2]: https://github.com/JuliaComputing/JuliaHub.jl/issues/2
 [#3]: https://github.com/JuliaComputing/JuliaHub.jl/issues/3
@@ -195,3 +196,4 @@ Initial package release.
 [#96]: https://github.com/JuliaComputing/JuliaHub.jl/issues/96
 [#99]: https://github.com/JuliaComputing/JuliaHub.jl/issues/99
 [#100]: https://github.com/JuliaComputing/JuliaHub.jl/issues/100
+[#103]: https://github.com/JuliaComputing/JuliaHub.jl/issues/103
