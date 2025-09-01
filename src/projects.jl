@@ -282,12 +282,14 @@ function _open_dataset_version(
     auth::Authentication, dataset_uuid::UUID, project_uuid::UUID
 )::_RESTResponse
     body = Dict("project" => string(project_uuid))
-    return JuliaHub._restcall(
+    r = JuliaHub._restcall(
         auth,
         :POST,
         ("datasets", string(dataset_uuid), "versions"),
         JSON.json(body),
     )
+    _check_internal_error(r; var="POST /user/datasets/{name}/versions")
+    return r
 end
 
 function _close_dataset_version(

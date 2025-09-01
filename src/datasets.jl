@@ -793,7 +793,9 @@ function _new_dataset(
 end
 
 function _open_dataset_version(auth::Authentication, name::AbstractString)::_RESTResponse
-    _restcall(auth, :POST, "user", "datasets", name, "versions")
+    r = _restcall(auth, :POST, "user", "datasets", name, "versions")
+    _check_internal_error(r; var="POST /user/datasets/{name}/versions")
+    return r
 end
 
 function _upload_dataset(upload_config, local_path; progress::Bool)
