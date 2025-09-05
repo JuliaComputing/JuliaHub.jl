@@ -126,6 +126,21 @@ Batch jobs are Julia scripts with (optional) associated Julia package environmen
 
 See also: [`@script_str`](@ref), [`script`](@ref), [`appbundle`](@ref) for more details, and the [guide on submitting batch jobs](@ref jobs-guide-batch) for a tutorial.
 
+### [`.juliabundleignore` file](@id jobs-batch-juliabundleignroe)
+
+A `.juliabundleignore` file can be use to exclude certain files from the appbundle that gets submitted to JuliaHub.
+This is useful if you have some temporary development or data files in your project directory, in particular if they are large.
+
+Generally, the file is similar to a `.gitignore` file (though not as feature rich), containing a list of [glob](https://en.wikipedia.org/wiki/Glob_(programming)) patterns.
+More precisely, it uses [Glob.jl](https://github.com/vtjnash/Glob.jl) to match the patterns in the file against file system paths.
+
+For example, a valid `.juliabundleignore` might contain the following entries to exclude a particular directory and all CSV files:
+
+```
+*.csv
+output-data/
+```
+
 ### Specifying the job image
 
 JuliaHub batch jobs can run in various container images.
