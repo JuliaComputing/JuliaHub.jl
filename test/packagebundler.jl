@@ -266,3 +266,251 @@ end
         @test pred(joinpath(dir, "test", "foo", "test"))
     end
 end
+
+function bundle_and_file_listing(bundle_root_path::AbstractString)
+    out = tempname()
+    JuliaHub._PackageBundler.bundle(
+        bundle_root_path;
+        output=out,
+        verbose=false,
+    )
+    tar_headers = Tar.list(out)
+    return sort([h.path for h in tar_headers if h.type == :file])
+end
+
+# In this test set, we bundle up the same directory multiple times.
+# First, without any `.juliabundleignore`, and then we add different
+# version of it, and see the effect on the bundle.
+@testset "fixtures/bundle1" begin
+    # Ensure we have a clean copy of the files always
+    tmp = mktempdir()
+    cp(
+        joinpath(@__DIR__, "fixtures", "bundle1"),
+        joinpath(tmp, "bundle1"),
+    )
+    chmod(tmp, 0o777; recursive=true)
+    bundle_root = joinpath(tmp, "bundle1")
+    @test isdir(bundle_root)
+
+    @testset "no ignore file" begin
+        files = bundle_and_file_listing(bundle_root)
+        @test files == [
+            "bundle1/Manifest.toml",
+            "bundle1/Project.toml",
+            "bundle1/dir1/binary.exe",
+            "bundle1/dir1/foo.csv",
+            "bundle1/foo.csv",
+            "bundle1/keys.private",
+            "bundle1/output-data/bar",
+            "bundle1/output-data/foo",
+            "bundle1/script.jl",
+            "bundle1/settings.json",
+            "bundle1/subignore/keys.private",
+            "bundle1/subignore/readme.txt",
+            "bundle1/xyz.exe",
+        ]
+    end
+
+    @testset "empty ignore file" begin
+        write(
+            joinpath(bundle_root, ".juliabundleignore"),
+            """
+            """,
+        )
+        files = bundle_and_file_listing(bundle_root)
+        @test files == [
+            "bundle1/.juliabundleignore",
+            "bundle1/Manifest.toml",
+            "bundle1/Project.toml",
+            "bundle1/dir1/binary.exe",
+            "bundle1/dir1/foo.csv",
+            "bundle1/foo.csv",
+            "bundle1/keys.private",
+            "bundle1/output-data/bar",
+            "bundle1/output-data/foo",
+            "bundle1/script.jl",
+            "bundle1/settings.json",
+            "bundle1/subignore/keys.private",
+            "bundle1/subignore/readme.txt",
+            "bundle1/xyz.exe",
+        ]
+    end
+
+    # Note: the file will not be ignored in subdirectories
+    @testset "foo.csv" begin
+        write(
+            joinpath(bundle_root, ".juliabundleignore"),
+            """
+            foo.csv
+            """,
+        )
+        files = bundle_and_file_listing(bundle_root)
+        @test files == [
+            "bundle1/.juliabundleignore",
+            "bundle1/Manifest.toml",
+            "bundle1/Project.toml",
+            "bundle1/dir1/binary.exe",
+            "bundle1/dir1/foo.csv",
+            "bundle1/keys.private",
+            "bundle1/output-data/bar",
+            "bundle1/output-data/foo",
+            "bundle1/script.jl",
+            "bundle1/settings.json",
+            "bundle1/subignore/keys.private",
+            "bundle1/subignore/readme.txt",
+            "bundle1/xyz.exe",
+        ]
+    end
+
+    @testset "*/foo.csv" begin
+        write(
+            joinpath(bundle_root, ".juliabundleignore"),
+            """
+            */foo.csv
+            """,
+        )
+        files = bundle_and_file_listing(bundle_root)
+        @test files == [
+            "bundle1/.juliabundleignore",
+            "bundle1/Manifest.toml",
+            "bundle1/Project.toml",
+            "bundle1/dir1/binary.exe",
+            "bundle1/foo.csv",
+            "bundle1/keys.private",
+            "bundle1/output-data/bar",
+            "bundle1/output-data/foo",
+            "bundle1/script.jl",
+            "bundle1/settings.json",
+            "bundle1/subignore/keys.private",
+            "bundle1/subignore/readme.txt",
+            "bundle1/xyz.exe",
+        ]
+    end
+
+    @testset "*.exe" begin
+        write(
+            joinpath(bundle_root, ".juliabundleignore"),
+            """
+            *.exe
+            """,
+        )
+        files = bundle_and_file_listing(bundle_root)
+        @test files == [
+            "bundle1/.juliabundleignore",
+            "bundle1/Manifest.toml",
+            "bundle1/Project.toml",
+            "bundle1/dir1/foo.csv",
+            "bundle1/foo.csv",
+            "bundle1/keys.private",
+            "bundle1/output-data/bar",
+            "bundle1/output-data/foo",
+            "bundle1/script.jl",
+            "bundle1/settings.json",
+            "bundle1/subignore/keys.private",
+            "bundle1/subignore/readme.txt",
+        ]
+    end
+
+    @testset "directories" begin
+        write(
+            joinpath(bundle_root, ".juliabundleignore"),
+            """
+            output-data/
+            foo.csv/
+            """,
+        )
+        files = bundle_and_file_listing(bundle_root)
+        @test files == [
+            "bundle1/.juliabundleignore",
+            "bundle1/Manifest.toml",
+            "bundle1/Project.toml",
+            "bundle1/dir1/binary.exe",
+            "bundle1/dir1/foo.csv",
+            "bundle1/foo.csv",
+            "bundle1/keys.private",
+            "bundle1/script.jl",
+            "bundle1/settings.json",
+            "bundle1/subignore/keys.private",
+            "bundle1/subignore/readme.txt",
+            "bundle1/xyz.exe",
+        ]
+    end
+
+    @testset "directories (invert)" begin
+        write(
+            joinpath(bundle_root, ".juliabundleignore"),
+            """
+            foo.csv/
+            output-data/
+            """,
+        )
+        files = bundle_and_file_listing(bundle_root)
+        @test files == [
+            "bundle1/.juliabundleignore",
+            "bundle1/Manifest.toml",
+            "bundle1/Project.toml",
+            "bundle1/dir1/binary.exe",
+            "bundle1/dir1/foo.csv",
+            "bundle1/foo.csv",
+            "bundle1/keys.private",
+            "bundle1/script.jl",
+            "bundle1/settings.json",
+            "bundle1/subignore/keys.private",
+            "bundle1/subignore/readme.txt",
+            "bundle1/xyz.exe",
+        ]
+    end
+
+    @testset "realistic" begin
+        write(
+            joinpath(bundle_root, ".juliabundleignore"),
+            """
+            *.exe
+            foo.csv
+            output-data/
+            """,
+        )
+        files = bundle_and_file_listing(bundle_root)
+        @test files == [
+            "bundle1/.juliabundleignore",
+            "bundle1/Manifest.toml",
+            "bundle1/Project.toml",
+            "bundle1/dir1/foo.csv",
+            "bundle1/keys.private",
+            "bundle1/script.jl",
+            "bundle1/settings.json",
+            "bundle1/subignore/keys.private",
+            "bundle1/subignore/readme.txt",
+        ]
+    end
+
+    @testset "subignore" begin
+        write(
+            joinpath(bundle_root, ".juliabundleignore"),
+            """
+            *.exe
+            foo.csv
+            output-data/
+            """,
+        )
+        write(
+            joinpath(bundle_root, "subignore", ".juliabundleignore"),
+            """
+            keys.private
+            """,
+        )
+        files = bundle_and_file_listing(bundle_root)
+        [
+            "bundle1/.juliabundleignore",
+            "bundle1/Manifest.toml",
+            "bundle1/Project.toml",
+            "bundle1/dir1/foo.csv",
+            "bundle1/keys.private",
+            "bundle1/script.jl",
+            "bundle1/settings.json",
+            "bundle1/subignore/.juliabundleignore",
+            "bundle1/subignore/readme.txt",
+        ]
+    end
+end
+|

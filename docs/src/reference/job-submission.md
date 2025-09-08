@@ -137,9 +137,18 @@ More precisely, it uses [Glob.jl](https://github.com/vtjnash/Glob.jl) to match t
 For example, a valid `.juliabundleignore` might contain the following entries to exclude a particular directory and all CSV files:
 
 ```
+output.log
 *.csv
 output-data/
 ```
+
+This `.juliabundleignore` will ignore:
+
+- The `output.log` file next to the `.juliabundleignore`.
+- All `.csv` files next to the `.juliabundleignore` and in subdirectories.
+- All the contents of the `output-data/` directory next to the `.juliabundleignore`.
+
+You can also have additional `.juliabundleignore` files in subdirectories and they will only apply to those directories and their subdirectories.
 
 ### Specifying the job image
 
