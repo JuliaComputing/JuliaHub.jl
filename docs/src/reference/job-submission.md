@@ -126,7 +126,7 @@ Batch jobs are Julia scripts with (optional) associated Julia package environmen
 
 See also: [`@script_str`](@ref), [`script`](@ref), [`appbundle`](@ref) for more details, and the [guide on submitting batch jobs](@ref jobs-guide-batch) for a tutorial.
 
-### [`.juliabundleignore` file](@id jobs-batch-juliabundleignroe)
+### [`.juliabundleignore` file](@id jobs-batch-juliabundleignore)
 
 A `.juliabundleignore` file can be use to exclude certain files from the appbundle that gets submitted to JuliaHub.
 This is useful if you have some temporary development or data files in your project directory, in particular if they are large.
