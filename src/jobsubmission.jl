@@ -738,6 +738,9 @@ The following should be kept in mind about how appbundles are handled:
   Registered packages are installed via the package manager via the standard environment
   instantiation, and their source code is not included in the bundle directly.
 
+* You can use `.juliabundleignore` files to omit some files from the appbundle (secrets, large data files etc).
+  See the [relevant section in the reference manual](@ref jobs-batch-juliabundleignore) for more details.
+
 * When the JuliaHub job starts, the bundle is unpacked and the job's starting working directory
   is set to the root of the unpacked appbundle directory, and you can e.g. load the data from those
   files with just `read("my-data.txt", String)`.
