@@ -647,7 +647,7 @@ function upload_dataset end
     if create
         # Note: we do not set tags or description here (even though we could), but we
         # will do that in an update_dataset() call later.
-        r = _new_dataset(dataset_name, dtype; auth)
+        r = @timeit _TO "_new_dataset" _new_dataset(dataset_name, dtype; auth)
         if r.status == 409
             # 409 Conflict indicates that a dataset with this name already exists.
             if !update && !replace
@@ -683,7 +683,7 @@ function upload_dataset end
     #
     # Acquire an upload for the dataset. By this point, the dataset with this name
     # should definitely exist, although race conditions are always a possibility.
-    r = _open_dataset_version(auth, dataset_name)
+    r = @timeit _TO "_open_dataset_version" _open_dataset_version(auth, dataset_name)
     if (r.status == 404) && !create
         # A non-existent dataset if create=false indicates a user error.
         throw(
@@ -698,14 +698,16 @@ function upload_dataset end
     upload_config = _check_dataset_upload_config(r, dtype; newly_created_dataset)
     # Upload the actual data
     try
-        _upload_dataset(upload_config, local_path; progress)
+        @timeit "_upload_dataset" _upload_dataset(upload_config, local_path; progress)
     catch e
         throw(JuliaHubError("Data upload failed", e, catch_backtrace()))
     end
     # Finalize the upload
     try
         # _close_dataset_version will also throw on non-200 responses
-        _close_dataset_version(auth, dataset_name, upload_config; local_path)
+        @timeit _TO "_close_dataset_version" _close_dataset_version(
+            auth, dataset_name, upload_config; local_path
+        )
     catch e
         throw(JuliaHubError("Finalizing upload failed", e, catch_backtrace()))
     end
@@ -717,7 +719,7 @@ function upload_dataset end
         )
     end
     # If everything was successful, we'll return an updated DataSet object.
-    return dataset((username, dataset_name); auth)
+    return @timeit _TO "dataset(...)" dataset((username, dataset_name); auth)
 end
 
 function _check_dataset_upload_config(
@@ -833,7 +835,7 @@ function _upload_dataset(upload_config, local_path; progress::Bool)
                 pushfirst!(args, "--progress")
             end
 
-            run(```
+            @timeit _TO "run:rclone" run(```
                 $rclone_exe copyto $local_path "juliahub_remote:$remote_path"
                 --config $rclone_conf_path
                 $args

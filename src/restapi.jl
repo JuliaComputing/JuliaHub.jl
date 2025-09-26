@@ -132,7 +132,8 @@ function _rest_request_http(method::Symbol, url::AbstractString, headers, payloa
     # HTTP.jl passes HTTP.nobody == UInt[] when it populates the `body` argument
     # with a default value, so we also do that here.
     body = isnothing(payload) ? UInt8[] : payload
-    response::HTTP.Response = @_httpcatch HTTP.request(
+    label = "$(method) $(url)"
+    response::HTTP.Response = @timeit _TO label @_httpcatch HTTP.request(
         string(method), url, headers, body; status_exception=false, query
     ) msg = "HTTP connection to JuliaHub failed ($(typeof(e)))"
     return _RESTResponse(response)

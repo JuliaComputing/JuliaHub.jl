@@ -13,6 +13,9 @@ import TOML
 import URIs
 using UUIDs: UUIDs, UUID
 
+using TimerOutputs: TimerOutputs, @timeit
+const _TO = TimerOutputs.TimerOutput()
+
 # We cache the local timezone in a global, so that we don't have to call
 # TimeZones.localzone() every time we do a TZ operation. However, we only
 # populate this when we actually call _localtz(). We used to do this in __init_,
