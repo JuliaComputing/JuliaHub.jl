@@ -158,7 +158,7 @@ end
         end
     end
     job_killed = JuliaHub.job(job_killed) # test default auth=
-    @test job_killed.status == "Stopped"
+    @test test_job_done_and_not_failed(job_killed, "Stopped")
     # wait for the logger task to finish, if hasn't already
     JuliaHub.interrupt!(logbuffer; wait=true)
 
@@ -218,7 +218,7 @@ end
         auth, alias="distributed",
     )
     job = JuliaHub.wait_job(job)
-    @test job.status == "Completed"
+    @test test_job_done_and_not_failed(job, "Completed")
     @test !isempty(job.results)
     let results = JSON.parse(job.results)
         @test results isa AbstractDict
@@ -244,7 +244,7 @@ end
     @test job.alias == full_alias
     @test job.env["FOO"] == "bar"
     job = JuliaHub.wait_job(job)
-    @test job.status == "Completed"
+    @test test_job_done_and_not_failed(job, "Completed")
     @test !isempty(job.results)
     let results = JSON.parse(job.results)
         @test results isa AbstractDict
@@ -266,7 +266,7 @@ end
         auth, alias="scripts-1",
     )
     job = JuliaHub.wait_job(job)
-    @test job.status == "Completed"
+    @test test_job_done_and_not_failed(job, "Completed")
     @test !isempty(job.results)
     let results = JSON.parse(job.results)
         @test results isa AbstractDict
@@ -286,7 +286,7 @@ end
         auth, alias="scripts-2",
     )
     job = JuliaHub.wait_job(job)
-    @test job.status == "Completed"
+    @test test_job_done_and_not_failed(job, "Completed")
     @test !isempty(job.results)
     let results = JSON.parse(job.results)
         @test results isa AbstractDict
@@ -307,7 +307,7 @@ end
         auth, alias="appbundle",
     )
     job = JuliaHub.wait_job(job)
-    @test job.status == "Completed"
+    @test test_job_done_and_not_failed(job, "Completed")
     # Check input and output files
     @test length(JuliaHub.job_files(job, :input)) >= 2
     @test JuliaHub.job_file(job, :input, "code.jl") isa JuliaHub.JobFile
@@ -345,7 +345,7 @@ end
         """noenv; alias="output-file"
     )
     job = JuliaHub.wait_job(job)
-    @test job.status == "Completed"
+    @test test_job_done_and_not_failed(job, "Completed")
     # Project.toml, Manifest.toml, code.jl
     @test length(JuliaHub.job_files(job, :input)) >= 1
     @test JuliaHub.job_file(job, :input, "code.jl") isa JuliaHub.JobFile
@@ -380,7 +380,7 @@ end
         """noenv; alias="output-file-tarball"
     )
     job = JuliaHub.wait_job(job)
-    @test job.status == "Completed"
+    @test test_job_done_and_not_failed(job, "Completed")
     @test length(JuliaHub.job_files(job, :project)) >= 1
     result_tarball = only(JuliaHub.job_files(job, :result))
     buf = IOBuffer()
@@ -421,7 +421,7 @@ end
         ); auth, alias="sysimage"
     )
     job = JuliaHub.wait_job(job)
-    @test job.status == "Completed"
+    @test test_job_done_and_not_failed(job, "Completed")
     @test job._json["sysimage_build"] === true
     @test !isempty(job.results)
     let results = JSON.parse(job.results)
