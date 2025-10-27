@@ -2,6 +2,13 @@
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Fixed
+
+* The `.message` property _should_ always be present in the log messages, but there are a few versions out there where it is sometimes omitted due to a backend bug. We default to an empty string in those cases. ([#111])
+
+
 ## Version [v0.1.15] - 2025-08-29
 
 ### Fixed

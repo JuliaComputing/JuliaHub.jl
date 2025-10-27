@@ -1,7 +1,10 @@
 struct _LegacyLogging <: _JobLoggingAPIVersion end
 
 function JobLogMessage(::_LegacyLogging, json::Dict, offset::Integer)
-    message = _get_json(json, "message", String)
+    # The .message property _should_ always be present in the log messages,
+    # but there are a few versions out there where it's sometimes omitted due
+    # to a backend bug. So we default to an empty string in those cases.
+    message = _get_json_or(json, "message", String, "")
     keywords = _get_json_or(json, "keywords", Dict, Dict{String, Any}())
     metadata = _get_json_or(json, "metadata", Dict, Dict{String, Any}())
     timestamp = if haskey(json, "timestamp")
