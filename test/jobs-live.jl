@@ -413,12 +413,16 @@ end
 end
 
 @testset "[LIVE] JuliaHub.submit_job / sysimage" begin
+    script_path = joinpath(@__DIR__, "jobenvs", "sysimage")
     job, _ = submit_test_job(
-        JuliaHub.appbundle(
-            joinpath(@__DIR__, "jobenvs", "sysimage"),
-            "script.jl";
+        JuliaHub.script(;
+            code=read(joinpath(script_path, "script.jl"), String),
+            project=read(joinpath(script_path, "Project.toml"), String),
+            manifest=read(joinpath(script_path, "Manifest.toml"), String),
             sysimage=true,
-        ); auth, alias="sysimage"
+        );
+        auth,
+        alias="sysimage",
     )
     job = JuliaHub.wait_job(job)
     @test test_job_done_and_not_failed(job, "Completed")
