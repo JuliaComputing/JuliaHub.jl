@@ -230,7 +230,11 @@ end
 
 @testset "[LIVE] JuliaHub.submit_job / distributed-per-core" begin
     job, full_alias = submit_test_job(
-        JuliaHub.appbundle(joinpath(@__DIR__, "jobenvs", "job-dist"), "script.jl");
+        JuliaHub.script(;
+            code=read(joinpath(script_path, "script.jl"), String),
+            project=read(joinpath(script_path, "Project.toml"), String),
+            manifest=read(joinpath(script_path, "Manifest.toml"), String),
+        );
         ncpu=2, nnodes=3, process_per_node=false,
         env=Dict("FOO" => "bar"),
         auth, alias="distributed-percore",
