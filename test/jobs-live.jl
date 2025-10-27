@@ -297,37 +297,41 @@ end
     end
 end
 
-@testset "[LIVE] JuliaHub.submit_job / appbundle" begin
-    job1_dir = joinpath(@__DIR__, "jobenvs", "job1")
-    # Note: the exact hash of the file may change if Git decides to change line endings
-    # on e.g. Windows.
-    datafile_hash = bytes2hex(open(SHA.sha1, joinpath(job1_dir, "datafile.txt")))
-    job, _ = submit_test_job(
-        JuliaHub.appbundle(job1_dir, "script.jl");
-        auth, alias="appbundle",
-    )
-    job = JuliaHub.wait_job(job)
-    @test test_job_done_and_not_failed(job, "Completed")
-    # Check input and output files
-    @test length(JuliaHub.job_files(job, :input)) >= 2
-    @test JuliaHub.job_file(job, :input, "code.jl") isa JuliaHub.JobFile
-    @test JuliaHub.job_file(job, :input, "appbundle.tar") isa JuliaHub.JobFile
-    # Test the results values
-    @test !isempty(job.results)
-    let results = JSON.parse(job.results)
-        @test results isa AbstractDict
-        @test haskey(results, "datastructures_version")
-        @test VersionNumber(results["datastructures_version"]) == v"0.17.0"
-        @test haskey(results, "datafile_hash")
-        @test results["datafile_hash"] == datafile_hash
-        @test haskey(results, "scripts")
-        let s = results["scripts"]
-            @test s isa AbstractDict
-            @test get(s, "include_success", nothing) === true
-            @test get(s, "script_1", nothing) === true
-            @test get(s, "script_2", nothing) === true
+if v"1.10" <= Base.VERSION < v"1.12"
+    @testset "[LIVE] JuliaHub.submit_job / appbundle" begin
+        job1_dir = joinpath(@__DIR__, "jobenvs", "job1")
+        # Note: the exact hash of the file may change if Git decides to change line endings
+        # on e.g. Windows.
+        datafile_hash = bytes2hex(open(SHA.sha1, joinpath(job1_dir, "datafile.txt")))
+        job, _ = submit_test_job(
+            JuliaHub.appbundle(job1_dir, "script.jl");
+            auth, alias="appbundle",
+        )
+        job = JuliaHub.wait_job(job)
+        @test test_job_done_and_not_failed(job, "Completed")
+        # Check input and output files
+        @test length(JuliaHub.job_files(job, :input)) >= 2
+        @test JuliaHub.job_file(job, :input, "code.jl") isa JuliaHub.JobFile
+        @test JuliaHub.job_file(job, :input, "appbundle.tar") isa JuliaHub.JobFile
+        # Test the results values
+        @test !isempty(job.results)
+        let results = JSON.parse(job.results)
+            @test results isa AbstractDict
+            @test haskey(results, "datastructures_version")
+            @test VersionNumber(results["datastructures_version"]) == v"0.17.0"
+            @test haskey(results, "datafile_hash")
+            @test results["datafile_hash"] == datafile_hash
+            @test haskey(results, "scripts")
+            let s = results["scripts"]
+                @test s isa AbstractDict
+                @test get(s, "include_success", nothing) === true
+                @test get(s, "script_1", nothing) === true
+                @test get(s, "script_2", nothing) === true
+            end
         end
     end
+else
+    @info("Skipping appbundle tests for Julia version $(Base.VERSION)")
 end
 
 @testset "[LIVE] Job output file access" begin
