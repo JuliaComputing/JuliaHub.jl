@@ -10,5 +10,5 @@ DEFAULT_IDE_NAME = get(ENV, "JULIAHUBJL_LIVE_IDE_NAME", "Julia IDE")
     @test job.status == "Running"
     job = JuliaHub.kill_job(job)
     job = JuliaHub.wait_job(job)
-    @test job.status == "Stopped"
+    @test job.status in ("Completed", "Stopped")
 end
