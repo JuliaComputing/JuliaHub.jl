@@ -333,7 +333,7 @@ end
         n = write(ENV["RESULTS_FILE"], "output-txt-content")
         @info "Wrote $(n) bytes"
         if haskey(ENV, "JULIAHUB_RESULTS_UPLOAD_DIR")
-            open(ENV["JULIAHUB_RESULTS_UPLOAD_DIR"], "w") do io
+            open(joinpath(ENV["JULIAHUB_RESULTS_UPLOAD_DIR"], "output.txt"), "w") do io
                 write(io, "output-txt-content")
             end
         end
