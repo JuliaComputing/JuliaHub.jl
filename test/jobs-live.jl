@@ -207,8 +207,13 @@ end
 end
 
 @testset "[LIVE] JuliaHub.submit_job / distributed" begin
+    script_path = joinpath(@__DIR__, "jobenvs", "job-dist")
     job, _ = submit_test_job(
-        JuliaHub.appbundle(joinpath(@__DIR__, "jobenvs", "job-dist"), "script.jl");
+        JuliaHub.script(;
+            code=read(joinpath(script_path, "script.jl"), String),
+            project=read(joinpath(script_path, "Project.toml"), String),
+            manifest=read(joinpath(script_path, "Manifest.toml"), String),
+        );
         nnodes=3,
         auth, alias="distributed",
     )
@@ -328,7 +333,7 @@ end
         n = write(ENV["RESULTS_FILE"], "output-txt-content")
         @info "Wrote $(n) bytes"
         if haskey(ENV, "JULIAHUB_RESULTS_UPLOAD_DIR")
-            open(ENV["JULIAHUB_RESULTS_UPLOAD_DIR"], "output.txt") do io
+            open(ENV["JULIAHUB_RESULTS_UPLOAD_DIR"], "w") do io
                 write(io, "output-txt-content")
             end
         end
