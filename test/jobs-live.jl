@@ -229,6 +229,7 @@ end
 end
 
 @testset "[LIVE] JuliaHub.submit_job / distributed-per-core" begin
+    script_path = joinpath(@__DIR__, "jobenvs", "job-dist")
     job, full_alias = submit_test_job(
         JuliaHub.script(;
             code=read(joinpath(script_path, "script.jl"), String),
