@@ -327,6 +327,11 @@ end
         ENV["RESULTS_FILE"] = joinpath(@__DIR__, "output.txt")
         n = write(ENV["RESULTS_FILE"], "output-txt-content")
         @info "Wrote $(n) bytes"
+        if haskey(ENV, "JULIAHUB_RESULTS_UPLOAD_DIR")
+            open(ENV["JULIAHUB_RESULTS_UPLOAD_DIR"], "output.txt") do io
+                write(io, "output-txt-content")
+            end
+        end
         """noenv; alias="output-file"
     )
     job = JuliaHub.wait_job(job)
@@ -351,8 +356,13 @@ end
     # Job output with a tarball:
     job, _ = submit_test_job(
         JuliaHub.script"""
-        odir = joinpath(@__DIR__, "output_files")
-        mkdir(odir)
+        odir = if haskey(ENV, "JULIAHUB_RESULTS_UPLOAD_DIR")
+            ENV["JULIAHUB_RESULTS_UPLOAD_DIR"]
+        else
+            d = joinpath(@__DIR__, "output_files")
+            mkdir(d)
+            d
+        end
         write(joinpath(odir, "foo.txt"), "output-txt-content-1")
         write(joinpath(odir, "bar.txt"), "output-txt-content-2")
         @info "Wrote: odir"
