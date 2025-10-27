@@ -185,6 +185,11 @@ end
     job, _ = submit_test_job(
         JuliaHub.script"""
         ENV["RESULTS"] = "{\\"x\\":42}"
+        if haskey(ENV, "JULIAHUB_RESULTS_SUMMARY_FILE")
+            open(ENV["JULIAHUB_RESULTS_SUMMARY_FILE"], "w") do io
+                write(io, "{\\"x\\":42}")
+            end
+        end
         error("fail")
         """noenv;
         auth, alias="script-fail", timelimit=JuliaHub.Unlimited(),
