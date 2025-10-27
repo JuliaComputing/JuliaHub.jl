@@ -1,6 +1,4 @@
 [deps]
-JuliaHubData = "e241c0f9-2941-4184-86f1-92558f4420e8"
+JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 JuliaHubDistributed = "ac0873db-f1c6-408a-a97a-f3c80a675215"
-JuliaHubLogging = "8ec95b89-8504-468a-8b25-21951a7ee4b5"
-JuliaHubSecrets = "bff2e331-5aae-47c3-a149-508cd56a5867"
 Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
