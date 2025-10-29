@@ -95,6 +95,13 @@ function list_datasets_prefix(prefix, args...; kwargs...)
     end
 end
 
+function test_job_done_and_not_failed(job, ideal_status)
+    if job.status != ideal_status
+        @warn("ideal job status expected $(ideal_status), found  $(job.status)")
+    end
+    job.status in ("Completed", "Stopped")
+end
+
 @testset "JuliaHub.jl" begin
     # JuliaHub.jl's behavior can be influenced by these two environment
     # variables, so we explicitly unset them, just in case, to ensure that the

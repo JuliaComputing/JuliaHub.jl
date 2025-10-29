@@ -30,4 +30,9 @@ serve(; host="0.0.0.0", port=PORT)
 
 @info "Exiting the server"
 ENV["RESULTS"] = results_json()
+if haskey(ENV, "JULIAHUB_RESULTS_SUMMARY_FILE")
+    open(ENV["JULIAHUB_RESULTS_SUMMARY_FILE"], "w") do io
+        write(io, ENV["RESULTS"])
+    end
+end
 println(ENV["RESULTS"])
