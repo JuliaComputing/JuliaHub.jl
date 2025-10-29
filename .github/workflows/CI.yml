@@ -7,7 +7,7 @@ on:
     tags: ["*"]
   pull_request:
   schedule:
-    - cron: '0 0 * * 1' # runs 00:00 UTC on every Monday
+    - cron: "0 0 * * 1" # runs 00:00 UTC on every Monday
 
 concurrency:
   # Skip intermediate builds: always.
@@ -98,7 +98,7 @@ jobs:
         run: |
           import Pkg
           Pkg.activate("juliahub-jet", shared=true)
-          Pkg.add(name="JET", version="0.11")
+          Pkg.add(name="JET", version="0.10")
           Pkg.develop(path=".")
       - name: "JET.test_package(..., mode=:basic) [informational]"
         run: julia --color=yes --project=@juliahub-jet test/jet.jl
@@ -114,8 +114,8 @@ jobs:
     name: Documentation
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: read  # Required when using `push_preview=true`
-      statuses: write  # Optional, used to report documentation build statuses
+      pull-requests: read # Required when using `push_preview=true`
+      statuses: write # Optional, used to report documentation build statuses
     steps:
       - uses: actions/checkout@v5
       - uses: julia-actions/setup-julia@v2
