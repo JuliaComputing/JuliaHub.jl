@@ -1,3 +1,4 @@
 [deps]
-Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+JuliaHubDistributed = "ac0873db-f1c6-408a-a97a-f3c80a675215"
+Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"

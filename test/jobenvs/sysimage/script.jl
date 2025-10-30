@@ -16,4 +16,9 @@ ENV["RESULTS"] = """
     "hello": "$(hello)"
 }
 """
+if haskey(ENV, "JULIAHUB_RESULTS_SUMMARY_FILE")
+    open(ENV["JULIAHUB_RESULTS_SUMMARY_FILE"], "w") do io
+        write(io, ENV["RESULTS"])
+    end
+end
 @info ENV["RESULTS"]
