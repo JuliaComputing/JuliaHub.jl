@@ -92,13 +92,13 @@ jobs:
       - uses: actions/checkout@v5
       - uses: julia-actions/setup-julia@v2
         with:
-          version: "1.11"
+          version: "1"
       - name: "Install dependencies"
         shell: julia --color=yes {0}
         run: |
           import Pkg
           Pkg.activate("juliahub-jet", shared=true)
-          Pkg.add(name="JET", version="0.9")
+          Pkg.add(name="JET", version="0.10")
           Pkg.develop(path=".")
       - name: "JET.test_package(..., mode=:basic) [informational]"
         run: julia --color=yes --project=@juliahub-jet test/jet.jl

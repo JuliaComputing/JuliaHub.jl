@@ -183,7 +183,7 @@ function Dataset(d::Dict; expected_project::Union{UUID, Nothing}=nothing)
             _get_json(project_json, "project_id", String)
         )
         if project_json_uuid != expected_project
-            msg = "Project UUID mismatch in dataset response: $(project_json_uuid), requested $(project)"
+            msg = "Project UUID mismatch in dataset response: $(project_json_uuid), requested $(expected_project)"
             throw(JuliaHubError(msg))
         end
         is_writable = _get_json(
