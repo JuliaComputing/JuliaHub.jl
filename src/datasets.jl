@@ -801,7 +801,7 @@ end
 function _upload_dataset(upload_config, local_path; progress::Bool)
     type = upload_config["upload_type"]
     vendor = upload_config["vendor"]
-    if type != "S3" || vendor != "aws"
+    if type != "S3" || !(vendor in ("aws", "minio"))
         throw(JuliaHubError("Unknown upload type ($type) or vendor ($vendor)"))
     end
     mktemp() do rclone_conf_path, rclone_conf_io
@@ -868,19 +868,29 @@ function _write_rclone_config(
     access_key_id::AbstractString,
     secret_access_key::AbstractString,
     session_token::AbstractString,
+    provider::AbstractString="AWS",
+    endpoint::AbstractString="",
 )
+    if lowercase(provider) == "aws"
+        provider = "AWS"
+    elseif lowercase(provider) == "minio"
+        provider = "Minio"
+    else
+        throw(JuliaHubError("Unknown storage backend $(provider)"))
+    end
+
     write(
         io,
         """
 [juliahub_remote]
 type = s3
-provider = AWS
+provider = $provider
 env_auth = false
 access_key_id = $access_key_id
 secret_access_key = $secret_access_key
 session_token = $session_token
 region = $region
-endpoint =
+endpoint = $endpoint
 location_constraint = $region
 acl = private
 server_side_encryption =
@@ -894,7 +904,11 @@ function _write_rclone_config(io::IO, upload_config::Dict)
     access_key_id = upload_config["credentials"]["access_key_id"]
     secret_access_key = upload_config["credentials"]["secret_access_key"]
     session_token = upload_config["credentials"]["session_token"]
-    _write_rclone_config(io; region, access_key_id, secret_access_key, session_token)
+    provider = upload_config["vendor"]
+    endpoint = get(upload_config["credentials"], "endpoint_url", "")
+    _write_rclone_config(
+        io; region, access_key_id, secret_access_key, session_token, provider, endpoint
+    )
 end
 
 function _get_dataset_credentials(auth::Authentication, dataset::Dataset)
@@ -988,9 +1002,11 @@ function download_dataset(
         throw(InvalidRequestError("Dataset '$(dataset.name)' does not have version 'v$version'"))
 
     credentials = Mocking.@mock _get_dataset_credentials(auth, dataset)
-    credentials["vendor"] == "aws" ||
+    provider = credentials["vendor"]
+    provider in ("aws", "minio") ||
         throw(JuliaHubError("Unknown 'vendor': $(credentials["vendor"])"))
     credentials = credentials["credentials"]
+    endpoint = get(credentials, "endpoint_url", "")
 
     bucket = dataset._storage.bucket
     prefix = dataset._storage.prefix
@@ -1019,6 +1035,8 @@ function download_dataset(
                 access_key_id=credentials["access_key_id"],
                 secret_access_key=credentials["secret_access_key"],
                 session_token=credentials["session_token"],
+                provider=provider,
+                endpoint=endpoint,
             )
             close(rclone_conf_io)
 
