@@ -4,6 +4,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## Unreleased
 
+### Added
+
+* Support for JuliaHub instances using MinIO as datasets storage backend.
+
 ### Fixed
 
 * The `.message` property _should_ always be present in the log messages, but there are a few versions out there where it is sometimes omitted due to a backend bug. We default to an empty string in those cases. ([#111])
