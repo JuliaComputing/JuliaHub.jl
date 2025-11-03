@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-* Support for JuliaHub instances using MinIO as datasets storage backend.
+* Support for JuliaHub instances using MinIO as datasets storage backend. ([#107], [#112])
 
 ### Fixed
 
@@ -208,3 +208,6 @@ Initial package release.
 [#99]: https://github.com/JuliaComputing/JuliaHub.jl/issues/99
 [#100]: https://github.com/JuliaComputing/JuliaHub.jl/issues/100
 [#103]: https://github.com/JuliaComputing/JuliaHub.jl/issues/103
+[#107]: https://github.com/JuliaComputing/JuliaHub.jl/issues/107
+[#111]: https://github.com/JuliaComputing/JuliaHub.jl/issues/111
+[#112]: https://github.com/JuliaComputing/JuliaHub.jl/issues/112
