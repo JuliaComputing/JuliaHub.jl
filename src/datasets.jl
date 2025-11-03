@@ -868,15 +868,15 @@ function _write_rclone_config(
     access_key_id::AbstractString,
     secret_access_key::AbstractString,
     session_token::AbstractString,
-    provider::AbstractString="AWS",
-    endpoint::AbstractString="",
+    vendor::AbstractString,
+    endpoint::AbstractString,
 )
-    if lowercase(provider) == "aws"
-        provider = "AWS"
-    elseif lowercase(provider) == "minio"
-        provider = "Minio"
+    provider = if vendor == "aws"
+        "AWS"
+    elseif vendor == "minio"
+        "Minio"
     else
-        throw(JuliaHubError("Unknown storage backend $(provider)"))
+        throw(JuliaHubError("Unknown storage backend $(vendor)"))
     end
 
     write(
@@ -904,10 +904,10 @@ function _write_rclone_config(io::IO, upload_config::Dict)
     access_key_id = upload_config["credentials"]["access_key_id"]
     secret_access_key = upload_config["credentials"]["secret_access_key"]
     session_token = upload_config["credentials"]["session_token"]
-    provider = upload_config["vendor"]
+    vendor = upload_config["vendor"]
     endpoint = get(upload_config["credentials"], "endpoint_url", "")
     _write_rclone_config(
-        io; region, access_key_id, secret_access_key, session_token, provider, endpoint
+        io; region, access_key_id, secret_access_key, session_token, vendor, endpoint
     )
 end
 
@@ -1002,9 +1002,10 @@ function download_dataset(
         throw(InvalidRequestError("Dataset '$(dataset.name)' does not have version 'v$version'"))
 
     credentials = Mocking.@mock _get_dataset_credentials(auth, dataset)
-    provider = credentials["vendor"]
-    provider in ("aws", "minio") ||
-        throw(JuliaHubError("Unknown 'vendor': $(credentials["vendor"])"))
+    vendor = credentials["vendor"]
+    if !(vendor in ("aws", "minio"))
+        throw(JuliaHubError("Unknown 'vendor': $(vendor)"))
+    end
     credentials = credentials["credentials"]
     endpoint = get(credentials, "endpoint_url", "")
 
@@ -1035,7 +1036,7 @@ function download_dataset(
                 access_key_id=credentials["access_key_id"],
                 secret_access_key=credentials["secret_access_key"],
                 session_token=credentials["session_token"],
-                provider=provider,
+                vendor=vendor,
                 endpoint=endpoint,
             )
             close(rclone_conf_io)
