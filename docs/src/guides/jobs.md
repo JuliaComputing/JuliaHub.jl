@@ -255,7 +255,7 @@ job = JuliaHub.submit_job(
     using Oxygen, HTTP
     # Environment variable name `PORT` was used in older JuliaHub environments
     # and has been replaced with `JULIAHUB_APP_PORT` in newer environments 
-    PORT = parse(Int, get(ENV, "JULIAHUB_APP_PORT", ENV["PORT"]))
+    PORT = parse(Int, get(ENV, "JULIAHUB_APP_PORT", get(ENV, "PORT", "")))
     @get "/" function(req::HTTP.Request)
         return "success"
     end

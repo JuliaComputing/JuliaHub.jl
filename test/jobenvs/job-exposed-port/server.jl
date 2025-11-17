@@ -2,7 +2,7 @@ using Oxygen, HTTP
 
 # Environment variable name `PORT` was used in older JuliaHub environments
 # and has been replaced with `JULIAHUB_APP_PORT` in newer environments 
-const PORT = parse(Int, get(ENV, "JULIAHUB_APP_PORT", ENV["PORT"]))
+const PORT = parse(Int, get(ENV, "JULIAHUB_APP_PORT", get(ENV, "PORT", "")))
 const NREQUESTS = Ref{Int}(0)
 
 function results_json()
