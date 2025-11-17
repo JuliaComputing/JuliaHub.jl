@@ -76,7 +76,7 @@ try
         @test project_dataset.project === nothing
         @test length(project_dataset.versions) == 1
         # TODO: add this properly to DatasetVersion?
-        @test get(project_dataset._json["versions"][1], "project", nothing) === nothing
+        @test !haskey(project_dataset._json["versions"][1], "project")
         @test project_dataset._json["versions"][1]["uploader"]["username"] == auth.username
 
         # The authentication object we use does not have a project associated with it
