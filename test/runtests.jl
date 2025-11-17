@@ -36,12 +36,6 @@ function extra_enabled_live_tests(; print_info=false)
     if get(ENV, "JULIAHUBJL_LIVE_WINDOWS_TESTS", "") == "true"
         push!(testnames, "jobs-windows")
     end
-    if get(ENV, "JULIAHUBJL_LIVE_EXPOSED_PORT_TESTS", "") == "true"
-        push!(testnames, "jobs-exposed-port")
-    end
-    if get(ENV, "JULIAHUBJL_LIVE_PROJECTS_TESTS", "") == "true"
-        push!(testnames, "datasets-projects")
-    end
     if print_info && !isempty(testnames)
         testname_list = join(string.(" - ", testnames), '\n')
         @info """
