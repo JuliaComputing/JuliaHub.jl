@@ -24,7 +24,7 @@ UUIDs = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
 [compat]
 Glob = "1"
 HTTP = "1"
-JSON = "0.20, 0.21"
+JSON = "0.20, 0.21, 1"
 Mocking = "0.7"
 PkgAuthentication = "2"
 Rclone_jll = "1.60"
