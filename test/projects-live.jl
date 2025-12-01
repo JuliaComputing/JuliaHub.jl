@@ -144,7 +144,7 @@ try
         @test dataset.project.is_writable === true
 
         @test length(dataset.versions) == 2
-        @test dataset._json["versions"][1]["project"] === nothing
+        @test !haskey(dataset._json["versions"][1], "project")
         @test dataset._json["versions"][1]["uploader"]["username"] == auth.username
         @test dataset._json["versions"][2]["project"] == project.project_id
         @test dataset._json["versions"][2]["uploader"]["username"] == auth.username
@@ -162,7 +162,7 @@ try
             @test dataset.project.is_writable === true
 
             @test length(dataset.versions) == 2
-            @test dataset._json["versions"][1]["project"] === nothing
+            @test !haskey(dataset._json["versions"][1], "project")
             @test dataset._json["versions"][1]["uploader"]["username"] == auth.username
             @test dataset._json["versions"][2]["project"] == project.project_id
             @test dataset._json["versions"][2]["uploader"]["username"] == auth.username
