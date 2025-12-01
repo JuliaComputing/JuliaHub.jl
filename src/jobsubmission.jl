@@ -914,7 +914,9 @@ struct PackageJob <: AbstractJobConfig
     args::Dict
     sysimage::Bool
 
-    PackageJob(app::PackageApp; args::AbstractDict=Dict(), sysimage::Bool=_DEFAULT_BatchJob_sysimage) =
+    PackageJob(
+        app::PackageApp; args::AbstractDict=Dict(), sysimage::Bool=_DEFAULT_BatchJob_sysimage
+    ) =
         new(app, app.name, app._registry.name, string(app._uuid), args, sysimage)
     PackageJob(app::UserApp; args::AbstractDict=Dict(), sysimage::Bool=_DEFAULT_BatchJob_sysimage) =
         new(app, app.name, nothing, app._repository, args, sysimage)

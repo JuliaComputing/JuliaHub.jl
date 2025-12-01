@@ -209,7 +209,8 @@ end
 # A key point, though, is that it will throw a JuliaHubError if the server response is somehow
 # invalid and we can't parse/convert it properly.
 function _get_json_convert(
-    json::AbstractDict, key::AbstractString, ::Type{UUIDs.UUID}; msg::Union{AbstractString, Nothing}=nothing
+    json::AbstractDict, key::AbstractString, ::Type{UUIDs.UUID};
+    msg::Union{AbstractString, Nothing}=nothing
 )::UUIDs.UUID
     uuid_str = _get_json(json, key, String; msg)
     uuid = tryparse(UUIDs.UUID, uuid_str)
