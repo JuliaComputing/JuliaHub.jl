@@ -76,7 +76,7 @@ end
     # And correctly throw for invalid owner.username
     let d = Dict(d0()..., "owner" => nothing)
         @test_throws JuliaHub.JuliaHubError(
-            "Invalid JSON returned by the server: `owner` of type `Nothing`, expected `<: Dict`."
+            "Invalid JSON returned by the server: `owner` of type `Nothing`, expected `<: AbstractDict`."
         ) JuliaHub.Dataset(d)
     end
 

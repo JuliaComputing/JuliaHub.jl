@@ -43,7 +43,7 @@ struct _JobSubmission1
         # User code arguments
         appType::Union{AbstractString, Nothing}=nothing,
         appArgs::Union{Dict, Nothing}=nothing,
-        args::Dict,
+        args::AbstractDict,
         projectid::Union{AbstractString, Nothing},
         customcode::Bool, usercode::Union{AbstractString, Nothing}=nothing,
         projecttoml::Union{AbstractString, Nothing}=nothing,
@@ -158,7 +158,7 @@ end
 
 _string_or_nothing(x) = isnothing(x) ? nothing : string(x)
 
-function _check_key(d::Dict, key, ::Type{T}; varname) where {T}
+function _check_key(d::AbstractDict, key, ::Type{T}; varname) where {T}
     haskey(d, key) || throw(ArgumentError("Dictionary `$varname` is missing key `$key`."))
     isa(d[key], T) ||
         throw(ArgumentError("`$varname[\"$key\"]` is not `<: $T` (got `$(typeof(d[key]))`)."))
@@ -185,7 +185,7 @@ function _submit_job(auth::Authentication, j::_JobSubmission1)
     """
     r = _restcall(auth, :POST, ("juliaruncloud", "submit_job"), HTTP.Form(params))
     if r.status == 200
-        r_json, _ = _parse_response_json(r, Dict)
+        r_json, _ = _parse_response_json(r, AbstractDict)
         haskey(r_json, "success") && r_json["success"] || throw(JuliaHubError(
             """
             Invalid response JSON from JuliaHub:
@@ -868,10 +868,10 @@ function _get_appbundle_upload_url(auth::Authentication, appbundle_tar_path::Abs
     )
     r = _restcall(auth, :GET, "jobs", "appbundle_upload_url"; query=appbundle_params)
     r.status == 200 || _throw_invalidresponse(r; msg="Unable to upload appbundle to JuliaHub.")
-    r_json, _ = _parse_response_json(r, Dict)
+    r_json, _ = _parse_response_json(r, AbstractDict)
     _get_json(r_json, "success", Bool) ||
         _throw_invalidresponse(r; msg="Unable to upload appbundle to JuliaHub.")
-    message = _get_json(r_json, "message", Dict)
+    message = _get_json(r_json, "message", AbstractDict)
     upload_url = _get_json(message, "upload_url", AbstractString)
     return upload_url, appbundle_params
 end
@@ -914,9 +914,9 @@ struct PackageJob <: AbstractJobConfig
     args::Dict
     sysimage::Bool
 
-    PackageJob(app::PackageApp; args::Dict=Dict(), sysimage::Bool=_DEFAULT_BatchJob_sysimage) =
+    PackageJob(app::PackageApp; args::AbstractDict=Dict(), sysimage::Bool=_DEFAULT_BatchJob_sysimage) =
         new(app, app.name, app._registry.name, string(app._uuid), args, sysimage)
-    PackageJob(app::UserApp; args::Dict=Dict(), sysimage::Bool=_DEFAULT_BatchJob_sysimage) =
+    PackageJob(app::UserApp; args::AbstractDict=Dict(), sysimage::Bool=_DEFAULT_BatchJob_sysimage) =
         new(app, app.name, nothing, app._repository, args, sysimage)
 end
 
@@ -926,7 +926,7 @@ function _check_packagebundler_dir(bundlepath::AbstractString)
     return nothing
 end
 
-function _check_job_args(args::Dict)
+function _check_job_args(args::AbstractDict)
     for k in keys(args)
         isa(k, AbstractString) ||
             throw(
