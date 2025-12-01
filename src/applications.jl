@@ -13,7 +13,7 @@ struct _RegistryInfo
     name::String
     uuid::UUIDs.UUID
 
-    function _RegistryInfo(json::Dict; var="_RegistryInfo")
+    function _RegistryInfo(json::AbstractDict; var="_RegistryInfo")
         id = _json_get(json, "id", Integer; var)
         name = _json_get(json, "name", AbstractString; var)
         uuid = _json_get(json, "uuid", UUIDs.UUID; var, parse=true)
@@ -23,7 +23,7 @@ end
 
 function _api_registries(auth::Authentication)::Vector{_RegistryInfo}
     r = _restcall(auth, :GET, "app", "packages", "registries")
-    json, _ = _parse_response_json(r, Dict)
+    json, _ = _parse_response_json(r, AbstractDict)
     _json_check_success(json; var="app/packages/registries")
     registries = _json_get(json, "registries", Vector; var="app/packages/registries")
     # Note: this broadcast can return Any[] if `registries` is empty, hence
@@ -78,7 +78,7 @@ struct DefaultApp <: AbstractJuliaHubApp
     _apptype::String
     _json::Dict{String, Any}
 
-    function DefaultApp(json::Dict, appargs::AbstractVector)
+    function DefaultApp(json::AbstractDict, appargs::AbstractVector)
         apptype = _json_get(json, "appType", AbstractString; var="default app")
         name = _json_get(json, "name", AbstractString; var="default app")
         new(name, appargs, apptype, json)
@@ -124,7 +124,7 @@ struct PackageApp <: AbstractJuliaHubApp
     _registry::_RegistryInfo
     _json::Dict{String, Any}
 
-    function PackageApp(json::Dict, registries::Vector{_RegistryInfo})
+    function PackageApp(json::AbstractDict, registries::Vector{_RegistryInfo})
         name = _json_get(json, "name", AbstractString; var="registered app")
         uuid = _json_get(json, "uuid", UUIDs.UUID; var="registered app", parse=true)
         registrymap = _json_get(json, "registrymap", Vector; var="registered app")
@@ -180,7 +180,7 @@ struct UserApp <: AbstractJuliaHubApp
     _repository::String
     _json::Dict{String, Any}
 
-    function UserApp(json::Dict)
+    function UserApp(json::AbstractDict)
         name = _json_get(json, "name", AbstractString; var="user app")
         repository_url = _json_get(json, "repourl", AbstractString; var="user app")
         new(name, repository_url, json)
@@ -258,7 +258,7 @@ end
 function _api_apps_default(auth::Authentication)
     r = _restcall(auth, :GET, "app", "applications", "default")
     r.status == 200 || _throw_invalidresponse(r; msg="Unable to list default applications.")
-    return _parse_response_json(r, Dict)
+    return _parse_response_json(r, AbstractDict)
 end
 
 function _apps_default(auth::Authentication)

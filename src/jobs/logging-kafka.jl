@@ -1,14 +1,14 @@
 struct _KafkaLogging <: _JobLoggingAPIVersion end
 
-function JobLogMessage(::_KafkaLogging, json::Dict)
+function JobLogMessage(::_KafkaLogging, json::AbstractDict)
     offset = _get_json(json, "offset", Int)
     # The timestamps in Kafka logs are in milliseconds
-    value = _get_json(json, "value", Dict)
+    value = _get_json(json, "value", AbstractDict)
     timestamp = _ms_utc2localtz(_get_json(value, "timestamp", Int))
-    log = _get_json(value, "log", Dict)
+    log = _get_json(value, "log", AbstractDict)
     message = _get_json(log, "message", String)
-    metadata = _get_json_or(log, "metadata", Dict, Dict{String, Any}())
-    keywords = _get_json_or(log, "keywords", Dict, Dict{String, Any}())
+    metadata::Dict = _get_json_or(log, "metadata", AbstractDict, Dict{String, Any}())
+    keywords::Dict = _get_json_or(log, "keywords", AbstractDict, Dict{String, Any}())
     stream = _get_json_or(log, "stream", String, nothing)
     JobLogMessage(;
         _offset=offset, timestamp, message, _metadata=metadata, _keywords=keywords,
@@ -412,12 +412,12 @@ function _get_logs_kafka_parsed(
     @debug "_get_logs_kafka_parsed($jobname): start REST call" _taskstamp() offset consumer_id timeout
     r = _get_job_logs_kafka_restcall(auth, jobname; offset, consumer_id, timeout)
     r.status == 200 || _throw_invalidresponse(r)
-    json, json_str = _parse_response_json(r, Dict)
+    json, json_str = _parse_response_json(r, AbstractDict)
     consumer_id = _get_json(json, "consumer_id", Int)
     # If the Kafka endpoints want to return an empty list of log messages, it returns it
     # as an empty object (i.e. "logs": {}), rather than an empty array.
-    logs = _get_json(json, "logs", Union{Dict, Vector})
-    logmessages, jobdone = if isa(logs, Dict)
+    logs = _get_json(json, "logs", Union{AbstractDict, Vector})
+    logmessages, jobdone = if isa(logs, AbstractDict)
         if !isempty(logs)
             throw(JuliaHubError("Non-empty dictionary for logs\n$(json_str)"))
         end
@@ -434,7 +434,7 @@ function _get_logs_kafka_parsed(
         # also occur in a random place.. or there may be multiple meta messages.
         bottom_message = false
         for (i, log) in enumerate(logs)
-            if !isa(log, Dict)
+            if !isa(log, AbstractDict)
                 @error "Invalid log message type $(typeof(log)) (at $i / $(length(logs)); omitting)" i log
                 continue
             end
@@ -477,8 +477,8 @@ function _get_logs_kafka_parsed(
     return (; consumer_id, logs=logmessages, isdone=jobdone)
 end
 
-function _kafka_is_last_message(json::Dict)
-    value = _get_json_or(json, "value", Dict, Dict())
+function _kafka_is_last_message(json::AbstractDict)
+    value::Dict = _get_json_or(json, "value", AbstractDict, Dict())
     return get(value, "meta", nothing) == "bottom"
 end
 

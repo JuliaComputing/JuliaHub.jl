@@ -53,7 +53,7 @@ struct JobFile
     _upload_timestamp::String
 
     function JobFile(jobname::AbstractString, jf::AbstractDict; var)
-        filehash = let hash = _json_get(jf, "hash", Dict; var)
+        filehash = let hash = _json_get(jf, "hash", AbstractDict; var)
             hash_algorithm = _json_get(hash, "algorithm", Union{String, Nothing}; var)
             hash_value = _json_get(hash, "value", Union{String, Nothing}; var)
             if isnothing(hash_algorithm) || isnothing(hash_value)
@@ -374,7 +374,7 @@ function job end
 function job(id::AbstractString; throw::Bool=true, auth::Authentication=__auth__())
     r = _restcall(auth, :GET, "api", "rest", "jobs", id; hasura=true)
     r.status == 200 || _throw_invalidresponse(r)
-    job, json = _parse_response_json(r, Dict)
+    job, json = _parse_response_json(r, AbstractDict)
     details = get(job, "details") do
         Base.throw(JuliaHubError("Invalid JSON returned by the server:\n$(json)"))
     end
@@ -559,7 +559,7 @@ kill_job(job::Job; auth::Authentication=__auth__()) = kill_job(job.id; auth)
 function kill_job(jobname::AbstractString; auth::Authentication=__auth__())
     r = _restcall(auth, :GET, "juliaruncloud", "kill_job"; query=(; jobname=string(jobname)))
     if r.status == 200
-        response, json = _parse_response_json(r, Dict)
+        response, json = _parse_response_json(r, AbstractDict)
         # response_json["status"] might not be a Bool
         if get(response, "status", false) != true
             throw(JuliaHubError("Unexpected JSON returned by the server\n$(json)"))
@@ -601,7 +601,7 @@ function extend_job(jobname::AbstractString, extension::Limit; auth::Authenticat
     )
     r = _restcall(auth, :POST, ("juliaruncloud", "extend_job_time_limit"), payload)
     if r.status == 200
-        response, json = _parse_response_json(r, Dict)
+        response, json = _parse_response_json(r, AbstractDict)
         success = get(response, "success", nothing)
         message = get(response, "message", "")
         if success === true
