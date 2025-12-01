@@ -534,7 +534,7 @@ Base.@kwdef mutable struct LogEngine
     max_response_size::Int = 10
 end
 
-function serve_kafka(logengine::LogEngine, method::Symbol, query::Dict)
+function serve_kafka(logengine::LogEngine, method::Symbol, query::AbstractDict)
     jobname = get(query, "jobname", nothing)
     job = get(logengine.jobs, jobname, nothing)
     # If the client is doing a HEAD request, then we immediately return the
@@ -612,7 +612,7 @@ function serve_kafka(logengine::LogEngine, method::Symbol, query::Dict)
     return JuliaHub._RESTResponse(200, logs_json)
 end
 
-function serve_legacy(logengine::LogEngine, query::Dict)
+function serve_legacy(logengine::LogEngine, query::AbstractDict)
     jobname = get(query, "jobname", nothing)
     job = get(logengine.jobs, jobname, nothing)
     if isnothing(jobname)
