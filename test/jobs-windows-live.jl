@@ -26,7 +26,7 @@
         @test job.status == "Completed"
         @test job.alias == full_alias
         @test !isempty(job.results)
-        let results = JSON.parse(job.results)
+        let results = JSON.parse(job.results; dicttype=Dict)
             @test results isa AbstractDict
             @test haskey(results, "iswindows")
             @test results["iswindows"] === true

@@ -350,7 +350,7 @@ function _restcall_mocked(method, url, headers, payload; query)
             ) |> jsonresponse(200)
         end
     elseif (method == :POST) && endswith(url, "juliaruncloud/extend_job_time_limit")
-        payload = JSON.parse(payload)
+        payload = JSON.parse(payload; dicttype=Dict)
         idx = findfirst(isequal(payload["jobname"]), job_names)
         if isnothing(idx)
             JuliaHub._RESTResponse(403, "User does not have access to this job")
@@ -401,7 +401,7 @@ function _restcall_mocked(method, url, headers, payload; query)
         dataset = URIs.unescapeuri(match(DATASET_REGEX, url)[1])
         if "username/$(dataset)" ∈ existing_datasets
             if haskey(MOCK_JULIAHUB_STATE, :dataset_params)
-                merge!(MOCK_JULIAHUB_STATE[:dataset_params], JSON.parse(payload))
+                merge!(MOCK_JULIAHUB_STATE[:dataset_params], JSON.parse(payload; dicttype=Dict))
             end
             Dict{String, Any}(
                 "name" => dataset,
@@ -411,7 +411,7 @@ function _restcall_mocked(method, url, headers, payload; query)
             return JuliaHub._RESTResponse(404, "Dataset $(dataset) does not exist.")
         end
     elseif (method == :POST) && endswith(url, "/user/datasets")
-        payload = JSON.parse(payload)
+        payload = JSON.parse(payload; dicttype=Dict)
         dataset, type = payload["name"], payload["type"]
         if "$(MOCK_USERNAME)/$(dataset)" in existing_datasets
             JuliaHub._RESTResponse(409, "Dataset $(dataset) exists")
@@ -426,7 +426,7 @@ function _restcall_mocked(method, url, headers, payload; query)
         dataset, is_user = let m = match(DATASET_VERSIONS_REGEX, url)
             URIs.unescapeuri(m[2]), m[1] == "user/"
         end
-        payload = JSON.parse(something(payload, "{}"))
+        payload = JSON.parse(something(payload, "{}"); dicttype=Dict)
         if isempty(payload) || !haskey(payload, "action")
             is_existing_dataset = if is_user
                 "$(MOCK_USERNAME)/$(dataset)" in existing_datasets

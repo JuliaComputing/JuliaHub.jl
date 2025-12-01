@@ -51,7 +51,7 @@ function Base.getproperty(r::_RESTResponse, name::Symbol)
     if name in fieldnames(_RESTResponse)
         getfield(r, name)
     elseif name == :json
-        JSON.parse(getfield(r, :body))
+        JSON.parse(getfield(r, :body); dicttype=Dict)
     else
         error("_RESTResponse has no property $name")
     end

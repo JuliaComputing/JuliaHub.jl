@@ -81,7 +81,7 @@ function nodespecs(; auth::Authentication=__auth__())
     r = _api_nodespecs(auth)
     if r.status == 200
         try
-            json = JSON.parse(String(r.body))
+            json = JSON.parse(String(r.body); dicttype=Dict)
             if json["success"]
                 nodes = [
                     NodeSpec(n) for n in json["node_specs"]

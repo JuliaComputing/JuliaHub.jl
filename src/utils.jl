@@ -147,7 +147,7 @@ function _parse_response_json(r::HTTP.Response, ::Type{T})::Tuple{T, String} whe
 end
 function _parse_response_json(s::AbstractString, ::Type{T})::Tuple{T, String} where {T}
     object = try
-        JSON.parse(s)
+        JSON.parse(s; dicttype=Dict)
     catch e
         throw(
             JuliaHubError(
@@ -167,7 +167,7 @@ function _parse_response_json(s::AbstractString, ::Type{T})::Tuple{T, String} wh
 end
 
 function _get_json(
-    json::Dict, key::AbstractString, ::Type{T}; msg::Union{AbstractString, Nothing}=nothing
+    json::AbstractDict, key::AbstractString, ::Type{T}; msg::Union{AbstractString, Nothing}=nothing
 )::T where {T}
     value = get(json, key) do
         errormsg = """
@@ -186,7 +186,7 @@ function _get_json(
 end
 
 function _get_json_or(
-    json::Dict,
+    json::AbstractDict,
     key::AbstractString,
     ::Type{T},
     default::U=nothing;
@@ -209,7 +209,8 @@ end
 # A key point, though, is that it will throw a JuliaHubError if the server response is somehow
 # invalid and we can't parse/convert it properly.
 function _get_json_convert(
-    json::Dict, key::AbstractString, ::Type{UUIDs.UUID}; msg::Union{AbstractString, Nothing}=nothing
+    json::AbstractDict, key::AbstractString, ::Type{UUIDs.UUID};
+    msg::Union{AbstractString, Nothing}=nothing
 )::UUIDs.UUID
     uuid_str = _get_json(json, key, String; msg)
     uuid = tryparse(UUIDs.UUID, uuid_str)
@@ -355,7 +356,7 @@ function _walkfiles(f::Base.Callable, root::AbstractString; descend::Base.Callab
     end
 end
 
-function _json_get(d::Dict, key, ::Type{T}; var::AbstractString, parse=false) where {T}
+function _json_get(d::AbstractDict, key, ::Type{T}; var::AbstractString, parse=false) where {T}
     haskey(d, key) || _throw_jsonerror(var, "key `$key` missing", d)
     if parse
         isa(d[key], AbstractString) || _throw_jsonerror(
@@ -372,7 +373,7 @@ function _json_get(d::Dict, key, ::Type{T}; var::AbstractString, parse=false) wh
     end
 end
 
-function _throw_jsonerror(var::AbstractString, msg::AbstractString, json::Dict)
+function _throw_jsonerror(var::AbstractString, msg::AbstractString, json::AbstractDict)
     e = JuliaHubError(
         """
         Invalid JSON response from JuliaHub ($var): $msg
@@ -383,7 +384,7 @@ function _throw_jsonerror(var::AbstractString, msg::AbstractString, json::Dict)
 end
 
 # Checks that the 'success' field is set and === true
-function _json_check_success(json::Dict; var::AbstractString)
+function _json_check_success(json::AbstractDict; var::AbstractString)
     success = _json_get(json, "success", Bool; var)
     success || throw(JuliaHubError(
         """

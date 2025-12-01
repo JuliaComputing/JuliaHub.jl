@@ -141,7 +141,7 @@ function _batchimages_legacy(auth::Authentication)
     r = _restcall(auth, :GET, "juliaruncloud", "get_image_options")
     if r.status == 200
         try
-            json = JSON.parse(String(r.body))
+            json = JSON.parse(String(r.body); dicttype=Dict)
             if json["success"] && haskey(json, "image_options")
                 image_options = json["image_options"]
                 default_options = [

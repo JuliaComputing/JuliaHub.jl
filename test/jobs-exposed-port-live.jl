@@ -19,7 +19,7 @@ function test_job_with_exposed_port(job::JuliaHub.Job; check_input::Bool=false, 
     job = wait_submission(job)
     let r = wait_exposed_job_502(job)
         @test r.status == 200
-        json = JSON.parse(String(r.body))
+        json = JSON.parse(String(r.body); dicttype=Dict)
         @test json isa AbstractDict
         @test get(json, "success", nothing) === true
         @test get(json, "port", nothing) == port
@@ -34,7 +34,7 @@ function test_job_with_exposed_port(job::JuliaHub.Job; check_input::Bool=false, 
     # gets incremented correctly.
     let r = JuliaHub.request(job, "GET", "/"; auth, status_exception=false)
         @test r.status == 200
-        json = JSON.parse(String(r.body))
+        json = JSON.parse(String(r.body); dicttype=Dict)
         @test json isa AbstractDict
         @test get(json, "success", nothing) === true
         @test get(json, "nrequests", nothing) == 2

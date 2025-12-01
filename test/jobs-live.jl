@@ -199,7 +199,7 @@ end
     @test job.status == "Failed"
     # Even though the job failed, any RESULTS set before the error are still stored
     @test !isempty(job.results)
-    let results = JSON.parse(job.results)
+    let results = JSON.parse(job.results; dicttype=Dict)
         @test results isa AbstractDict
         @test haskey(results, "x")
         @test results["x"] == 42
@@ -220,7 +220,7 @@ end
     job = JuliaHub.wait_job(job)
     @test test_job_done_and_not_failed(job, "Completed")
     @test !isempty(job.results)
-    let results = JSON.parse(job.results)
+    let results = JSON.parse(job.results; dicttype=Dict)
         @test results isa AbstractDict
         @test haskey(results, "vs")
         @test length(results["vs"]) == 2
@@ -246,7 +246,7 @@ end
     job = JuliaHub.wait_job(job)
     @test test_job_done_and_not_failed(job, "Completed")
     @test !isempty(job.results)
-    let results = JSON.parse(job.results)
+    let results = JSON.parse(job.results; dicttype=Dict)
         @test results isa AbstractDict
         @test haskey(results, "vs")
         @test length(results["vs"]) == 5
@@ -268,7 +268,7 @@ end
     job = JuliaHub.wait_job(job)
     @test test_job_done_and_not_failed(job, "Completed")
     @test !isempty(job.results)
-    let results = JSON.parse(job.results)
+    let results = JSON.parse(job.results; dicttype=Dict)
         @test results isa AbstractDict
         @test haskey(results, "datastructures_version")
         @test VersionNumber(results["datastructures_version"]) == v"0.17.0"
@@ -288,7 +288,7 @@ end
     job = JuliaHub.wait_job(job)
     @test test_job_done_and_not_failed(job, "Completed")
     @test !isempty(job.results)
-    let results = JSON.parse(job.results)
+    let results = JSON.parse(job.results; dicttype=Dict)
         @test results isa AbstractDict
         @test haskey(results, "datastructures_version")
         @test VersionNumber(results["datastructures_version"]) > v"0.17.0"
@@ -315,7 +315,7 @@ if v"1.10" <= Base.VERSION < v"1.12"
         @test JuliaHub.job_file(job, :input, "appbundle.tar") isa JuliaHub.JobFile
         # Test the results values
         @test !isempty(job.results)
-        let results = JSON.parse(job.results)
+        let results = JSON.parse(job.results; dicttype=Dict)
             @test results isa AbstractDict
             @test haskey(results, "datastructures_version")
             @test VersionNumber(results["datastructures_version"]) == v"0.17.0"
@@ -432,7 +432,7 @@ end
     @test test_job_done_and_not_failed(job, "Completed")
     @test job._json["sysimage_build"] === true
     @test !isempty(job.results)
-    let results = JSON.parse(job.results)
+    let results = JSON.parse(job.results; dicttype=Dict)
         @test results isa AbstractDict
         @test results["in_sysimage"] === true
         @test results["loaded_modules_before_import"] === true

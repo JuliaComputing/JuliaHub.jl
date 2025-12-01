@@ -223,7 +223,7 @@ function _get_job_logs_legacy(
     # If the request was successful, we should be able to parse the logs. But if there was an error,
     # we might also get back a JSON with a success=false field.
     body = String(r.body)
-    jb = JSON.parse(body)
+    jb = JSON.parse(body; dicttype=Dict)
     if jb isa Dict && !get(jb, "success", true)
         throw(
             JuliaHubError(

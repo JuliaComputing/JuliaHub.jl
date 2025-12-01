@@ -233,7 +233,7 @@ struct Job
             Dict{String, Any}() # TODO: drop Nothing?
         else
             try
-                JSON.parse(unescape_string(inputs))
+                JSON.parse(unescape_string(inputs); dicttype=Dict)
             catch e
                 throw(
                     JuliaHubError("Unable to parse 'inputs' JSON for job $jobname:\n$(inputs)",
