@@ -186,13 +186,16 @@ function _submit_job(auth::Authentication, j::_JobSubmission1)
     r = _restcall(auth, :POST, ("juliaruncloud", "submit_job"), HTTP.Form(params))
     if r.status == 200
         r_json, _ = _parse_response_json(r, Dict)
-        haskey(r_json, "success") && r_json["success"] || throw(JuliaHubError(
-            """
-            Invalid response JSON from JuliaHub:
-            $(sprint(show, MIME("text/plain"), r_json))
-            """,
-        ))
-        r_json["success"] || _throw_invalidresponse(r)
+        if !haskey(r_json, "success") || !r_json["success"]
+            msg = get(r_json, "message", nothing)
+            if msg === nothing
+                msg = """
+                    Invalid response JSON from JuliaHub:
+                    $(sprint(show, MIME("text/plain"), r_json))
+                    """
+            end
+            throw(JuliaHubError(msg))
+        end
         return r_json["jobname"]
     end
     _throw_invalidresponse(r)
