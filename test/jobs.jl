@@ -495,6 +495,26 @@ end
     end
 end
 
+@testset "JuliaHub.submit_job: failed submission" begin
+    empty!(MOCK_JULIAHUB_STATE)
+    Mocking.apply(mocking_patch) do
+        s = JuliaHub.script"run()"
+        # Test that when server returns success=false with a message, we get that message
+        MOCK_JULIAHUB_STATE[:submit_job_response] = Dict(
+            "success" => false,
+            "message" => "You have reached the job rate limit of 2.",
+        )
+        err = @test_throws JuliaHub.JuliaHubError JuliaHub.submit_job(s)
+        @test err.value.msg == "You have reached the job rate limit of 2."
+
+        # Test fallback when no message field is present
+        MOCK_JULIAHUB_STATE[:submit_job_response] = Dict("success" => false)
+        err = @test_throws JuliaHub.JuliaHubError JuliaHub.submit_job(s)
+        @test occursin("Invalid response JSON from JuliaHub", err.value.msg)
+    end
+    empty!(MOCK_JULIAHUB_STATE)
+end
+
 @testset "JuliaHub.kill_job" begin
     empty!(MOCK_JULIAHUB_STATE)
     Mocking.apply(mocking_patch) do
