@@ -220,3 +220,4 @@ Initial package release.
 [#111]: https://github.com/JuliaComputing/JuliaHub.jl/issues/111
 [#112]: https://github.com/JuliaComputing/JuliaHub.jl/issues/112
 [#117]: https://github.com/JuliaComputing/JuliaHub.jl/issues/117
+[#124]: https://github.com/JuliaComputing/JuliaHub.jl/issues/124
