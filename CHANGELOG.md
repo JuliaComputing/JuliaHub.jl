@@ -4,6 +4,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## Version [v0.1.15] - 2025-08-29
 
+### Changed
+
+* Improved the error message thrown when job submission fails. ([#124])
+
 ### Fixed
 
 * Top-level `.juliabundleignore` files are now correctly handled when using `JuliaHub.appbundle`. ([#99], [#100])
