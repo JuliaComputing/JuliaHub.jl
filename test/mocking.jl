@@ -317,8 +317,13 @@ function _restcall_mocked(method, url, headers, payload; query)
         end
         applications_myapps |> jsonresponse(200)
     elseif (method == :POST) && endswith(url, "juliaruncloud/submit_job")
-        jobname = "jr-xf4tslavut"
-        Dict("message" => "", "success" => true, "jobname" => jobname) |> jsonresponse(200)
+        submit_job_response = get(MOCK_JULIAHUB_STATE, :submit_job_response, nothing)
+        if submit_job_response !== nothing
+            submit_job_response |> jsonresponse(200)
+        else
+            jobname = "jr-xf4tslavut"
+            Dict("message" => "", "success" => true, "jobname" => jobname) |> jsonresponse(200)
+        end
     elseif (method == :GET) && endswith(url, "jobs/appbundle_upload_url")
         Dict{String, Any}(
             "message" => Dict{String, Any}(
