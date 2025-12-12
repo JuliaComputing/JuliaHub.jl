@@ -2,6 +2,20 @@
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Version [v0.1.16] - 2025-11-24
+
+### Added
+
+* Support for JuliaHub instances using MinIO as datasets storage backend. ([#107], [#112])
+
+### Fixed
+
+* The `.message` property _should_ always be present in the log messages, but there are a few versions out there where it is sometimes omitted due to a backend bug. We default to an empty string in those cases. ([#111])
+
+### Other
+
+* The package is now declared to be compatible with JSON.jl v1. ([#117])
+
 ## Version [v0.1.15] - 2025-08-29
 
 ### Changed
@@ -165,6 +179,7 @@ Initial package release.
 [v0.1.13]: https://github.com/JuliaComputing/JuliaHub.jl/releases/tag/v0.1.13
 [v0.1.14]: https://github.com/JuliaComputing/JuliaHub.jl/releases/tag/v0.1.14
 [v0.1.15]: https://github.com/JuliaComputing/JuliaHub.jl/releases/tag/v0.1.15
+[v0.1.16]: https://github.com/JuliaComputing/JuliaHub.jl/releases/tag/v0.1.16
 [#1]: https://github.com/JuliaComputing/JuliaHub.jl/issues/1
 [#2]: https://github.com/JuliaComputing/JuliaHub.jl/issues/2
 [#3]: https://github.com/JuliaComputing/JuliaHub.jl/issues/3
@@ -201,3 +216,7 @@ Initial package release.
 [#99]: https://github.com/JuliaComputing/JuliaHub.jl/issues/99
 [#100]: https://github.com/JuliaComputing/JuliaHub.jl/issues/100
 [#103]: https://github.com/JuliaComputing/JuliaHub.jl/issues/103
+[#107]: https://github.com/JuliaComputing/JuliaHub.jl/issues/107
+[#111]: https://github.com/JuliaComputing/JuliaHub.jl/issues/111
+[#112]: https://github.com/JuliaComputing/JuliaHub.jl/issues/112
+[#117]: https://github.com/JuliaComputing/JuliaHub.jl/issues/117

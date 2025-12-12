@@ -34,3 +34,8 @@ results = Dict(
 
 @info "Storing RESULTS:\n$(results)"
 ENV["RESULTS"] = JSON.json(results)
+if haskey(ENV, "JULIAHUB_RESULTS_SUMMARY_FILE")
+    open(ENV["JULIAHUB_RESULTS_SUMMARY_FILE"], "w") do io
+        write(io, ENV["RESULTS"])
+    end
+end

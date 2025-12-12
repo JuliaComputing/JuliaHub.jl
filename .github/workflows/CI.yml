@@ -7,7 +7,7 @@ on:
     tags: ["*"]
   pull_request:
   schedule:
-    - cron: '0 0 * * 1' # runs 00:00 UTC on every Monday
+    - cron: "0 0 * * 1" # runs 00:00 UTC on every Monday
 
 concurrency:
   # Skip intermediate builds: always.
@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   test:
-    name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ github.event_name }}
+    name: Julia ${{ matrix.version }} - ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -38,7 +38,7 @@ jobs:
           - os: macos-latest
             version: "1"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.version }}
@@ -68,11 +68,37 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
 
+  test-json-021:
+    name: Julia 1 - ubuntu-latest - JSON 0.21
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: "1"
+      - uses: actions/cache@v4
+        env:
+          cache-name: cache-artifacts
+        with:
+          path: ~/.julia/artifacts
+          key: ${{ runner.os }}-test-${{ env.cache-name }}-${{ hashFiles('**/Project.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-test-${{ env.cache-name }}-
+            ${{ runner.os }}-test-
+            ${{ runner.os }}-
+      - name: Install dependencies with JSON 0.21
+        shell: julia --color=yes --project {0}
+        run: |
+          import Pkg
+          Pkg.add(name="JSON", version="0.21")
+          Pkg.instantiate()
+      - uses: julia-actions/julia-runtest@v1
+
   aqua:
     name: Aqua
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: julia-actions/setup-julia@v2
         with:
           version: "1"
@@ -89,7 +115,7 @@ jobs:
     name: JET
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: julia-actions/setup-julia@v2
         with:
           version: "1"
@@ -98,7 +124,7 @@ jobs:
         run: |
           import Pkg
           Pkg.activate("juliahub-jet", shared=true)
-          Pkg.add(name="JET", version="0.9")
+          Pkg.add(name="JET", version="0.10")
           Pkg.develop(path=".")
       - name: "JET.test_package(..., mode=:basic) [informational]"
         run: julia --color=yes --project=@juliahub-jet test/jet.jl
@@ -114,10 +140,10 @@ jobs:
     name: Documentation
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: read  # Required when using `push_preview=true`
-      statuses: write  # Optional, used to report documentation build statuses
+      pull-requests: read # Required when using `push_preview=true`
+      statuses: write # Optional, used to report documentation build statuses
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: julia-actions/setup-julia@v2
         with:
           version: "1"
@@ -138,7 +164,7 @@ jobs:
     name: Doctest
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: julia-actions/setup-julia@v2
         with:
           # we'll restrict doctests to a minor version, to avoid failures due

@@ -58,7 +58,7 @@ struct DatasetVersion
     timestamp::TimeZones.ZonedDateTime
     _blobstore_path::String
 
-    function DatasetVersion(json::Dict; owner::AbstractString, name::AbstractString)
+    function DatasetVersion(json::AbstractDict; owner::AbstractString, name::AbstractString)
         msg = "Unable to parse dataset version info for ($owner, $name)"
         version = _get_json(json, "version", Int; msg)
         size = _get_json(json, "size", Int; msg)
@@ -158,9 +158,9 @@ Base.@kwdef struct Dataset
     _json::Dict
 end
 
-function Dataset(d::Dict; expected_project::Union{UUID, Nothing}=nothing)
+function Dataset(d::AbstractDict; expected_project::Union{UUID, Nothing}=nothing)
     owner = _get_json(
-        _get_json(d, "owner", Dict),
+        _get_json(d, "owner", AbstractDict),
         "username", String,
     )
     name = _get_json(d, "name", AbstractString)
@@ -169,7 +169,7 @@ function Dataset(d::Dict; expected_project::Union{UUID, Nothing}=nothing)
         [DatasetVersion(json; owner, name) for json in versions_json];
         by=dsv -> dsv.id,
     )
-    _storage = let storage_json = _get_json(d, "storage", Dict)
+    _storage = let storage_json = _get_json(d, "storage", AbstractDict)
         _DatasetStorage(;
             credentials_url=_get_json(d, "credentials_url", AbstractString),
             region=_get_json(storage_json, "bucket_region", AbstractString),
@@ -178,12 +178,12 @@ function Dataset(d::Dict; expected_project::Union{UUID, Nothing}=nothing)
         )
     end
     project = if !isnothing(expected_project)
-        project_json = _get_json(d, "project", Dict)
+        project_json = _get_json(d, "project", AbstractDict)
         project_json_uuid = UUIDs.UUID(
             _get_json(project_json, "project_id", String)
         )
         if project_json_uuid != expected_project
-            msg = "Project UUID mismatch in dataset response: $(project_json_uuid), requested $(project)"
+            msg = "Project UUID mismatch in dataset response: $(project_json_uuid), requested $(expected_project)"
             throw(JuliaHubError(msg))
         end
         is_writable = _get_json(
@@ -723,7 +723,7 @@ end
 function _check_dataset_upload_config(
     r::_RESTResponse, expected_dtype::AbstractString; newly_created_dataset::Bool
 )
-    upload_config, _ = _parse_response_json(r, Dict)
+    upload_config, _ = _parse_response_json(r, AbstractDict)
     # Verify that the dtype of the remote dataset is what we expect it to be.
     if upload_config["dataset_type"] != expected_dtype
         if newly_created_dataset
@@ -801,7 +801,7 @@ end
 function _upload_dataset(upload_config, local_path; progress::Bool)
     type = upload_config["upload_type"]
     vendor = upload_config["vendor"]
-    if type != "S3" || vendor != "aws"
+    if type != "S3" || !(vendor in ("aws", "minio"))
         throw(JuliaHubError("Unknown upload type ($type) or vendor ($vendor)"))
     end
     mktemp() do rclone_conf_path, rclone_conf_io
@@ -868,19 +868,29 @@ function _write_rclone_config(
     access_key_id::AbstractString,
     secret_access_key::AbstractString,
     session_token::AbstractString,
+    vendor::AbstractString,
+    endpoint::AbstractString,
 )
+    provider = if vendor == "aws"
+        "AWS"
+    elseif vendor == "minio"
+        "Minio"
+    else
+        throw(JuliaHubError("Unknown storage backend $(vendor)"))
+    end
+
     write(
         io,
         """
 [juliahub_remote]
 type = s3
-provider = AWS
+provider = $provider
 env_auth = false
 access_key_id = $access_key_id
 secret_access_key = $secret_access_key
 session_token = $session_token
 region = $region
-endpoint =
+endpoint = $endpoint
 location_constraint = $region
 acl = private
 server_side_encryption =
@@ -889,18 +899,22 @@ storage_class =
     )
 end
 
-function _write_rclone_config(io::IO, upload_config::Dict)
+function _write_rclone_config(io::IO, upload_config::AbstractDict)
     region = upload_config["location"]["region"]
     access_key_id = upload_config["credentials"]["access_key_id"]
     secret_access_key = upload_config["credentials"]["secret_access_key"]
     session_token = upload_config["credentials"]["session_token"]
-    _write_rclone_config(io; region, access_key_id, secret_access_key, session_token)
+    vendor = upload_config["vendor"]
+    endpoint = get(upload_config["credentials"], "endpoint_url", "")
+    _write_rclone_config(
+        io; region, access_key_id, secret_access_key, session_token, vendor, endpoint
+    )
 end
 
 function _get_dataset_credentials(auth::Authentication, dataset::Dataset)
     r = @_httpcatch HTTP.get(dataset._storage.credentials_url, _authheaders(auth))
     r.status == 200 || _throw_invalidresponse(r; msg="Unable get credentials for $(dataset)")
-    credentials, _ = _parse_response_json(r, Dict)
+    credentials, _ = _parse_response_json(r, AbstractDict)
     return credentials
 end
 
@@ -988,9 +1002,12 @@ function download_dataset(
         throw(InvalidRequestError("Dataset '$(dataset.name)' does not have version 'v$version'"))
 
     credentials = Mocking.@mock _get_dataset_credentials(auth, dataset)
-    credentials["vendor"] == "aws" ||
-        throw(JuliaHubError("Unknown 'vendor': $(credentials["vendor"])"))
+    vendor = credentials["vendor"]
+    if !(vendor in ("aws", "minio"))
+        throw(JuliaHubError("Unknown 'vendor': $(vendor)"))
+    end
     credentials = credentials["credentials"]
+    endpoint = get(credentials, "endpoint_url", "")
 
     bucket = dataset._storage.bucket
     prefix = dataset._storage.prefix
@@ -1019,6 +1036,8 @@ function download_dataset(
                 access_key_id=credentials["access_key_id"],
                 secret_access_key=credentials["secret_access_key"],
                 session_token=credentials["session_token"],
+                vendor=vendor,
+                endpoint=endpoint,
             )
             close(rclone_conf_io)
 
@@ -1124,7 +1143,7 @@ end
 
 # Low-level internal function that just takes a dict of params, without caring
 # if they are valid or not, and returns the raw HTTP response.
-function _update_dataset(auth::Authentication, dataset_name::AbstractString, params::Dict)
+function _update_dataset(auth::Authentication, dataset_name::AbstractString, params::AbstractDict)
     _restcall(auth, :PATCH, ("user", "datasets", dataset_name), JSON.json(params))
 end
 

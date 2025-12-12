@@ -158,7 +158,7 @@ end
         end
     end
     job_killed = JuliaHub.job(job_killed) # test default auth=
-    @test job_killed.status == "Stopped"
+    @test test_job_done_and_not_failed(job_killed, "Stopped")
     # wait for the logger task to finish, if hasn't already
     JuliaHub.interrupt!(logbuffer; wait=true)
 
@@ -185,6 +185,11 @@ end
     job, _ = submit_test_job(
         JuliaHub.script"""
         ENV["RESULTS"] = "{\\"x\\":42}"
+        if haskey(ENV, "JULIAHUB_RESULTS_SUMMARY_FILE")
+            open(ENV["JULIAHUB_RESULTS_SUMMARY_FILE"], "w") do io
+                write(io, "{\\"x\\":42}")
+            end
+        end
         error("fail")
         """noenv;
         auth, alias="script-fail", timelimit=JuliaHub.Unlimited(),
@@ -202,13 +207,18 @@ end
 end
 
 @testset "[LIVE] JuliaHub.submit_job / distributed" begin
+    script_path = joinpath(@__DIR__, "jobenvs", "job-dist")
     job, _ = submit_test_job(
-        JuliaHub.appbundle(joinpath(@__DIR__, "jobenvs", "job-dist"), "script.jl");
+        JuliaHub.script(;
+            code=read(joinpath(script_path, "script.jl"), String),
+            project=read(joinpath(script_path, "Project.toml"), String),
+            manifest=read(joinpath(script_path, "Manifest.toml"), String),
+        );
         nnodes=3,
         auth, alias="distributed",
     )
     job = JuliaHub.wait_job(job)
-    @test job.status == "Completed"
+    @test test_job_done_and_not_failed(job, "Completed")
     @test !isempty(job.results)
     let results = JSON.parse(job.results)
         @test results isa AbstractDict
@@ -219,8 +229,13 @@ end
 end
 
 @testset "[LIVE] JuliaHub.submit_job / distributed-per-core" begin
+    script_path = joinpath(@__DIR__, "jobenvs", "job-dist")
     job, full_alias = submit_test_job(
-        JuliaHub.appbundle(joinpath(@__DIR__, "jobenvs", "job-dist"), "script.jl");
+        JuliaHub.script(;
+            code=read(joinpath(script_path, "script.jl"), String),
+            project=read(joinpath(script_path, "Project.toml"), String),
+            manifest=read(joinpath(script_path, "Manifest.toml"), String),
+        );
         ncpu=2, nnodes=3, process_per_node=false,
         env=Dict("FOO" => "bar"),
         auth, alias="distributed-percore",
@@ -229,7 +244,7 @@ end
     @test job.alias == full_alias
     @test job.env["FOO"] == "bar"
     job = JuliaHub.wait_job(job)
-    @test job.status == "Completed"
+    @test test_job_done_and_not_failed(job, "Completed")
     @test !isempty(job.results)
     let results = JSON.parse(job.results)
         @test results isa AbstractDict
@@ -251,7 +266,7 @@ end
         auth, alias="scripts-1",
     )
     job = JuliaHub.wait_job(job)
-    @test job.status == "Completed"
+    @test test_job_done_and_not_failed(job, "Completed")
     @test !isempty(job.results)
     let results = JSON.parse(job.results)
         @test results isa AbstractDict
@@ -271,7 +286,7 @@ end
         auth, alias="scripts-2",
     )
     job = JuliaHub.wait_job(job)
-    @test job.status == "Completed"
+    @test test_job_done_and_not_failed(job, "Completed")
     @test !isempty(job.results)
     let results = JSON.parse(job.results)
         @test results isa AbstractDict
@@ -282,37 +297,41 @@ end
     end
 end
 
-@testset "[LIVE] JuliaHub.submit_job / appbundle" begin
-    job1_dir = joinpath(@__DIR__, "jobenvs", "job1")
-    # Note: the exact hash of the file may change if Git decides to change line endings
-    # on e.g. Windows.
-    datafile_hash = bytes2hex(open(SHA.sha1, joinpath(job1_dir, "datafile.txt")))
-    job, _ = submit_test_job(
-        JuliaHub.appbundle(job1_dir, "script.jl");
-        auth, alias="appbundle",
-    )
-    job = JuliaHub.wait_job(job)
-    @test job.status == "Completed"
-    # Check input and output files
-    @test length(JuliaHub.job_files(job, :input)) >= 2
-    @test JuliaHub.job_file(job, :input, "code.jl") isa JuliaHub.JobFile
-    @test JuliaHub.job_file(job, :input, "appbundle.tar") isa JuliaHub.JobFile
-    # Test the results values
-    @test !isempty(job.results)
-    let results = JSON.parse(job.results)
-        @test results isa AbstractDict
-        @test haskey(results, "datastructures_version")
-        @test VersionNumber(results["datastructures_version"]) == v"0.17.0"
-        @test haskey(results, "datafile_hash")
-        @test results["datafile_hash"] == datafile_hash
-        @test haskey(results, "scripts")
-        let s = results["scripts"]
-            @test s isa AbstractDict
-            @test get(s, "include_success", nothing) === true
-            @test get(s, "script_1", nothing) === true
-            @test get(s, "script_2", nothing) === true
+if v"1.10" <= Base.VERSION < v"1.12"
+    @testset "[LIVE] JuliaHub.submit_job / appbundle" begin
+        job1_dir = joinpath(@__DIR__, "jobenvs", "job1")
+        # Note: the exact hash of the file may change if Git decides to change line endings
+        # on e.g. Windows.
+        datafile_hash = bytes2hex(open(SHA.sha1, joinpath(job1_dir, "datafile.txt")))
+        job, _ = submit_test_job(
+            JuliaHub.appbundle(job1_dir, "script.jl");
+            auth, alias="appbundle",
+        )
+        job = JuliaHub.wait_job(job)
+        @test test_job_done_and_not_failed(job, "Completed")
+        # Check input and output files
+        @test length(JuliaHub.job_files(job, :input)) >= 2
+        @test JuliaHub.job_file(job, :input, "code.jl") isa JuliaHub.JobFile
+        @test JuliaHub.job_file(job, :input, "appbundle.tar") isa JuliaHub.JobFile
+        # Test the results values
+        @test !isempty(job.results)
+        let results = JSON.parse(job.results)
+            @test results isa AbstractDict
+            @test haskey(results, "datastructures_version")
+            @test VersionNumber(results["datastructures_version"]) == v"0.17.0"
+            @test haskey(results, "datafile_hash")
+            @test results["datafile_hash"] == datafile_hash
+            @test haskey(results, "scripts")
+            let s = results["scripts"]
+                @test s isa AbstractDict
+                @test get(s, "include_success", nothing) === true
+                @test get(s, "script_1", nothing) === true
+                @test get(s, "script_2", nothing) === true
+            end
         end
     end
+else
+    @info("Skipping appbundle tests for Julia version $(Base.VERSION)")
 end
 
 @testset "[LIVE] Job output file access" begin
@@ -322,10 +341,15 @@ end
         ENV["RESULTS_FILE"] = joinpath(@__DIR__, "output.txt")
         n = write(ENV["RESULTS_FILE"], "output-txt-content")
         @info "Wrote $(n) bytes"
+        if haskey(ENV, "JULIAHUB_RESULTS_UPLOAD_DIR")
+            open(joinpath(ENV["JULIAHUB_RESULTS_UPLOAD_DIR"], "output.txt"), "w") do io
+                write(io, "output-txt-content")
+            end
+        end
         """noenv; alias="output-file"
     )
     job = JuliaHub.wait_job(job)
-    @test job.status == "Completed"
+    @test test_job_done_and_not_failed(job, "Completed")
     # Project.toml, Manifest.toml, code.jl
     @test length(JuliaHub.job_files(job, :input)) >= 1
     @test JuliaHub.job_file(job, :input, "code.jl") isa JuliaHub.JobFile
@@ -346,8 +370,13 @@ end
     # Job output with a tarball:
     job, _ = submit_test_job(
         JuliaHub.script"""
-        odir = joinpath(@__DIR__, "output_files")
-        mkdir(odir)
+        odir = if haskey(ENV, "JULIAHUB_RESULTS_UPLOAD_DIR")
+            ENV["JULIAHUB_RESULTS_UPLOAD_DIR"]
+        else
+            d = joinpath(@__DIR__, "output_files")
+            mkdir(d)
+            d
+        end
         write(joinpath(odir, "foo.txt"), "output-txt-content-1")
         write(joinpath(odir, "bar.txt"), "output-txt-content-2")
         @info "Wrote: odir"
@@ -355,7 +384,7 @@ end
         """noenv; alias="output-file-tarball"
     )
     job = JuliaHub.wait_job(job)
-    @test job.status == "Completed"
+    @test test_job_done_and_not_failed(job, "Completed")
     @test length(JuliaHub.job_files(job, :project)) >= 1
     result_tarball = only(JuliaHub.job_files(job, :result))
     buf = IOBuffer()
@@ -388,15 +417,19 @@ end
 end
 
 @testset "[LIVE] JuliaHub.submit_job / sysimage" begin
+    script_path = joinpath(@__DIR__, "jobenvs", "sysimage")
     job, _ = submit_test_job(
-        JuliaHub.appbundle(
-            joinpath(@__DIR__, "jobenvs", "sysimage"),
-            "script.jl";
+        JuliaHub.script(;
+            code=read(joinpath(script_path, "script.jl"), String),
+            project=read(joinpath(script_path, "Project.toml"), String),
+            manifest=read(joinpath(script_path, "Manifest.toml"), String),
             sysimage=true,
-        ); auth, alias="sysimage"
+        );
+        auth,
+        alias="sysimage",
     )
     job = JuliaHub.wait_job(job)
-    @test job.status == "Completed"
+    @test test_job_done_and_not_failed(job, "Completed")
     @test job._json["sysimage_build"] === true
     @test !isempty(job.results)
     let results = JSON.parse(job.results)

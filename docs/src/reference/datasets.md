@@ -38,6 +38,10 @@ A JuliaHub dataset can have zero or more versions.
 A newly created dataset _usually_ has at least one version, but it may have zero versions if, for example, the upload did not finish.
 The versions are indexed with a linear list of integers starting from `1`.
 
+## MinIO backend
+
+JuliaHub instances with the MinIO backend for data storage require at least JuliaHub.jl v0.1.6 for dataset uploads and downloads.
+
 ## Reference
 
 ```@docs

@@ -1,9 +1,12 @@
 struct _LegacyLogging <: _JobLoggingAPIVersion end
 
-function JobLogMessage(::_LegacyLogging, json::Dict, offset::Integer)
-    message = _get_json(json, "message", String)
-    keywords = _get_json_or(json, "keywords", Dict, Dict{String, Any}())
-    metadata = _get_json_or(json, "metadata", Dict, Dict{String, Any}())
+function JobLogMessage(::_LegacyLogging, json::AbstractDict, offset::Integer)
+    # The .message property _should_ always be present in the log messages,
+    # but there are a few versions out there where it's sometimes omitted due
+    # to a backend bug. So we default to an empty string in those cases.
+    message = _get_json_or(json, "message", String, "")
+    keywords::Dict = _get_json_or(json, "keywords", AbstractDict, Dict{String, Any}())
+    metadata::Dict = _get_json_or(json, "metadata", AbstractDict, Dict{String, Any}())
     timestamp = if haskey(json, "timestamp")
         # Apparently timestamps are sometimes strings, sometimes integers..
         timestamp = _get_json(json, "timestamp", Union{String, Integer})
@@ -270,7 +273,7 @@ end
 # The log messages (may) have special _meta messages at the start and at the end.
 # These have a `"_meta": true` field, and should have either `"end": "top"` (if first)
 # or `"end": "bottom"` (if last message).
-function _log_legacy_is_meta(log::Dict, s::AbstractString)
+function _log_legacy_is_meta(log::AbstractDict, s::AbstractString)
     haskey(log, "_meta") || return false
     if log["_meta"] !== true
         throw(JuliaHubError("""
@@ -526,7 +529,7 @@ function _job_logs_legacy_start_streaming!(auth::Authentication, buffer::_Legacy
             end
             # If the message wasn't empty, we assume that it is a valid JSON blob containing
             # a log message.
-            msg, _ = _parse_response_json(msg, Dict)
+            msg, _ = _parse_response_json(msg, AbstractDict)
             if _log_legacy_is_meta(msg, "top")
                 @error "Unexpected `top` meta message streamed" msg
                 return nothing

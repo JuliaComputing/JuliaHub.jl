@@ -1,6 +1,8 @@
 using Oxygen, HTTP
 
-const PORT = parse(Int, ENV["PORT"])
+# Environment variable name `PORT` was used in older JuliaHub environments
+# and has been replaced with `JULIAHUB_APP_PORT` in newer environments 
+const PORT = parse(Int, get(ENV, "JULIAHUB_APP_PORT", get(ENV, "PORT", "")))
 const NREQUESTS = Ref{Int}(0)
 
 function results_json()
@@ -30,4 +32,9 @@ serve(; host="0.0.0.0", port=PORT)
 
 @info "Exiting the server"
 ENV["RESULTS"] = results_json()
+if haskey(ENV, "JULIAHUB_RESULTS_SUMMARY_FILE")
+    open(ENV["JULIAHUB_RESULTS_SUMMARY_FILE"], "w") do io
+        write(io, ENV["RESULTS"])
+    end
+end
 println(ENV["RESULTS"])
