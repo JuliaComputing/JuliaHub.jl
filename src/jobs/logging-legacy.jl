@@ -296,8 +296,11 @@ function _job_logs_newer!(
     isnothing(buffer._stream) || return nothing
     # If there are existing logs in the buffer then we may not have to fetch anything because
     # we have enough logs already in the buffer.
-    if !isnothing(count) && !isempty(buffer._logs) &&
+    if (
+        !isnothing(count) &&
+        !isempty(buffer._logs) &&
         buffer._active_range.stop + count <= length(buffer._logs)
+    )
         _job_logs_update_active_range!(buffer; stop=buffer._active_range.stop + count)
         return nothing
     end
@@ -334,6 +337,15 @@ function _job_logs_newer!(
         _job_logs_update_active_range!(buffer; start=1, stop=updated_stop)
         return nothing
     end
+
+    # Let's update the active range once in case we exit the next loop early due to lack of new messages.
+    _job_logs_update_active_range!(buffer; stop=length(buffer._logs))
+    if count !== nothing
+        # The case where we have enough logs in the buffer is already handled
+        # This initializes `count` for the case where we're still missing some logs
+        count -= length(buffer._logs)
+    end
+
     # Finally, assuming we do have some logs, but not enough, we keep fetching new logs
     # until we don't find any more, find the last message, or have enough.
     while true
