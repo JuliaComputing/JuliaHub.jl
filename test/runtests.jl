@@ -209,7 +209,7 @@ end
             :extend_job,
             :interrupt!, :isdone, :job, :job_file, :job_files,
             :job_logs, :job_logs_buffered, :job_logs_newer!, :job_logs_older!,
-            :AbstractJobLogsBuffer, :KafkaLogsBuffer,
+            :AbstractJobLogsBuffer,
             :hasfirst, :haslast, :jobs, :kill_job,
             :nodespec, :nodespecs, :reauthenticate!, :submit_job,
             :update_dataset, :upload_dataset, :wait_job,
