@@ -299,9 +299,12 @@ Updates the [`AbstractJobLogsBuffer`](@ref) object by adding up to `count` log m
 the end of the buffer. If `count` is omitted, it will seek all the way to the end of the current
 logs.
 
-For a finished job, if all the logs have already been loaded into the buffer (i.e.
+If the job is running, the function will fetch any available logs, and may return with less than
+`count` logs fetched (i.e. it will _not_ block and wait for the job to produce more logs or finish).
+
+If the job is finished and all the logs have already been loaded into the buffer (i.e.
 `JuliaHub.haslast(buffer)` is `true`), the function is a no-op. If the buffer is actively streaming
-new logs for a running job,  then the function is also a no-op.
+new logs for a running job, then the function is also a no-op.
 
 See also: [`job_logs_buffered`](@ref), [`job_logs_older!`](@ref).
 """

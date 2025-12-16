@@ -392,7 +392,7 @@ function _job_logs_legacy_fill_buffer!(auth::Authentication, buffer::_LegacyLogs
         end
         if r.found_top
             buffer._found_first = true
-            # If we found the first message, then we shouldn't do nay more requests.
+            # If we found the first message, then we shouldn't do any more requests.
             break
         end
         # We should never find an empty set of logs, but we'll handle it gracefully with
