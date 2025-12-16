@@ -338,7 +338,11 @@ function _job_logs_newer!(
         return nothing
     end
 
-    # Let's update the active range once in case we exit the next loop early due to lack of new messages.
+    # Finally, assuming we do have some logs, but not enough, we keep fetching new logs
+    # until we don't find any more, find the last message, or have enough.
+    #
+    # Before we start the loop though, let's update the active range _once_, in case we
+    # exit the next loop early due to lack of new messages.
     _job_logs_update_active_range!(buffer; stop=length(buffer._logs))
     if count !== nothing
         # The case where we have enough logs in the buffer is already handled
@@ -346,8 +350,8 @@ function _job_logs_newer!(
         count -= length(buffer._logs)
     end
 
-    # Finally, assuming we do have some logs, but not enough, we keep fetching new logs
-    # until we don't find any more, find the last message, or have enough.
+    # At this point, the active range is set to the end of the buffer, but we still
+    # need to fetch more messages (if available).
     while true
         reference_log = last(buffer._logs)
         start_time = _log_legacy_datetime_to_ms(reference_log.timestamp)
