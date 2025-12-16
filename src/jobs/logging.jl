@@ -22,7 +22,6 @@ Base.@kwdef struct JobLogMessage
     _metadata::Dict{String, Any} # `metadata :: Dict{String, Any}`: additional metadata with not guaranteed fields; may also be empty (TODO)
     _keywords::Dict{String, Any} # `keywords :: Dict{String, Any}`: additional metadata with not guaranteed fields; may also be empty (TODO)
     _legacy_eventId::Union{String, Nothing}
-    _kafka_stream::Union{String, Nothing}
     _json::Dict
 end
 
