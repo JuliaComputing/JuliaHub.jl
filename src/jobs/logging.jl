@@ -1,36 +1,5 @@
 abstract type _JobLoggingAPIVersion end
 
-module _LoggingMode
-@enum T NOKAFKA AUTOMATIC FORCEKAFKA
-end
-const _OPTION_LoggingMode = Ref{_LoggingMode.T}(_LoggingMode.NOKAFKA)
-
-function _job_logging_api_version(
-    auth::Authentication, jobname::AbstractString
-)::_JobLoggingAPIVersion
-    # For debugging, development, and testing purposes, we allow the user to force the
-    # logging backend to use a particular endpoint. This is not a documented behaviour
-    # and should not be relied on.
-    if _OPTION_LoggingMode[] == _LoggingMode.NOKAFKA
-        return _LegacyLogging()
-    elseif _OPTION_LoggingMode[] == _LoggingMode.FORCEKAFKA
-        return _KafkaLogging()
-    elseif _OPTION_LoggingMode[] == _LoggingMode.AUTOMATIC
-        query = Dict("jobname" => jobname)
-        r = _restcall(auth, :HEAD, "juliaruncloud", "get_logs_v2"; query)
-        # If HEAD /juliaruncloud/get_logs_v2 returns a 200, then we know we can try to fetch
-        # the newer Kafka logs. If it returns anything else, we will try use the old endpoint.
-        # However, it _should_ return a 404 in the latter case, and we'll warn if it returns a
-        # different code.
-        r.status == 200 && return _KafkaLogging()
-        if r.status != 404
-            @warn "Unexpected response from HEAD /juliaruncloud/get_logs_v2" r.status r.body
-        end
-        return _LegacyLogging()
-    end
-    error("Invalid _OPTION_LoggingMode: $(_OPTION_LoggingMode[])")
-end
-
 """
     struct JobLogMessage
 
@@ -53,7 +22,6 @@ Base.@kwdef struct JobLogMessage
     _metadata::Dict{String, Any} # `metadata :: Dict{String, Any}`: additional metadata with not guaranteed fields; may also be empty (TODO)
     _keywords::Dict{String, Any} # `keywords :: Dict{String, Any}`: additional metadata with not guaranteed fields; may also be empty (TODO)
     _legacy_eventId::Union{String, Nothing}
-    _kafka_stream::Union{String, Nothing}
     _json::Dict
 end
 
@@ -254,11 +222,7 @@ function job_logs_buffered(
     stream::Bool=false,
     auth::Authentication=__auth__(),
 )
-    if _job_logging_api_version(auth, jobname) == _KafkaLogging()
-        return KafkaLogsBuffer(f, auth; jobname, offset, stream)
-    else
-        return _LegacyLogsBuffer(f, auth; jobname, offset, stream)
-    end
+    return _LegacyLogsBuffer(f, auth; jobname, offset, stream)
 end
 job_logs_buffered(job::Union{AbstractString, Job}; kwargs...) =
     job_logs_buffered(_noop, job; kwargs...)

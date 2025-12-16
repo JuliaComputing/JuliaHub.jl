@@ -15,9 +15,6 @@ function JET.configured_reports(::JuliaHubReportFilter, reports::Vector{JET.Infe
         if isa(report, JET.MethodErrorReport) && report.union_split > 1
             return false
         end
-        # The Kafka code (which is currently not enabled) has a few bugs that JET actually
-        # reveals. But we ignore them for now.
-        endswith(string(report.vst[end].file), "logging-kafka.jl") && return false
         # We also ignore the _restput_mockable() error in restapi.jl, since JET seems to
         # assume that kwargs... must be non-empty
         contains(string(report.vst[end].linfo.def.name), "_restput_mockable") && return false
