@@ -656,9 +656,9 @@ end
     end
 end
 
-function logging_mocking_wrapper(f::Base.Callable, testset_name::AbstractString; legacy=false)
+function logging_mocking_wrapper(f::Base.Callable, testset_name::AbstractString)
     global MOCK_JULIAHUB_STATE
-    logengine = LogEngine(; kafkalogging=!legacy)
+    logengine = LogEngine()
     MOCK_JULIAHUB_STATE[:logengine] = logengine
     try
         Mocking.apply(mocking_patch) do
@@ -671,40 +671,24 @@ function logging_mocking_wrapper(f::Base.Callable, testset_name::AbstractString;
     end
 end
 
-JuliaHub._OPTION_LoggingMode[] = JuliaHub._LoggingMode.AUTOMATIC
-@testset "Job logs: legacy = $legacy" for legacy in [true, false]
-    logging_mocking_wrapper("Basic logging"; legacy=legacy) do logengine
+@testset "Job logs" begin
+    logging_mocking_wrapper("Basic logging") do logengine
         @testset "Invalid requests" begin
             # Negative offsets are not allowed
             @test_throws ArgumentError JuliaHub.job_logs_buffered("jr-test1"; offset=-1)
             # First, just double check that a missing job 403s on the backend
             @test_throws JuliaHub.PermissionError JuliaHub.job_logs_buffered("jr-test1"; offset=0)
         end
-        # Let's check that we are using the correct backend
-        @testset "Dispatching on backend" begin
-            auth = JuliaHub.current_authentication()
-            # If the job is not present, then the Kafka backend will always be disabled
-            @test JuliaHub._job_logging_api_version(auth, "jr-test1") == JuliaHub._LegacyLogging()
-            # Let's add a finished job without any logs. Since these jobs are marked as finished,
-            # we should not add logs to the "backend" after the buffer has been constructed.
-            logengine.jobs["jr-test1"] = LogEngineJob([])
-            # After the job is added, the expected backend depends on whether we're testing for legacy
-            # of the Kafka backend.
-            expected_backend = legacy ? JuliaHub._LegacyLogging() : JuliaHub._KafkaLogging()
-            @test JuliaHub._job_logging_api_version(auth, "jr-test1") == expected_backend
-            # Let's also test the override variable
-            JuliaHub._OPTION_LoggingMode[] = JuliaHub._LoggingMode.FORCEKAFKA
-            @test JuliaHub._job_logging_api_version(auth, "jr-test1") == JuliaHub._KafkaLogging()
-            JuliaHub._OPTION_LoggingMode[] = JuliaHub._LoggingMode.NOKAFKA
-            @test JuliaHub._job_logging_api_version(auth, "jr-test1") == JuliaHub._LegacyLogging()
-            JuliaHub._OPTION_LoggingMode[] = JuliaHub._LoggingMode.AUTOMATIC
-        end
         # Test the fetching of logs
+        auth = JuliaHub.current_authentication()
+        # Let's add a finished job without any logs. Since these jobs are marked as finished,
+        # we should not add logs to the "backend" after the buffer has been constructed.
+        logengine.jobs["jr-test1"] = LogEngineJob([])
         @testset "Zero logs" begin
             let lb = JuliaHub.job_logs_buffered("jr-test1"; offset=0)
                 # Just one check to make sure that the returned buffer actually matches the backend
                 # that we're trying to test.
-                @test lb isa (legacy ? JuliaHub._LegacyLogsBuffer : JuliaHub.KafkaLogsBuffer)
+                @test lb isa JuliaHub._LegacyLogsBuffer
                 @test length(lb.logs) == 0
                 @test JuliaHub.hasfirst(lb)
                 @test JuliaHub.haslast(lb)
@@ -937,7 +921,6 @@ JuliaHub._OPTION_LoggingMode[] = JuliaHub._LoggingMode.AUTOMATIC
         end
     end
 end
-JuliaHub._OPTION_LoggingMode[] = JuliaHub._LoggingMode.NOKAFKA
 
 @testset "JuliaHub.submit_job: expose=" begin
     empty!(MOCK_JULIAHUB_STATE)

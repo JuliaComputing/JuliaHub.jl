@@ -24,7 +24,7 @@ function JobLogMessage(::_LegacyLogging, json::AbstractDict, offset::Integer)
     eventId = _get_json_or(json, "eventId", String, nothing)
     JobLogMessage(;
         _offset=offset, timestamp, message, _metadata=metadata, _keywords=keywords,
-        _legacy_eventId=eventId, _kafka_stream=nothing, _json=json,
+        _legacy_eventId=eventId, _json=json,
     )
 end
 
