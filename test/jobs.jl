@@ -681,6 +681,9 @@ end
         end
         # Test the fetching of logs
         auth = JuliaHub.current_authentication()
+        # Let's add a finished job without any logs. Since these jobs are marked as finished,
+        # we should not add logs to the "backend" after the buffer has been constructed.
+        logengine.jobs["jr-test1"] = LogEngineJob([])
         @testset "Zero logs" begin
             let lb = JuliaHub.job_logs_buffered("jr-test1"; offset=0)
                 # Just one check to make sure that the returned buffer actually matches the backend
