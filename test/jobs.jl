@@ -680,6 +680,7 @@ end
             @test_throws JuliaHub.PermissionError JuliaHub.job_logs_buffered("jr-test1"; offset=0)
         end
         # Test the fetching of logs
+        auth = JuliaHub.current_authentication()
         @testset "Zero logs" begin
             let lb = JuliaHub.job_logs_buffered("jr-test1"; offset=0)
                 # Just one check to make sure that the returned buffer actually matches the backend
