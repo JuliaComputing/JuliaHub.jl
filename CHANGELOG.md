@@ -2,6 +2,12 @@
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Version [v0.1.17] - 2025-12-16
+
+### Fixed
+
+- Fix fetching logs for running jobs. ([#127])
+
 ## Version [v0.1.16] - 2025-12-12
 
 ### Added
@@ -180,6 +186,7 @@ Initial package release.
 [v0.1.14]: https://github.com/JuliaComputing/JuliaHub.jl/releases/tag/v0.1.14
 [v0.1.15]: https://github.com/JuliaComputing/JuliaHub.jl/releases/tag/v0.1.15
 [v0.1.16]: https://github.com/JuliaComputing/JuliaHub.jl/releases/tag/v0.1.16
+[v0.1.17]: https://github.com/JuliaComputing/JuliaHub.jl/releases/tag/v0.1.17
 [#1]: https://github.com/JuliaComputing/JuliaHub.jl/issues/1
 [#2]: https://github.com/JuliaComputing/JuliaHub.jl/issues/2
 [#3]: https://github.com/JuliaComputing/JuliaHub.jl/issues/3
@@ -221,3 +228,4 @@ Initial package release.
 [#112]: https://github.com/JuliaComputing/JuliaHub.jl/issues/112
 [#117]: https://github.com/JuliaComputing/JuliaHub.jl/issues/117
 [#124]: https://github.com/JuliaComputing/JuliaHub.jl/issues/124
+[#127]: https://github.com/JuliaComputing/JuliaHub.jl/issues/127
