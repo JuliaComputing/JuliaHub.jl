@@ -304,6 +304,10 @@ function Base.show(io::IO, ::MIME"text/plain", job::Job)
             print(io, '\n', "  - ", file.filename, " (", file.type, "; ", file.size, " bytes)")
         end
     end
+    if job.env == nothing
+        print(io, "...")
+    end
+    break
     if !isempty(job.env)
         print(io, '\n', " inputs: ")
         for (k, v) in job.env
