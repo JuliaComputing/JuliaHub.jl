@@ -58,7 +58,7 @@ struct DatasetVersion
     timestamp::TimeZones.ZonedDateTime
     _blobstore_path::String
 
-    function DatasetVersion(json::Dict; owner::AbstractString, name::AbstractString)
+    function DatasetVersion(json::AbstractDict; owner::AbstractString, name::AbstractString)
         msg = "Unable to parse dataset version info for ($owner, $name)"
         version = _get_json(json, "version", Int; msg)
         size = _get_json(json, "size", Int; msg)
@@ -158,9 +158,9 @@ Base.@kwdef struct Dataset
     _json::Dict
 end
 
-function Dataset(d::Dict; expected_project::Union{UUID, Nothing}=nothing)
+function Dataset(d::AbstractDict; expected_project::Union{UUID, Nothing}=nothing)
     owner = _get_json(
-        _get_json(d, "owner", Dict),
+        _get_json(d, "owner", AbstractDict),
         "username", String,
     )
     name = _get_json(d, "name", AbstractString)
@@ -169,7 +169,7 @@ function Dataset(d::Dict; expected_project::Union{UUID, Nothing}=nothing)
         [DatasetVersion(json; owner, name) for json in versions_json];
         by=dsv -> dsv.id,
     )
-    _storage = let storage_json = _get_json(d, "storage", Dict)
+    _storage = let storage_json = _get_json(d, "storage", AbstractDict)
         _DatasetStorage(;
             credentials_url=_get_json(d, "credentials_url", AbstractString),
             region=_get_json(storage_json, "bucket_region", AbstractString),
@@ -178,7 +178,7 @@ function Dataset(d::Dict; expected_project::Union{UUID, Nothing}=nothing)
         )
     end
     project = if !isnothing(expected_project)
-        project_json = _get_json(d, "project", Dict)
+        project_json = _get_json(d, "project", AbstractDict)
         project_json_uuid = UUIDs.UUID(
             _get_json(project_json, "project_id", String)
         )
@@ -723,7 +723,7 @@ end
 function _check_dataset_upload_config(
     r::_RESTResponse, expected_dtype::AbstractString; newly_created_dataset::Bool
 )
-    upload_config, _ = _parse_response_json(r, Dict)
+    upload_config, _ = _parse_response_json(r, AbstractDict)
     # Verify that the dtype of the remote dataset is what we expect it to be.
     if upload_config["dataset_type"] != expected_dtype
         if newly_created_dataset
@@ -899,7 +899,7 @@ storage_class =
     )
 end
 
-function _write_rclone_config(io::IO, upload_config::Dict)
+function _write_rclone_config(io::IO, upload_config::AbstractDict)
     region = upload_config["location"]["region"]
     access_key_id = upload_config["credentials"]["access_key_id"]
     secret_access_key = upload_config["credentials"]["secret_access_key"]
@@ -914,7 +914,7 @@ end
 function _get_dataset_credentials(auth::Authentication, dataset::Dataset)
     r = @_httpcatch HTTP.get(dataset._storage.credentials_url, _authheaders(auth))
     r.status == 200 || _throw_invalidresponse(r; msg="Unable get credentials for $(dataset)")
-    credentials, _ = _parse_response_json(r, Dict)
+    credentials, _ = _parse_response_json(r, AbstractDict)
     return credentials
 end
 
@@ -1143,7 +1143,7 @@ end
 
 # Low-level internal function that just takes a dict of params, without caring
 # if they are valid or not, and returns the raw HTTP response.
-function _update_dataset(auth::Authentication, dataset_name::AbstractString, params::Dict)
+function _update_dataset(auth::Authentication, dataset_name::AbstractString, params::AbstractDict)
     _restcall(auth, :PATCH, ("user", "datasets", dataset_name), JSON.json(params))
 end
 

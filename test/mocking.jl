@@ -317,8 +317,13 @@ function _restcall_mocked(method, url, headers, payload; query)
         end
         applications_myapps |> jsonresponse(200)
     elseif (method == :POST) && endswith(url, "juliaruncloud/submit_job")
-        jobname = "jr-xf4tslavut"
-        Dict("message" => "", "success" => true, "jobname" => jobname) |> jsonresponse(200)
+        submit_job_response = get(MOCK_JULIAHUB_STATE, :submit_job_response, nothing)
+        if submit_job_response !== nothing
+            submit_job_response |> jsonresponse(200)
+        else
+            jobname = "jr-xf4tslavut"
+            Dict("message" => "", "success" => true, "jobname" => jobname) |> jsonresponse(200)
+        end
     elseif (method == :GET) && endswith(url, "jobs/appbundle_upload_url")
         Dict{String, Any}(
             "message" => Dict{String, Any}(
@@ -470,15 +475,6 @@ function _restcall_mocked(method, url, headers, payload; query)
         else
             serve_legacy(logengine, Dict(query))
         end
-    elseif in(method, (:HEAD, :GET)) && endswith(url, "/juliaruncloud/get_logs_v2")
-        logengine = get(MOCK_JULIAHUB_STATE, :logengine, nothing)
-        if isnothing(logengine)
-            JuliaHub._RESTResponse(500, "MOCK_JULIAHUB_STATE[:logengine] not set up")
-        elseif !logengine.kafkalogging
-            JuliaHub._RESTResponse(404, "MOCK_JULIAHUB_STATE[:logengine]: Kafka disabled")
-        else
-            serve_kafka(logengine, method, Dict(query))
-        end
     elseif (method == :GET) && occursin("/juliaruncloud/product_image_groups", url)
         Dict(
             "image_groups" => Dict(
@@ -527,92 +523,11 @@ end
 
 Base.@kwdef mutable struct LogEngine
     jobs::Dict{String, LogEngineJob} = Dict()
-    kafkalogging::Bool = false
-    # The real legacy endpoint has a limit of 10k. Similarly, for the real
-    # kafka endpoint this is determined by the max_bytes of the response,
-    # so it can actually vary.
+    # The real legacy endpoint has a limit of 10k
     max_response_size::Int = 10
 end
 
-function serve_kafka(logengine::LogEngine, method::Symbol, query::Dict)
-    jobname = get(query, "jobname", nothing)
-    job = get(logengine.jobs, jobname, nothing)
-    # If the client is doing a HEAD request, then we immediately return the
-    # approriate empty response.
-    if method == :HEAD
-        if isnothing(jobname)
-            return JuliaHub._RESTResponse(400, "")
-        elseif isnothing(job)
-            return JuliaHub._RESTResponse(404, "")
-        else
-            return JuliaHub._RESTResponse(200, "")
-        end
-    end
-    # Error handing for the GET requests (like for HEAD, but with a body)
-    if isnothing(jobname)
-        return JuliaHub._RESTResponse(400, "jobname is missing")
-    elseif isnothing(job)
-        return JuliaHub._RESTResponse(404, "No such job $jobname")
-    end
-    # Return the normal response
-    offset = get(query, "offset", nothing)
-    # We'll construct the full list of logs for the job, including the meta message
-    # at the end if necessary.
-    logs::Vector{Any} = map(enumerate(job.logs)) do (i, log)
-        # Make the indexing start from 0, to match the Kafka offset logic
-        (i - 1, log)
-    end
-    # We'll add the meta=bottom message, if needed.
-    if !job.isrunning
-        push!(logs, (length(logs), :bottom))
-    end
-    logs = if isnothing(offset)
-        start = max(1, length(logs) - logengine.max_response_size + 1)
-        logs[start:end]
-    elseif offset + 1 <= length(logs)
-        start = offset + 1
-        stop = min(start + logengine.max_response_size - 1, length(logs))
-        logs[start:stop]
-    else
-        [] # For out of range offsets we just return an empty list of logs
-    end
-    start_timestamp = Dates.now()
-    logs = map(logs) do (i, log)
-        value = if isa(log, Symbol)
-            Dict("meta" => string(log))
-        else
-            Dict(
-                "timestamp" =>
-                    JuliaHub._log_legacy_datetime_to_ms(start_timestamp + Dates.Second(i)),
-                "log" => Dict(
-                    "message" => String(log),
-                    "keywords" => Dict(
-                        "typeof(logger)" => "LoggingExtras...",
-                        "jrun_hostname" => "jr-ecogm4cccn-x5z4g",
-                        "jrun_worker_id" => 1,
-                        "jrun_thread_id" => 1,
-                        "jrun_time" => start_timestamp,
-                        "jrun_process_id" => 27,
-                    ),
-                    "metadata" => Dict(
-                        "line" => 141,
-                        "id" => "Main_JuliaRunJob_53527a33",
-                        "_module" => "Main.JuliaRunJob",
-                        "filepath" => "/opt/juliahub/master_startup.jl",
-                        "group" => "master_startup",
-                        "level" => "Info",
-                        "steam" => "stdout",
-                    ),
-                ),
-            )
-        end
-        Dict("offset" => i, "value" => value)
-    end
-    logs_json = JSON.json(Dict("consumer_id" => 1234, "logs" => logs))
-    return JuliaHub._RESTResponse(200, logs_json)
-end
-
-function serve_legacy(logengine::LogEngine, query::Dict)
+function serve_legacy(logengine::LogEngine, query::AbstractDict)
     jobname = get(query, "jobname", nothing)
     job = get(logengine.jobs, jobname, nothing)
     if isnothing(jobname)

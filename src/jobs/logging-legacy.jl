@@ -1,12 +1,12 @@
 struct _LegacyLogging <: _JobLoggingAPIVersion end
 
-function JobLogMessage(::_LegacyLogging, json::Dict, offset::Integer)
+function JobLogMessage(::_LegacyLogging, json::AbstractDict, offset::Integer)
     # The .message property _should_ always be present in the log messages,
     # but there are a few versions out there where it's sometimes omitted due
     # to a backend bug. So we default to an empty string in those cases.
     message = _get_json_or(json, "message", String, "")
-    keywords = _get_json_or(json, "keywords", Dict, Dict{String, Any}())
-    metadata = _get_json_or(json, "metadata", Dict, Dict{String, Any}())
+    keywords::Dict = _get_json_or(json, "keywords", AbstractDict, Dict{String, Any}())
+    metadata::Dict = _get_json_or(json, "metadata", AbstractDict, Dict{String, Any}())
     timestamp = if haskey(json, "timestamp")
         # Apparently timestamps are sometimes strings, sometimes integers..
         timestamp = _get_json(json, "timestamp", Union{String, Integer})
@@ -24,7 +24,7 @@ function JobLogMessage(::_LegacyLogging, json::Dict, offset::Integer)
     eventId = _get_json_or(json, "eventId", String, nothing)
     JobLogMessage(;
         _offset=offset, timestamp, message, _metadata=metadata, _keywords=keywords,
-        _legacy_eventId=eventId, _kafka_stream=nothing, _json=json,
+        _legacy_eventId=eventId, _json=json,
     )
 end
 
@@ -273,7 +273,7 @@ end
 # The log messages (may) have special _meta messages at the start and at the end.
 # These have a `"_meta": true` field, and should have either `"end": "top"` (if first)
 # or `"end": "bottom"` (if last message).
-function _log_legacy_is_meta(log::Dict, s::AbstractString)
+function _log_legacy_is_meta(log::AbstractDict, s::AbstractString)
     haskey(log, "_meta") || return false
     if log["_meta"] !== true
         throw(JuliaHubError("""
@@ -296,8 +296,11 @@ function _job_logs_newer!(
     isnothing(buffer._stream) || return nothing
     # If there are existing logs in the buffer then we may not have to fetch anything because
     # we have enough logs already in the buffer.
-    if !isnothing(count) && !isempty(buffer._logs) &&
+    if (
+        !isnothing(count) &&
+        !isempty(buffer._logs) &&
         buffer._active_range.stop + count <= length(buffer._logs)
+    )
         _job_logs_update_active_range!(buffer; stop=buffer._active_range.stop + count)
         return nothing
     end
@@ -334,8 +337,21 @@ function _job_logs_newer!(
         _job_logs_update_active_range!(buffer; start=1, stop=updated_stop)
         return nothing
     end
+
     # Finally, assuming we do have some logs, but not enough, we keep fetching new logs
     # until we don't find any more, find the last message, or have enough.
+    #
+    # Before we start the loop though, let's update the active range _once_, in case we
+    # exit the next loop early due to lack of new messages.
+    _job_logs_update_active_range!(buffer; stop=length(buffer._logs))
+    if count !== nothing
+        # The case where we have enough logs in the buffer is already handled
+        # This initializes `count` for the case where we're still missing some logs
+        count -= length(buffer._logs)
+    end
+
+    # At this point, the active range is set to the end of the buffer, but we still
+    # need to fetch more messages (if available).
     while true
         reference_log = last(buffer._logs)
         start_time = _log_legacy_datetime_to_ms(reference_log.timestamp)
@@ -392,7 +408,7 @@ function _job_logs_legacy_fill_buffer!(auth::Authentication, buffer::_LegacyLogs
         end
         if r.found_top
             buffer._found_first = true
-            # If we found the first message, then we shouldn't do nay more requests.
+            # If we found the first message, then we shouldn't do any more requests.
             break
         end
         # We should never find an empty set of logs, but we'll handle it gracefully with
@@ -529,7 +545,7 @@ function _job_logs_legacy_start_streaming!(auth::Authentication, buffer::_Legacy
             end
             # If the message wasn't empty, we assume that it is a valid JSON blob containing
             # a log message.
-            msg, _ = _parse_response_json(msg, Dict)
+            msg, _ = _parse_response_json(msg, AbstractDict)
             if _log_legacy_is_meta(msg, "top")
                 @error "Unexpected `top` meta message streamed" msg
                 return nothing

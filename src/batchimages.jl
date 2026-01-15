@@ -192,12 +192,12 @@ end
 function _api_product_image_groups(auth::Authentication)
     r = _restcall(auth, :GET, "juliaruncloud", "product_image_groups"; query=[("extended", "true")])
     r.status == 200 || _throw_invalidresponse(r)
-    return _parse_response_json(r, Dict)
+    return _parse_response_json(r, AbstractDict)
 end
 
 function _product_image_groups(auth::Authentication)
     r_json, r_json_str = _api_product_image_groups(auth)
-    image_groups = _get_json(r_json, "image_groups", Dict)
+    image_groups = _get_json(r_json, "image_groups", AbstractDict)
     # Double check that the returned JSON is correct
     image_groups = map(collect(pairs(image_groups))) do (image_group, images)
         if !isa(images, Vector)
@@ -227,7 +227,7 @@ function _group_images(images; image_group::AbstractString)
     # which should be unique.
     grouped_images = Dict{String, _ImageKeys}()
     for image in images
-        if !isa(image, Dict)
+        if !isa(image, AbstractDict)
             msg = """
             Invalid JSON returned by the server: image value is not an object
              image_group = $(image_group)
@@ -279,7 +279,7 @@ function _group_images(images; image_group::AbstractString)
     sort(grouped_images; by=((display_name, keys)::Pair) -> (!keys.isdefault, display_name))
 end
 
-function _parse_image_group_entry_type(image::Dict)
+function _parse_image_group_entry_type(image::AbstractDict)
     image_type = _get_json(image, "type", String)
     m = match(r"(base|option)-(cpu|gpu)", image_type)
     if isnothing(m)
