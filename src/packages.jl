@@ -1,4 +1,4 @@
-function _parse_registry(registry_dict::Dict)
+function _parse_registry(registry_dict::AbstractDict)
     name, uuid = try
         registry_dict["name"], tryparse(UUIDs.UUID, registry_dict["uuid"])
     catch e
