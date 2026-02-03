@@ -267,6 +267,9 @@ end
     @testset "_PackageBundler" begin
         include("packagebundler.jl")
     end
+    @testset "Packages" begin
+        include("packages.jl")
+    end
 
     if is_enabled()
         @info "Running tests against a JuliaHub instance"

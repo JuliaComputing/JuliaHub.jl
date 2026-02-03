@@ -239,6 +239,10 @@ function _restcall_mocked(method, url, headers, payload; query)
             "node_specs" => nodespecs,
         ) |> jsonresponse(200)
     elseif (method == :GET) && endswith(url, "app/packages/registries")
+        # Check for custom status code (default 200)
+        status = get(MOCK_JULIAHUB_STATE, :app_packages_registries_status, 200)
+
+        # Get registries data (default: General and JuliaComputingRegistry)
         packages_registries = get(MOCK_JULIAHUB_STATE, :app_packages_registries) do
             [
                 #! format: off
@@ -247,9 +251,13 @@ function _restcall_mocked(method, url, headers, payload; query)
                 #! format: on
             ]
         end
+
+        # Build response
         Dict(
-            "success" => true, "message" => "", "registries" => packages_registries
-        ) |> jsonresponse(200)
+            "success" => true,
+            "message" => "",
+            "registries" => packages_registries,
+        ) |> jsonresponse(status)
     elseif (method == :GET) && endswith(url, "app/applications/default")
         r = if apiv >= v"0.0.1"
             Dict{String, Any}(
