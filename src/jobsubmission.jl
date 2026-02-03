@@ -19,6 +19,8 @@ struct _JobSubmission1
     package_name::Union{String, Nothing}
     branch_name::Union{String, Nothing}
     git_revision::Union{String, Nothing}
+    #
+    dns_prefix::Union{String, Nothing}
     # Job image configuration
     product_name::Union{String, Nothing}
     image::Union{String, Nothing}
@@ -54,6 +56,7 @@ struct _JobSubmission1
         package_name::Union{AbstractString, Nothing}=nothing,
         branch_name::Union{AbstractString, Nothing}=nothing,
         git_revision::Union{AbstractString, Nothing}=nothing,
+        dns_prefix::Union{AbstractString, Nothing}=nothing,
         # Job image configuration
         product_name::Union{AbstractString, Nothing}=nothing,
         image::Union{AbstractString, Nothing}=nothing,
@@ -139,6 +142,7 @@ struct _JobSubmission1
             ## appbundles
             appbundle, appbundle_upload_info,
             registry_name, package_name, branch_name, git_revision,
+            dns_prefix,
             # Job image configuration
             product_name, image, image_tag, image_sha256,
             string(sysimage_build), sysimage_manifest_sha,
@@ -199,6 +203,37 @@ function _submit_job(auth::Authentication, j::_JobSubmission1)
         return r_json["jobname"]
     end
     _throw_invalidresponse(r)
+end
+
+module JobAccessMode
+abstract type T end
+struct JustMe <: T end
+struct Password <: T
+    password::String
+end
+struct LoggedInUsers <: T end
+struct TotallyPublic <: T end
+end
+
+struct JobRemoteAccess
+    port::Int
+    mode::JobAccessMode.T
+    dns_prefix::Union{String, Nothing}
+
+    function JobRemoteAccess(
+        port::Integer;
+        mode::JobAccessMode.T=JobAccessMode.JustMe(),
+        dns_prefix::Union{AbstractString, Nothing}=nothing,
+    )
+        if !_is_valid_port(port)
+            Base.throw(
+                ArgumentError(
+                    "Invalid port value for expose: '$(port)', must be in 1025:9008, 9010:23399, 23500:32767"
+                ),
+            )
+        end
+        return new(port, mode, dns_prefix)
+    end
 end
 
 """
@@ -1024,7 +1059,7 @@ struct WorkloadConfig
     env::Dict{String, String}
     project::Union{UUIDs.UUID, Nothing}
     timelimit::Union{Dates.Hour, Unlimited}
-    exposed_port::Union{Int, Nothing}
+    jobaccess::Union{JobRemoteAccess, Nothing}
     # internal, undocumented, may be removed an any point, not part of the public API:
     _image_sha256::Union{String, Nothing}
 
@@ -1034,7 +1069,7 @@ struct WorkloadConfig
         env=(),
         project::Union{UUIDs.UUID, Nothing}=nothing,
         timelimit::Limit=_DEFAULT_WorkloadConfig_timelimit,
-        expose::Union{Integer, Nothing}=nothing,
+        expose::Union{Integer, JobRemoteAccess, Nothing}=nothing,
         # internal, undocumented, may be removed an any point, not part of the public API:
         _image_sha256::Union{AbstractString, Nothing}=nothing,
     )
@@ -1045,13 +1080,12 @@ struct WorkloadConfig
                 ),
             )
         end
-        if !isnothing(expose) && !_is_valid_port(expose)
-            Base.throw(
-                ArgumentError(
-                    "Invalid port value for expose: '$(expose)', must be in 1025:9008, 9010:23399, 23500:32767"
-                ),
-            )
-        end
+        jobaccess::Union{JobRemoteAccess, Nothing} =
+            if isnothing(expose) || isa(expose, JobRemoteAccess)
+                expose
+            else
+                JobRemoteAccess(expose)
+            end
         new(
             app,
             compute,
@@ -1059,7 +1093,7 @@ struct WorkloadConfig
             Dict(string(k) => v for (k, v) in pairs(env)),
             project,
             @_timelimit(timelimit),
-            expose,
+            jobaccess,
             _image_sha256,
         )
     end
@@ -1205,7 +1239,7 @@ function submit_job(
     env=(),
     project::Union{UUIDs.UUID, AbstractString, Nothing}=nothing,
     timelimit::Limit=_DEFAULT_WorkloadConfig_timelimit,
-    expose::Union{Integer, Nothing}=nothing,
+    expose::Union{Integer, JobRemoteAccess, Nothing}=nothing,
     # internal, undocumented, may be removed an any point, not part of the public API:
     _image_sha256::Union{AbstractString, Nothing}=nothing,
     # General submit_job arguments
@@ -1413,13 +1447,29 @@ function _job_submit_args(
 )
     # Note: this set of arguments will also set product_name which must override the value
     # in `image_args`, achieved by splatting it later in the named tuple constructor below.
-    exposed_port_args = if !isnothing(workload.exposed_port)
+    exposed_port_args = if !isnothing(workload.jobaccess)
+        auth_args = if isa(workload.jobaccess.mode, JobAccessMode.JustMe)
+            Dict("authentication" => true, "authorization" => "me")
+        elseif isa(workload.jobaccess.mode, JobAccessMode.Password)
+            # (; "authentication" => true, "authorization" => "me") # TODO
+        elseif isa(workload.jobaccess.mode, JobAccessMode.LoggedInUsers)
+            # (; "authentication" => true, "authorization" => "me") # TODO
+        elseif isa(workload.jobaccess.mode, JobAccessMode.TotallyPublic)
+            Dict("authentication" => false, "authorization" => "anyone")
+        else
+            error("Bad .jobaccess.mode: $(workload.jobaccess.mode)")
+        end
+        dns_prefix_args = if !isnothing(workload.jobaccess.dns_prefix)
+            (; dns_prefix=workload.jobaccess.dns_prefix)
+        else
+            (;)
+        end
         (;
             product_name="package-interactive",
+            dns_prefix_args...,
             appArgs=Dict(
-                "authentication" => true,
-                "authorization" => "me",
-                "port" => workload.exposed_port,
+                "port" => workload.jobaccess.port,
+                auth_args...,
             ),
         )
     else
