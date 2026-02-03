@@ -31,15 +31,18 @@
         empty!(MOCK_JULIAHUB_STATE)
     end
 
+    # Note: we don't filter out registries we can't parse, and instead they stay
+    # as `nothing` in the returned array.
     @testset "Invalid registry data" begin
         @testset "missing name field" begin
             MOCK_JULIAHUB_STATE[:app_packages_registries] = [
                 Dict("uuid" => "23338594-aafe-5451-b93e-139f81909106", "id" => 1)
             ]
             Mocking.apply(mocking_patch) do
-                registries = JuliaHub.Experimental.registries(DEFAULT_GLOBAL_MOCK_AUTH)
+                registries = @test_logs (:error,) JuliaHub.Experimental.registries(
+                    DEFAULT_GLOBAL_MOCK_AUTH
+                )
                 @test length(registries) == 1
-                # BUG: function doesn't filter nothing values
                 @test registries[1] === nothing
             end
             empty!(MOCK_JULIAHUB_STATE)
@@ -50,9 +53,10 @@
                 Dict("name" => "TestRegistry", "id" => 1)
             ]
             Mocking.apply(mocking_patch) do
-                registries = JuliaHub.Experimental.registries(DEFAULT_GLOBAL_MOCK_AUTH)
+                registries = @test_logs (:error,) JuliaHub.Experimental.registries(
+                    DEFAULT_GLOBAL_MOCK_AUTH
+                )
                 @test length(registries) == 1
-                # BUG: function doesn't filter nothing values
                 @test registries[1] === nothing
             end
             empty!(MOCK_JULIAHUB_STATE)
@@ -102,9 +106,10 @@
                 ),
             ]
             Mocking.apply(mocking_patch) do
-                registries = JuliaHub.Experimental.registries(DEFAULT_GLOBAL_MOCK_AUTH)
+                registries = @test_logs (:error,) JuliaHub.Experimental.registries(
+                    DEFAULT_GLOBAL_MOCK_AUTH
+                )
                 @test length(registries) == 3
-                # BUG: includes nothing in the middle
                 @test registries[1] isa JuliaHub.Experimental.Registry
                 @test registries[1].name == "ValidRegistry"
                 @test registries[2] === nothing
