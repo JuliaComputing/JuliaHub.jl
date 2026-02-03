@@ -1411,6 +1411,21 @@ function _job_submit_args(
     auth::Authentication, workload::WorkloadConfig, packagejob::PackageJob, ::Type{_JobSubmission1};
     kwargs...,
 )
+    # Note: this set of arguments will also set product_name which must override the value
+    # in `image_args`, achieved by splatting it later in the named tuple constructor below.
+    exposed_port_args = if !isnothing(workload.exposed_port)
+        (;
+            product_name="package-interactive",
+            appArgs=Dict(
+                "authentication" => true,
+                "authorization" => "me",
+                "port" => workload.exposed_port,
+            ),
+        )
+    else
+        (;)
+    end
+
     return (;
         appType="userapp",
         customcode=false,
@@ -1422,6 +1437,7 @@ function _job_submit_args(
         ),
         # Just in case, we want to omit sysimage_build altogether when it is not requested.
         sysimage_build=packagejob.sysimage ? true : nothing,
+        exposed_port_args...,
     )
 end
 
