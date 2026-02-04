@@ -23,6 +23,23 @@ end
     end
 end
 
+@testset "JuliaHub.application(s) API errors" begin
+    MOCK_JULIAHUB_STATE[:applications_error_entries] = true
+    Mocking.apply(mocking_patch) do
+        @test length(JuliaHub.applications()) == 7
+        @test length(JuliaHub.applications(:default)) == 4
+        @test length(JuliaHub.applications(:package)) == 2
+        @test length(JuliaHub.applications(:user)) == 1
+        let app = JuliaHub.application(:default, "Linux Desktop")
+            @test app isa JuliaHub.DefaultApp
+            @test app.name == "Linux Desktop"
+        end
+        @test_throws JuliaHub.InvalidRequestError JuliaHub.application(:default, "no-such-app")
+        @test JuliaHub.application(:default, "no-such-app"; throw=false) === nothing
+    end
+    empty!(MOCK_JULIAHUB_STATE)
+end
+
 @testset "Empty user/registered apps" begin
     MOCK_JULIAHUB_STATE[:app_packages_registries] = []
     MOCK_JULIAHUB_STATE[:app_applications_info] = []

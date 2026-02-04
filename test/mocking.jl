@@ -259,6 +259,20 @@ function _restcall_mocked(method, url, headers, payload; query)
             "registries" => packages_registries,
         ) |> jsonresponse(status)
     elseif (method == :GET) && endswith(url, "app/applications/default")
+        error_entries = if get(MOCK_JULIAHUB_STATE, :applications_error_entries, false)::Bool
+            [
+                Dict{String, Any}(
+                    "name" => "Extra Product",
+                    "image_group" => "base_and_opt",
+                    "compute_type_name" => "batch",
+                    "input_type_name" => "userinput",
+                    "product_name" => "extra-images",
+                    "appType" => 234, # error: apptype should be a string
+                ),
+            ]
+        else
+            []
+        end
         r = if apiv >= v"0.0.1"
             Dict{String, Any}(
                 "defaultApps" => Any[
@@ -278,10 +292,10 @@ function _restcall_mocked(method, url, headers, payload; query)
                         "product_name" => "extra-images",
                         "appType" => "batchjob",
                     ),
+                    error_entries...,
                 ],
                 "defaultUserAppArgs" => [],
             )
-
         else
             Dict(
                 "defaultApps" => Any[
