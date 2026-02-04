@@ -951,13 +951,23 @@ struct PackageJob <: AbstractJobConfig
     jr_uuid::String
     args::Dict
     sysimage::Bool
+    image::Union{BatchImage, Nothing}
 
-    PackageJob(
-        app::PackageApp; args::AbstractDict=Dict(), sysimage::Bool=_DEFAULT_BatchJob_sysimage
-    ) =
-        new(app, app.name, app._registry.name, string(app._uuid), args, sysimage)
-    PackageJob(app::UserApp; args::AbstractDict=Dict(), sysimage::Bool=_DEFAULT_BatchJob_sysimage) =
-        new(app, app.name, nothing, app._repository, args, sysimage)
+    function PackageJob(
+        app::PackageApp; args::AbstractDict=Dict(),
+        image::Union{BatchImage, Nothing}=_DEFAULT_BatchJob_image,
+        sysimage::Bool=_DEFAULT_BatchJob_sysimage,
+    )
+        return new(app, app.name, app._registry.name, string(app._uuid), args, sysimage, image)
+    end
+    function PackageJob(
+        app::UserApp;
+        args::AbstractDict=Dict(),
+        image::Union{BatchImage, Nothing}=_DEFAULT_BatchJob_image,
+        sysimage::Bool=_DEFAULT_BatchJob_sysimage,
+    )
+        return new(app, app.name, nothing, app._repository, args, sysimage, image)
+    end
 end
 
 function _check_packagebundler_dir(bundlepath::AbstractString)
@@ -1332,39 +1342,40 @@ function _job_submit_args(
     )
 end
 
+_job_batch_image_args(::WorkloadConfig, ::Any) = (;)
+function _job_batch_image_args(workload::WorkloadConfig, batch_image::BatchImage)
+    image = if _is_gpu_job(workload)
+        if isnothing(batch_image._gpu_image_key)
+            throw(
+                InvalidRequestError(
+                    "GPU job requested, but $(batch_image) does not support GPU jobs."
+                ),
+            )
+        end
+        batch_image._gpu_image_key
+    else
+        if isnothing(batch_image._cpu_image_key)
+            throw(
+                InvalidRequestError(
+                    "CPU job requested, but $(batch_image) does not support CPU jobs."
+                ),
+            )
+        end
+        batch_image._cpu_image_key
+    end
+    return (;
+        product_name=batch_image.product,
+        image,
+        image_tag=batch_image._image_tag,
+        image_sha256=batch_image._image_sha,
+    )
+end
+
 function _job_submit_args(
     auth::Authentication, workload::WorkloadConfig, batch::BatchJob, ::Type{_JobSubmission1};
     kwargs...,
 )
-    image_args = if !isnothing(batch.image)
-        image = if _is_gpu_job(workload)
-            if isnothing(batch.image._gpu_image_key)
-                throw(
-                    InvalidRequestError(
-                        "GPU job requested, but $(batch.image) does not support GPU jobs."
-                    ),
-                )
-            end
-            batch.image._gpu_image_key
-        else
-            if isnothing(batch.image._cpu_image_key)
-                throw(
-                    InvalidRequestError(
-                        "CPU job requested, but $(batch.image) does not support CPU jobs."
-                    ),
-                )
-            end
-            batch.image._cpu_image_key
-        end
-        (;
-            product_name=batch.image.product,
-            image,
-            image_tag=batch.image._image_tag,
-            image_sha256=batch.image._image_sha,
-        )
-    else
-        (;)
-    end
+    image_args = _job_batch_image_args(workload, batch.image)
     # Note: this set of arguments will also set product_name which must override the value
     # in `image_args`, achieved by splatting it later in the named tuple constructor below.
     exposed_port_args = if !isnothing(workload.exposed_port)
@@ -1445,6 +1456,7 @@ function _job_submit_args(
     auth::Authentication, workload::WorkloadConfig, packagejob::PackageJob, ::Type{_JobSubmission1};
     kwargs...,
 )
+    image_args = _job_batch_image_args(workload, packagejob.image)
     # Note: this set of arguments will also set product_name which must override the value
     # in `image_args`, achieved by splatting it later in the named tuple constructor below.
     exposed_port_args = if !isnothing(workload.jobaccess)
@@ -1488,6 +1500,7 @@ function _job_submit_args(
         # Just in case, we want to omit sysimage_build altogether when it is not requested.
         sysimage_build=packagejob.sysimage ? true : nothing,
         exposed_port_args...,
+        image_args...,
     )
 end
 
