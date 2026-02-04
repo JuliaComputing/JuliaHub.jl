@@ -26,6 +26,7 @@ end
 @testset "JuliaHub.application(s) API errors" begin
     MOCK_JULIAHUB_STATE[:applications_error_entries] = true
     Mocking.apply(mocking_patch) do
+        # We have one erroneous entry for each category
         @test_logs (:warn,) (:warn,) (:warn,) @test length(JuliaHub.applications()) == 7
         @test_logs (:warn,) @test length(JuliaHub.applications(:default)) == 4
         @test_logs (:warn,) @test length(JuliaHub.applications(:package)) == 2
@@ -34,10 +35,10 @@ end
             @test app isa JuliaHub.DefaultApp
             @test app.name == "Linux Desktop"
         end
-        @test_throws JuliaHub.InvalidRequestError JuliaHub.application(
+        @test_logs (:warn,) @test_throws JuliaHub.InvalidRequestError JuliaHub.application(
             :default, "no-such-app"
         )
-        @test_throws JuliaHub.InvalidRequestError JuliaHub.application(
+        @test_logs (:warn,) @test_throws JuliaHub.InvalidRequestError JuliaHub.application(
             :package, "BrokenRegisteredPackage"
         )
         @test_logs (:warn,) @test JuliaHub.application(:default, "no-such-app"; throw=false) ===
