@@ -265,21 +265,46 @@ function _apps_default(auth::Authentication)
     json, _ = _api_apps_default(auth)
     default_apps_json = _json_get(json, "defaultApps", Vector; var="user app")
     appargs = _json_get(json, "defaultUserAppArgs", Vector; var="user app")
-    return [DefaultApp(app_json, appargs) for app_json in default_apps_json]
+    return _map_filter_error(
+        app_json -> DefaultApp(app_json, appargs), default_apps_json, DefaultApp;
+        error_message="There was an error parsing the JuliaHub response for package application. Some applications may be missing.",
+    )
 end
 
 function _api_apps_registered(auth::Authentication, registries::AbstractVector{_RegistryInfo})
     r = _restcall(auth, :GET, "app", "applications", "info")
     r.status == 200 || _throw_invalidresponse(r; msg="Unable to list registered applications.")
     json, _ = _parse_response_json(r, Vector)
-    return [PackageApp(app, registries) for app in json]
+    return _map_filter_error(
+        app -> PackageApp(app, registries), json, PackageApp;
+        error_message="There was an error parsing the JuliaHub response for package application. Some applications may be missing.",
+    )
 end
 
 function _api_apps_userapps(auth::Authentication)
     r = _restcall(auth, :GET, "app", "applications", "myapps")
     r.status == 200 || _throw_invalidresponse(r; msg="Unable to list user applications.")
     json, _ = _parse_response_json(r, Vector)
-    return UserApp.(json)
+    return _map_filter_error(
+        UserApp, json, UserApp;
+        error_message="There was an error parsing the JuliaHub response for package application. Some applications may be missing.",
+    )
+end
+
+function _map_filter_error(
+    f::Base.Callable, itr, ::Type{T}; error_message::AbstractString
+)::Vector{T} where {T}
+    rs = sizehint!(T[], length(itr))
+    for x in itr
+        try
+            push!(rs, f(x)::T)
+        catch e
+            @warn error_message exception = (
+                e, catch_backtrace()
+            )
+        end
+    end
+    return rs
 end
 
 function _find_registry(registries::AbstractVector{_RegistryInfo}, id::Integer)
