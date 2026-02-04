@@ -1,6 +1,6 @@
 @testset "JuliaHub._api_registries" begin
     Mocking.apply(mocking_patch) do
-        registries = JuliaHub._api_registries(auth)
+        registries = JuliaHub._api_registries(JuliaHub.__auth__())
         @test registries isa Vector{JuliaHub._RegistryInfo}
         @test length(registries) == 2
         @test "General" in (r.name for r in registries)
