@@ -270,6 +270,9 @@ end
     @testset "Packages" begin
         include("packages.jl")
     end
+    @testset "Packages" begin
+        include("applications.jl")
+    end
 
     if is_enabled()
         @info "Running tests against a JuliaHub instance"
