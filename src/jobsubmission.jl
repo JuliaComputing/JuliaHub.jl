@@ -236,6 +236,25 @@ struct JobRemoteAccess
     end
 end
 
+abstract type PackageAppRevision end
+struct LatestRelease <: PackageAppRevision end
+"""
+Launches the job with the latest commit on the specifies branch.
+
+If `branch_name` is `nothing` (or unset in `Branch()`), it uses the default branch of
+the repository (e.g. `main`, `master`).
+"""
+struct Branch <: PackageAppRevision
+    branch_name::Union{String, Nothing}
+
+    function Branch(branch_name::Union{AbstractString, Nothing}=nothing)
+        return new(branch_name)
+    end
+end
+struct GitRevision <: PackageAppRevision
+    git_revision::String
+end
+
 """
     abstract type AbstractJobConfig
 
@@ -914,6 +933,8 @@ function _get_appbundle_upload_url(auth::Authentication, appbundle_tar_path::Abs
     return upload_url, appbundle_params
 end
 
+const _DEFAULT_PackageJob_revision = LatestRelease()
+
 """
     struct PackageJob <: AbstractJobConfig
 
@@ -952,21 +973,26 @@ struct PackageJob <: AbstractJobConfig
     args::Dict
     sysimage::Bool
     image::Union{BatchImage, Nothing}
+    revision::PackageAppRevision
 
     function PackageJob(
         app::PackageApp; args::AbstractDict=Dict(),
         image::Union{BatchImage, Nothing}=_DEFAULT_BatchJob_image,
         sysimage::Bool=_DEFAULT_BatchJob_sysimage,
+        revision::PackageAppRevision=_DEFAULT_PackageJob_revision,
     )
-        return new(app, app.name, app._registry.name, string(app._uuid), args, sysimage, image)
+        return new(
+            app, app.name, app._registry.name, string(app._uuid), args, sysimage, image, revision
+        )
     end
     function PackageJob(
         app::UserApp;
         args::AbstractDict=Dict(),
         image::Union{BatchImage, Nothing}=_DEFAULT_BatchJob_image,
         sysimage::Bool=_DEFAULT_BatchJob_sysimage,
+        revision::PackageAppRevision=_DEFAULT_PackageJob_revision,
     )
-        return new(app, app.name, nothing, app._repository, args, sysimage, image)
+        return new(app, app.name, nothing, app._repository, args, sysimage, image, revision)
     end
 end
 
@@ -1452,6 +1478,16 @@ function _job_submit_args(
     )
 end
 
+function _job_submit_package_revision_args(rev::Branch)
+    return (; branch_name=something(rev.branch_name, "HEAD"))
+end
+function _job_submit_package_revision_args(rev::GitRevision)
+    return (; git_revision=rev.git_revision)
+end
+function _job_submit_package_revision_args(::LatestRelease)
+    return (; branch_name="")
+end
+
 function _job_submit_args(
     auth::Authentication, workload::WorkloadConfig, packagejob::PackageJob, ::Type{_JobSubmission1};
     kwargs...,
@@ -1501,6 +1537,7 @@ function _job_submit_args(
         sysimage_build=packagejob.sysimage ? true : nothing,
         image_args...,
         exposed_port_args...,
+        _job_submit_package_revision_args(packagejob.revision)...,
     )
 end
 
