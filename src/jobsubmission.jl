@@ -1499,8 +1499,8 @@ function _job_submit_args(
         ),
         # Just in case, we want to omit sysimage_build altogether when it is not requested.
         sysimage_build=packagejob.sysimage ? true : nothing,
-        exposed_port_args...,
         image_args...,
+        exposed_port_args...,
     )
 end
 
