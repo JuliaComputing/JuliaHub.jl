@@ -36,12 +36,6 @@ function extra_enabled_live_tests(; print_info=false)
     if get(ENV, "JULIAHUBJL_LIVE_WINDOWS_TESTS", "") == "true"
         push!(testnames, "jobs-windows")
     end
-    if get(ENV, "JULIAHUBJL_LIVE_EXPOSED_PORT_TESTS", "") == "true"
-        push!(testnames, "jobs-exposed-port")
-    end
-    if get(ENV, "JULIAHUBJL_LIVE_PROJECTS_TESTS", "") == "true"
-        push!(testnames, "datasets-projects")
-    end
     if print_info && !isempty(testnames)
         testname_list = join(string.(" - ", testnames), '\n')
         @info """
@@ -115,7 +109,6 @@ end
         # in case it is set in the actual enviornment.
         withenv(
             "JULIAHUBJL_LIVE_WINDOWS_TESTS" => nothing,
-            "JULIAHUBJL_LIVE_EXPOSED_PORT_TESTS" => nothing,
         ) do
             @test !is_enabled(; args=[])
             @test is_enabled(; args=["--live"])
@@ -139,31 +132,12 @@ end
                     @test_logs (:warn,) @test !is_enabled(
                         "jobs-windows"; args, disabled_by_default=true
                     )
-                    @test_logs (:warn,) @test !is_enabled(
-                        "jobs-exposed-port"; args, disabled_by_default=true
-                    )
                 end
                 withenv("JULIAHUBJL_LIVE_WINDOWS_TESTS" => "true") do
                     @test_logs (:info,) @test is_enabled("datasets"; args)
                     @test_logs (:info,) @test is_enabled("jobs"; args)
                     @test_logs (:info,) @test is_enabled(
                         "jobs-windows"; args, disabled_by_default=true
-                    )
-                    @test_logs (:warn,) @test !is_enabled(
-                        "jobs-exposed-port"; args, disabled_by_default=true
-                    )
-                end
-                withenv(
-                    "JULIAHUBJL_LIVE_WINDOWS_TESTS" => "true",
-                    "JULIAHUBJL_LIVE_EXPOSED_PORT_TESTS" => "true",
-                ) do
-                    @test_logs (:info,) @test is_enabled("datasets"; args)
-                    @test_logs (:info,) @test is_enabled("jobs"; args)
-                    @test_logs (:info,) @test is_enabled(
-                        "jobs-windows"; args, disabled_by_default=true
-                    )
-                    @test_logs (:info,) @test is_enabled(
-                        "jobs-exposed-port"; args, disabled_by_default=true
                     )
                 end
             end
