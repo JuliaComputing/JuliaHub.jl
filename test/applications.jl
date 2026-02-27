@@ -1,6 +1,6 @@
 @testset "JuliaHub._api_registries" begin
     Mocking.apply(mocking_patch) do
-        registries = JuliaHub._api_registries(auth)
+        registries = JuliaHub._api_registries(JuliaHub.__auth__())
         @test registries isa Vector{JuliaHub._RegistryInfo}
         @test length(registries) == 2
         @test "General" in (r.name for r in registries)
@@ -21,6 +21,30 @@ end
         @test_throws JuliaHub.InvalidRequestError JuliaHub.application(:default, "no-such-app")
         @test JuliaHub.application(:default, "no-such-app"; throw=false) === nothing
     end
+end
+
+@testset "JuliaHub.application(s) API errors" begin
+    MOCK_JULIAHUB_STATE[:applications_error_entries] = true
+    Mocking.apply(mocking_patch) do
+        # We have one erroneous entry for each category
+        @test_logs (:warn,) (:warn,) (:warn,) @test length(JuliaHub.applications()) == 7
+        @test_logs (:warn,) @test length(JuliaHub.applications(:default)) == 4
+        @test_logs (:warn,) @test length(JuliaHub.applications(:package)) == 2
+        @test_logs (:warn,) @test length(JuliaHub.applications(:user)) == 1
+        let app = @test_logs (:warn,) JuliaHub.application(:default, "Linux Desktop")
+            @test app isa JuliaHub.DefaultApp
+            @test app.name == "Linux Desktop"
+        end
+        @test_logs (:warn,) @test_throws JuliaHub.InvalidRequestError JuliaHub.application(
+            :default, "no-such-app"
+        )
+        @test_logs (:warn,) @test_throws JuliaHub.InvalidRequestError JuliaHub.application(
+            :package, "BrokenRegisteredPackage"
+        )
+        @test_logs (:warn,) @test JuliaHub.application(:default, "no-such-app"; throw=false) ===
+            nothing
+    end
+    empty!(MOCK_JULIAHUB_STATE)
 end
 
 @testset "Empty user/registered apps" begin

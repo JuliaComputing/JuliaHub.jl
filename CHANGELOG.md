@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 
 * Fix a `MethodError` when calling `JuliaHub.Experimental.registries`. ([#132])
+* `JuliaHub.application(s)` now handles bad API responses more gracefully. ([#133])
 
 ## Version [v0.1.17] - 2025-12-16
 
@@ -236,3 +237,4 @@ Initial package release.
 [#124]: https://github.com/JuliaComputing/JuliaHub.jl/issues/124
 [#127]: https://github.com/JuliaComputing/JuliaHub.jl/issues/127
 [#132]: https://github.com/JuliaComputing/JuliaHub.jl/issues/132
+[#133]: https://github.com/JuliaComputing/JuliaHub.jl/issues/133

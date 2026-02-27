@@ -281,8 +281,18 @@ function _restcall_mocked(method, url, headers, payload; query)
                 ],
                 "defaultUserAppArgs" => [],
             )
-
         else
+            error_entries =
+                if get(MOCK_JULIAHUB_STATE, :applications_error_entries, false)::Bool
+                    [
+                        #! format: off
+                        # error: appType should be a string, but is an integer
+                        Dict("visible" => true, "name" => "Broken App", "appArgs" => Any[Dict("key" => "authentication", "label" => "Authentication", "default" => true, "required" => true, "description" => "Enable authentication for your Linux Desktop instance", "type" => "boolean", "tests" => Any[]), Dict("key" => "authorization", "label" => "Authorization", "options" => Any[Dict("key" => "me", "text" => "Allow only my account"), Dict("key" => "anyone", "text" => "Allow any logged in user")], "default" => "me", "required" => true, "depends" => Dict("key" => "authentication", "operator" => "eq", "value" => true, "type" => "condition"), "description" => "Choose who can access your Linux Desktop instance", "type" => "choice", "tests" => Any[]), Dict("key" => "password", "label" => "Password", "required" => true, "depends" => Dict("operator" => "or", "params" => Any[Dict("key" => "authentication", "operator" => "eq", "value" => false, "type" => "condition"), Dict("operator" => "and", "params" => Any[Dict("key" => "authentication", "operator" => "eq", "value" => true, "type" => "condition"), Dict("key" => "authorization", "operator" => "eq", "value" => "anyone", "type" => "condition")], "type" => "logical")], "type" => "logical"), "description" => "Set a password to securely access your Linux Desktop instance", "type" => "password", "tests" => Any[Dict("max" => 32, "min" => 8, "type" => "length", "errorMessage" => "Password must be between 8 and 32 characters"), Dict("regex" => ".*[a-z].*", "type" => "match", "errorMessage" => "Password must contain at least one lower case letter"), Dict("regex" => ".*[A-Z].*", "type" => "match", "errorMessage" => "Password must contain at least one upper case letter"), Dict("regex" => ".*[0-9].*", "type" => "match", "errorMessage" => "Password must contain at least one digit")])], "schedulerspec" => Dict("match_taints" => Dict("juliarun-job-name" => "defaultapp")), "description" => "Access a Linux desktop environment with Julia installed", "appType" => 1234)
+                        #! format: on
+                    ]
+                else
+                    []
+                end
             Dict(
                 "defaultApps" => Any[
                 #! format: off
@@ -290,6 +300,7 @@ function _restcall_mocked(method, url, headers, payload; query)
                 Dict("visible" => true, "name" => "Julia IDE", "appArgs" => Any[Dict("key" => "authentication", "label" => "Authentication", "default" => true, "required" => true, "description" => "Enable authentication for your Julia IDE instance", "type" => "boolean", "tests" => Any[]), Dict("key" => "authorization", "label" => "Authorization", "options" => Any[Dict("key" => "me", "text" => "Allow only my account"), Dict("key" => "anyone", "text" => "Allow any logged in user")], "default" => "me", "required" => true, "depends" => Dict("key" => "authentication", "operator" => "eq", "value" => true, "type" => "condition"), "description" => "Choose who can access your Julia IDE instance", "type" => "choice", "tests" => Any[]), Dict("key" => "password", "label" => "Password", "required" => true, "depends" => Dict("operator" => "or", "params" => Any[Dict("key" => "authentication", "operator" => "eq", "value" => false, "type" => "condition"), Dict("operator" => "and", "params" => Any[Dict("key" => "authentication", "operator" => "eq", "value" => true, "type" => "condition"), Dict("key" => "authorization", "operator" => "eq", "value" => "anyone", "type" => "condition")], "type" => "logical")], "type" => "logical"), "description" => "Set a password to securely access your Julia IDE instance", "type" => "password", "tests" => Any[Dict("max" => 32, "min" => 8, "type" => "length", "errorMessage" => "Password must be between 8 and 32 characters"), Dict("regex" => ".*[a-z].*", "type" => "match", "errorMessage" => "Password must contain at least one lower case letter"), Dict("regex" => ".*[A-Z].*", "type" => "match", "errorMessage" => "Password must contain at least one upper case letter"), Dict("regex" => ".*[0-9].*", "type" => "match", "errorMessage" => "Password must contain at least one digit")])], "schedulerspec" => Dict("match_taints" => Dict("juliarun-job-name" => "defaultapp")), "description" => "The full power of Julia in the cloud", "appType" => "codeserver"),
                 Dict("visible" => true, "name" => "Pluto", "appArgs" => Any[Dict("key" => "authentication", "label" => "Authentication", "default" => true, "required" => true, "description" => "Enable authentication for your Pluto instance", "type" => "boolean", "tests" => Any[]), Dict("key" => "authorization", "label" => "Authorization", "options" => Any[Dict("key" => "me", "text" => "Allow only my account"), Dict("key" => "anyone", "text" => "Allow any logged in user")], "default" => "me", "required" => true, "depends" => Dict("key" => "authentication", "operator" => "eq", "value" => true, "type" => "condition"), "description" => "Choose who can access your Pluto instance", "type" => "choice", "tests" => Any[]), Dict("key" => "password", "label" => "Password", "required" => true, "depends" => Dict("operator" => "or", "params" => Any[Dict("key" => "authentication", "operator" => "eq", "value" => false, "type" => "condition"), Dict("operator" => "and", "params" => Any[Dict("key" => "authentication", "operator" => "eq", "value" => true, "type" => "condition"), Dict("key" => "authorization", "operator" => "eq", "value" => "anyone", "type" => "condition")], "type" => "logical")], "type" => "logical"), "description" => "Set a password to securely access your Pluto instance", "type" => "password", "tests" => Any[Dict("max" => 32, "min" => 8, "type" => "length", "errorMessage" => "Password must be between 8 and 32 characters"), Dict("regex" => ".*[a-z].*", "type" => "match", "errorMessage" => "Password must contain at least one lower case letter"), Dict("regex" => ".*[A-Z].*", "type" => "match", "errorMessage" => "Password must contain at least one upper case letter"), Dict("regex" => ".*[0-9].*", "type" => "match", "errorMessage" => "Password must contain at least one digit")])], "schedulerspec" => Dict("match_taints" => Dict("juliarun-job-name" => "defaultapp")), "description" => "Run Pluto notebooks in the cloud", "appType" => "pluto"),
                 Dict("visible" => true, "name" => "Windows Workstation", "appArgs" => Any[Dict("key" => "authentication", "label" => "Authentication", "default" => true, "required" => true, "description" => "Enable authentication for your Windows Workstation instance", "type" => "boolean", "tests" => Any[]), Dict("key" => "authorization", "label" => "Authorization", "options" => Any[Dict("key" => "me", "text" => "Allow only my account"), Dict("key" => "anyone", "text" => "Allow any logged in user")], "default" => "me", "required" => true, "depends" => Dict("key" => "authentication", "operator" => "eq", "value" => true, "type" => "condition"), "description" => "Choose who can access your Windows Workstation instance", "type" => "choice", "tests" => Any[]), Dict("key" => "password", "label" => "Password", "required" => true, "depends" => Dict("operator" => "or", "params" => Any[Dict("key" => "authentication", "operator" => "eq", "value" => false, "type" => "condition"), Dict("operator" => "and", "params" => Any[Dict("key" => "authentication", "operator" => "eq", "value" => true, "type" => "condition"), Dict("key" => "authorization", "operator" => "eq", "value" => "anyone", "type" => "condition")], "type" => "logical")], "type" => "logical"), "description" => "Set a password to securely access your Windows Workstation instance", "type" => "password", "tests" => Any[Dict("max" => 32, "min" => 8, "type" => "length", "errorMessage" => "Password must be between 8 and 32 characters"), Dict("regex" => ".*[a-z].*", "type" => "match", "errorMessage" => "Password must contain at least one lower case letter"), Dict("regex" => ".*[A-Z].*", "type" => "match", "errorMessage" => "Password must contain at least one upper case letter"), Dict("regex" => ".*[0-9].*", "type" => "match", "errorMessage" => "Password must contain at least one digit")])], "schedulerspec" => Dict("match_taints" => Dict()), "description" => "Windows desktop with pre-installed applications", "appType" => "winworkstation"),
+                error_entries...,
                 #! format: on
                 ],
                 "defaultUserAppArgs" => Any[],
@@ -298,6 +309,19 @@ function _restcall_mocked(method, url, headers, payload; query)
         r |> jsonresponse(200)
     elseif (method == :GET) && endswith(url, "app/applications/info")
         applications_info = get(MOCK_JULIAHUB_STATE, :app_applications_info) do
+            error_entries =
+                if get(MOCK_JULIAHUB_STATE, :applications_error_entries, false)::Bool
+                    [
+                        # error: invalid registry ID
+                        Dict(
+                            "name" => "BrokenRegisteredPackage",
+                            "uuid" => "db8b4d46-bfad-4aa5-a5f8-40df1e9542e5",
+                            "registrymap" => Any[Dict("status" => true, "id" => "112938213")],
+                        ),
+                    ]
+                else
+                    []
+                end
             Any[
                 Dict(
                     "name" => "RegisteredPackageApp",
@@ -309,17 +333,31 @@ function _restcall_mocked(method, url, headers, payload; query)
                     "uuid" => "539b0f2a-a771-427e-a3ea-5fa1ee615c0c",
                     "registrymap" => Any[Dict("status" => true, "id" => "266")],
                 ),
+                error_entries...,
             ]
         end
         applications_info |> jsonresponse(200)
     elseif (method == :GET) && endswith(url, "app/applications/myapps")
         applications_myapps = get(MOCK_JULIAHUB_STATE, :app_applications_myapps) do
+            error_entries =
+                if get(MOCK_JULIAHUB_STATE, :applications_error_entries, false)::Bool
+                    [
+                        # error: repourl is not a string
+                        Dict(
+                            "name" => "ExampleApp.jl",
+                            "repourl" => Dict(),
+                        ),
+                    ]
+                else
+                    []
+                end
             #! format: off
             Any[
                 Dict(
                     "name" => "ExampleApp.jl",
                     "repourl" => "https://github.com/JuliaHubExampleOrg/ExampleApp.jl",
                 ),
+                error_entries...,
             ]
             #! format: on
         end
