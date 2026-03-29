@@ -24,7 +24,7 @@ jobs:
   format:
     runs-on: ubuntu-latest
     steps:
-      - uses: julia-actions/julia-format@v4
+      - uses: julia-actions/julia-format@d758beeb6b381459ef1254656f351627155a0f0a # v4
         with:
           # Version compat for JuliaFormatter.jl (default: '1')
           # E.g. set to '1.0.54' if you need to use JuliaFormatter.jl v1.0.54
