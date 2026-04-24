@@ -114,7 +114,7 @@ function cp_skip_dangling_symlinks(src::AbstractString, dst::AbstractString)
         src_entry = joinpath(src, entry)
         dst_entry = joinpath(dst, entry)
         if islink(src_entry) && !ispath(src_entry)
-            @warn "Skipping dangling symlink" path=src_entry
+            @warn "Skipping dangling symlink" path = src_entry
             continue
         elseif isdir(src_entry)
             cp_skip_dangling_symlinks(src_entry, dst_entry)
