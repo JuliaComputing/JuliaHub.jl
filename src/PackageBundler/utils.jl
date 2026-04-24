@@ -97,16 +97,11 @@ function get_bundleignore(file, top)
 end
 
 """
-    path_filterer(top)
+    cp_skip_dangling_symlinks(src, dst)
 
-Returns a function that takes a file or directory path and checks whether that is excluded by the
-nearest `.juliabundleignore` file. The function will also ignore any `.git` files and directories.
-
-The `top` argument specifies the highest directory up the tree that will be searched for
-the `.juliabundleignore` file.
-
-The function will return `false` for any excluded files and `true` otherwise, and can be used as
-a predicate for filtering files that should be bundled.
+Recursively copies the directory `src` to `dst`, mirroring the behaviour of
+`cp(src, dst; follow_symlinks=true)` but silently skipping any dangling symlinks
+(symlinks whose target does not exist) instead of erroring on them.
 """
 function cp_skip_dangling_symlinks(src::AbstractString, dst::AbstractString)
     mkpath(dst)
@@ -124,6 +119,18 @@ function cp_skip_dangling_symlinks(src::AbstractString, dst::AbstractString)
     end
 end
 
+"""
+    path_filterer(top)
+
+Returns a function that takes a file or directory path and checks whether that is excluded by the
+nearest `.juliabundleignore` file. The function will also ignore any `.git` files and directories.
+
+The `top` argument specifies the highest directory up the tree that will be searched for
+the `.juliabundleignore` file.
+
+The function will return `false` for any excluded files and `true` otherwise, and can be used as
+a predicate for filtering files that should be bundled.
+"""
 function path_filterer(top)
     function (path)
         if occursin(fn"*/.git", sanitize_windows_path(path)) ||
