@@ -108,6 +108,22 @@ the `.juliabundleignore` file.
 The function will return `false` for any excluded files and `true` otherwise, and can be used as
 a predicate for filtering files that should be bundled.
 """
+function cp_skip_dangling_symlinks(src::AbstractString, dst::AbstractString)
+    mkpath(dst)
+    for entry in readdir(src)
+        src_entry = joinpath(src, entry)
+        dst_entry = joinpath(dst, entry)
+        if islink(src_entry) && !ispath(src_entry)
+            @warn "Skipping dangling symlink" path=src_entry
+            continue
+        elseif isdir(src_entry)
+            cp_skip_dangling_symlinks(src_entry, dst_entry)
+        else
+            cp(src_entry, dst_entry; follow_symlinks=true)
+        end
+    end
+end
+
 function path_filterer(top)
     function (path)
         if occursin(fn"*/.git", sanitize_windows_path(path)) ||
