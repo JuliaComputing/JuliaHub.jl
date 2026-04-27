@@ -108,13 +108,14 @@ function cp_skip_dangling_symlinks(src::AbstractString, dst::AbstractString)
     for entry in readdir(src)
         src_entry = joinpath(src, entry)
         dst_entry = joinpath(dst, entry)
-        if islink(src_entry) && !ispath(src_entry)
-            @warn "Skipping dangling symlink" path = src_entry
-            continue
-        elseif isdir(src_entry)
+        if isdir(src_entry)
             cp_skip_dangling_symlinks(src_entry, dst_entry)
-        else
+        elseif isfile(src_entry)
             cp(src_entry, dst_entry; follow_symlinks=true)
+        elseif islink(src_entry)
+            # Dangling symlink: isfile/isdir follow symlinks so both return false for a
+            # dangling symlink, while islink uses lstat so it returns true.
+            @warn "Skipping dangling symlink" path = src_entry
         end
     end
 end
