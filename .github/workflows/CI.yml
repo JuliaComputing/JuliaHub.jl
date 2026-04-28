@@ -39,7 +39,7 @@ jobs:
             version: "1"
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: julia-actions/setup-julia@4a12c5f801ca5ef0458bba44687563ef276522dd # v3.0.0
+      - uses: julia-actions/setup-julia@f6f565d9f7cf12f53dc8045742460d6260ad3b39 # v3.0.1
         with:
           version: ${{ matrix.version }}
       - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
@@ -73,7 +73,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: julia-actions/setup-julia@4a12c5f801ca5ef0458bba44687563ef276522dd # v3.0.0
+      - uses: julia-actions/setup-julia@f6f565d9f7cf12f53dc8045742460d6260ad3b39 # v3.0.1
         with:
           version: "1"
       - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
@@ -99,7 +99,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: julia-actions/setup-julia@4a12c5f801ca5ef0458bba44687563ef276522dd # v3.0.0
+      - uses: julia-actions/setup-julia@f6f565d9f7cf12f53dc8045742460d6260ad3b39 # v3.0.1
         with:
           version: "1"
       - name: "Aqua.test_all(JuliaHub)"
@@ -116,7 +116,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: julia-actions/setup-julia@4a12c5f801ca5ef0458bba44687563ef276522dd # v3.0.0
+      - uses: julia-actions/setup-julia@f6f565d9f7cf12f53dc8045742460d6260ad3b39 # v3.0.1
         with:
           version: "1"
       - name: "Install dependencies"
@@ -144,7 +144,7 @@ jobs:
       statuses: write # Optional, used to report documentation build statuses
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: julia-actions/setup-julia@4a12c5f801ca5ef0458bba44687563ef276522dd # v3.0.0
+      - uses: julia-actions/setup-julia@f6f565d9f7cf12f53dc8045742460d6260ad3b39 # v3.0.1
         with:
           version: "1"
       - uses: julia-actions/julia-buildpkg@e3eb439fad4f9aba7da2667e7510e4a46ebc46e1 # v1
@@ -165,7 +165,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: julia-actions/setup-julia@4a12c5f801ca5ef0458bba44687563ef276522dd # v3.0.0
+      - uses: julia-actions/setup-julia@f6f565d9f7cf12f53dc8045742460d6260ad3b39 # v3.0.1
         with:
           # we'll restrict doctests to a minor version, to avoid failures due
           # to printing differences between Julia (minor) versions
