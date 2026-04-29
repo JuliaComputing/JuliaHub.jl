@@ -827,6 +827,11 @@ function _upload_dataset(upload_config, local_path; progress::Bool)
                 "--s3-no-check-bucket",
                 "--s3-no-head",
                 "--no-check-dest",
+                # DEBUG (temporary): full HTTP trace so CI surfaces the exact
+                # request/response shape that rclone is making for the failing
+                # BlobTree upload. Remove before merging.
+                "-vv",
+                "--dump", "headers",
             ]
 
             if progress
