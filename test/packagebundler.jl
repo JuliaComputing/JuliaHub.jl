@@ -240,10 +240,9 @@ end
         @test !pred(joinpath(dir, "Pkg3", "test", "foo"))
         @test pred(joinpath(dir, "Pkg3", "test", "fooo", "test"))
 
-        # Note: even though the test/foo and test/bar directories are
-        # excluded, the predicate function does not return false if you
-        # check for file within the directories.
-        @test pred(joinpath(dir, "Pkg3", "test", "bar", "test"))
+        # Directory patterns (*/bar/) now correctly exclude contents
+        @test !pred(joinpath(dir, "Pkg3", "test", "bar", "test"))
+        # */foo is a file glob (no trailing /), so only matches the file, not contents
         @test pred(joinpath(dir, "Pkg3", "test", "foo", "test"))
     end
     @testset "toplevel" begin
@@ -259,10 +258,9 @@ end
         @test !pred(joinpath(dir, "test", "foo"))
         @test pred(joinpath(dir, "test", "fooo", "test"))
 
-        # Note: even though the test/foo and test/bar directories are
-        # excluded, the predicate function does not return false if you
-        # check for file within the directories.
-        @test pred(joinpath(dir, "test", "bar", "test"))
+        # Directory patterns (*/bar/) now correctly exclude contents
+        @test !pred(joinpath(dir, "test", "bar", "test"))
+        # */foo is a file glob (no trailing /), so only matches the file, not contents
         @test pred(joinpath(dir, "test", "foo", "test"))
     end
 end
