@@ -267,6 +267,40 @@ end
     end
 end
 
+@testset "cp_skip_dangling_symlinks" begin
+    mktempdir() do src
+        # Regular file
+        write(joinpath(src, "regular.txt"), "hello")
+        # Subdirectory with a nested file
+        mkdir(joinpath(src, "subdir"))
+        write(joinpath(src, "subdir", "nested.txt"), "world")
+        # Valid symlink to an existing file
+        symlink(joinpath(src, "regular.txt"), joinpath(src, "valid_link.txt"))
+        # Dangling symlink (target does not exist)
+        symlink(joinpath(src, "nonexistent.txt"), joinpath(src, "dangling_link.txt"))
+
+        dst = tempname()
+        @test_logs (:warn, r"dangling") match_mode = :any JuliaHub._PackageBundler.cp_skip_dangling_symlinks(
+            src, dst
+        )
+
+        # Regular files and nested files are copied
+        @test isfile(joinpath(dst, "regular.txt"))
+        @test read(joinpath(dst, "regular.txt"), String) == "hello"
+        @test isfile(joinpath(dst, "subdir", "nested.txt"))
+        @test read(joinpath(dst, "subdir", "nested.txt"), String) == "world"
+
+        # Valid symlink is dereferenced: content present, no symlink at dst
+        @test isfile(joinpath(dst, "valid_link.txt"))
+        @test !islink(joinpath(dst, "valid_link.txt"))
+        @test read(joinpath(dst, "valid_link.txt"), String) == "hello"
+
+        # Dangling symlink is silently skipped
+        @test !ispath(joinpath(dst, "dangling_link.txt"))
+        @test !islink(joinpath(dst, "dangling_link.txt"))
+    end
+end
+
 function bundle_and_file_listing(bundle_root_path::AbstractString)
     out = tempname()
     JuliaHub._PackageBundler.bundle(
