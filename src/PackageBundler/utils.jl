@@ -73,16 +73,36 @@ function is_subpath(dir, subpath)
     return startswith(norm_subpath, norm_dir)
 end
 
+# Parse a single `.juliabundleignore` line.  Returns a vector of patterns
+# (Glob.FilenameMatch or String for directory prefixes), or `nothing` for
+# blank lines and comments.  Directory patterns (trailing `/`) are split into
+# a dir match + contents match; plain prefixes use `startswith`.
+function _parse_bundleignore_line(line)
+    s = strip(line)
+    (isempty(s) || startswith(s, '#')) && return nothing
+    if endswith(s, '/')
+        has_glob = any(c -> c in ('*', '?', '['), s)
+        if has_glob
+            # Glob directory pattern: match both the dir and its contents
+            return [Glob.FilenameMatch(s), Glob.FilenameMatch(s * "*")]
+        else
+            # Plain directory prefix: use startswith matching
+            return [String(s)]
+        end
+    end
+    return [Glob.FilenameMatch(s)]
+end
+
 function get_bundleignore(file, top)
     dir = dirname(file)
     patterns = Set{Any}()
     try
         while true
             if isfile(joinpath(dir, ".juliabundleignore"))
-                union!(
-                    patterns,
-                    Glob.FilenameMatch.(strip.(readlines(joinpath(dir, ".juliabundleignore")))),
-                )
+                for line in readlines(joinpath(dir, ".juliabundleignore"))
+                    parsed = _parse_bundleignore_line(line)
+                    parsed !== nothing && union!(patterns, parsed)
+                end
                 return patterns, dir
             end
             if dir == dirname(dir) || dir == top
@@ -141,15 +161,23 @@ function path_filterer(top)
 
         patterns, ignorepath = get_bundleignore(path, top)
 
-        rpath = relpath(path, ignorepath)
+        rpath = sanitize_windows_path(relpath(path, ignorepath))
+        # Ensure rpath uses forward slashes for consistent matching
+        rpath_dir = sanitize_windows_path(joinpath(relpath(path, ignorepath), ""))
 
         return !(
-            any(p -> occursin(p, sanitize_windows_path(rpath)), patterns) ||
-            # directories specifically can be excluded by patterns that end with a
-            # path separator, and to match them in case `path` does not have that
-            # path separator appended, we append it ourselves before matching
-            isdir(path) &&
-            any(p -> occursin(p, sanitize_windows_path(joinpath(rpath, ""))), patterns)
+            any(patterns) do p
+                if p isa Glob.FilenameMatch
+                    # Glob pattern: match against the relative path
+                    occursin(p, rpath) || (isdir(path) && occursin(p, rpath_dir))
+                else
+                    # String directory prefix (e.g. "script/experiment/"):
+                    # exclude if the relative path starts with the prefix.
+                    # Only match the rpath_dir form for actual directories,
+                    # to avoid "foo.csv/" matching a FILE named "foo.csv".
+                    startswith(rpath, p) || (isdir(path) && startswith(rpath_dir, p))
+                end
+            end
         )
     end
 end
