@@ -93,7 +93,7 @@ mutable struct _LegacyLogsBuffer <: AbstractJobLogsBuffer
         end
         # If streaming was requested, we start that up. Hopefully, doing it early, will avoid
         # missing any log messages if offset was set.
-        stream && _job_logs_legacy_start_streaming!(auth, buffer)
+        stream && _job_logs_legacy_start_streaming!(auth, buffer; offset)
         return buffer
     end
 end
@@ -510,7 +510,10 @@ function _job_logs_older!(
     end
 end
 
-function _job_logs_legacy_start_streaming!(auth::Authentication, buffer::_LegacyLogsBuffer)
+function _job_logs_legacy_start_streaming!(
+    auth::Authentication, buffer::_LegacyLogsBuffer;
+    offset::Union{Integer, Nothing}=nothing,
+)
     if !isnothing(buffer._stream)
         @warn "Logs are already being streamed" buffer._jobname
         return nothing
@@ -520,10 +523,28 @@ function _job_logs_legacy_start_streaming!(auth::Authentication, buffer::_Legacy
     interrupt_channel = Channel{Nothing}(1)
     @debug "_job_logs_legacy_start_streaming!: starting websocket"
     lock(buffer) do
-        # TODO: there might be a gap between the last buffered log and the first log message
-        # that comes over the websocket. When the first websocket messages comes through, we
-        # should fill the back with a standard get_logs request.
-        t = @async _job_logs_legacy_websocket(auth, jobname) do ws, msg
+        # Work out where the stream should resume from. The server tails the log
+        # (offset = -1) when no offset is sent, which silently drops every log
+        # produced before the websocket connects -- e.g. a job that emits all
+        # its output up front and then idles. When an explicit `offset` was
+        # requested we therefore resume from the server-side eventId of the last
+        # log we already buffered (the cache line number, shared with the batch
+        # endpoint), so we neither miss those early logs nor re-stream logs the
+        # backfill already fetched. With no buffered logs yet we fall back to the
+        # requested `offset`.
+        resume_offset = if isnothing(offset)
+            nothing
+        elseif isempty(buffer._logs)
+            offset
+        else
+            last_eventid = last(buffer._logs)._legacy_eventId
+            isnothing(last_eventid) ? offset : something(tryparse(Int, last_eventid), offset)
+        end
+        # TODO: even with `resume_offset`, when offset is `nothing` (tail) there
+        # may still be a gap between the last buffered log and the first streamed
+        # message. When the first websocket message comes through, we should fill
+        # the back with a standard get_logs request.
+        t = @async _job_logs_legacy_websocket(auth, jobname; offset=resume_offset) do ws, msg
             # It's possible that older! will find the last message in some situations (particularly
             # when streaming a finished job). In that case, we want to quit the websocket.
             if buffer._found_last
@@ -573,19 +594,23 @@ function _job_logs_legacy_start_streaming!(auth::Authentication, buffer::_Legacy
     return nothing
 end
 
-function _job_logs_legacy_websocket(f::Function, auth::Authentication, jobname::AbstractString)
+function _job_logs_legacy_websocket(
+    f::Function, auth::Authentication, jobname::AbstractString;
+    offset::Union{Integer, Nothing}=nothing,
+)
     @debug "_job_log_websocket_legacy: starting task ($jobname)" _taskstamp()
     https_url = _url(auth, "ws", "stream_logs")
     ws_url = replace(https_url, r"^http://" => "ws://")
     ws_url = replace(https_url, r"^https://" => "wss://")
+    query = ["jobname" => jobname, "refresh_interval" => 1, "log_out_type" => "json"]
+    # Forward the resume offset so the server streams logs *after* this eventId
+    # instead of tailing from the current end of the log (its default when no
+    # offset is provided).
+    isnothing(offset) || push!(query, "offset" => string(offset))
     @_httpcatch HTTP.WebSockets.open(
         ws_url;
         headers=_authheaders(auth),
-        query=[
-            "jobname" => jobname,
-            "refresh_interval" => 1,
-            "log_out_type" => "json",
-        ],
+        query=query,
     ) do ws
         for msg in ws
             @debug "_job_log_websocket_legacy: message from websocket ($jobname)" _taskstamp() msg

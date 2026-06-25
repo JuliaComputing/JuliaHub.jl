@@ -96,7 +96,7 @@ function bundle(dir; output="", force=false, allownoenv=false, verbose=true)::St
     # add the depot and such, and finally tar all that up.
     tmp_dir = mktempdir()
     output_dir = joinpath(tmp_dir, name)
-    cp(dir, output_dir; follow_symlinks=true)
+    cp_skip_dangling_symlinks(dir, output_dir)
     bundle_dir = joinpath(output_dir, ".bundle")
     mkpath(bundle_dir)
     # Bundle artifacts

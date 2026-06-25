@@ -814,18 +814,24 @@ function _upload_dataset(upload_config, local_path; progress::Bool)
             remote_path = "$bucket/$prefix"
 
             # --s3-no-check-bucket - don't check the bucket exists
+            # --s3-no-head - skip the post-upload HeadObject verification
+            # --s3-no-head-object - skip the FS-init HeadObject probe rclone
+            #   uses to detect "is this destination an existing file?". The
+            #   platform's session credentials are scoped to <prefix>/<version>/*
+            #   for BlobTree uploads and reject HEAD on the bare <version> key
+            #   with 403. From rclone v1.72 (commit rclone/rclone@6440052f,
+            #   issue rclone/rclone#8975) that 403 propagates as a fatal NewFs
+            #   error instead of being swallowed; older versions silently
+            #   treated it as "destination is a directory" and proceeded.
             # --no-check-dest - don't check whether the file exists before uploading
             #
             # Additional useful options not included here:
-            # * For restricted permissions, --s3-no-head avoids using HeadObject to
-            #   check file upload success.
             # * To force multipart upload at a smaller threshold use something like
             #   --s3-upload-cutoff 1M --s3-chunk-size 5M
-
-            # FIXME: remove `--s3-no-head` once policies are figured out (again)
             args = [
                 "--s3-no-check-bucket",
                 "--s3-no-head",
+                "--s3-no-head-object",
                 "--no-check-dest",
             ]
 

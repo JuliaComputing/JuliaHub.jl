@@ -97,6 +97,30 @@ function get_bundleignore(file, top)
 end
 
 """
+    cp_skip_dangling_symlinks(src, dst)
+
+Recursively copies the directory `src` to `dst`, mirroring the behaviour of
+`cp(src, dst; follow_symlinks=true)` but silently skipping any dangling symlinks
+(symlinks whose target does not exist) instead of erroring on them.
+"""
+function cp_skip_dangling_symlinks(src::AbstractString, dst::AbstractString)
+    mkpath(dst)
+    for entry in readdir(src)
+        src_entry = joinpath(src, entry)
+        dst_entry = joinpath(dst, entry)
+        if isdir(src_entry)
+            cp_skip_dangling_symlinks(src_entry, dst_entry)
+        elseif isfile(src_entry)
+            cp(src_entry, dst_entry; follow_symlinks=true)
+        elseif islink(src_entry)
+            # Dangling symlink: isfile/isdir follow symlinks so both return false for a
+            # dangling symlink, while islink uses lstat so it returns true.
+            @warn "Skipping dangling symlink" path = src_entry
+        end
+    end
+end
+
+"""
     path_filterer(top)
 
 Returns a function that takes a file or directory path and checks whether that is excluded by the
