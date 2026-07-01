@@ -19,6 +19,8 @@ struct _JobSubmission1
     package_name::Union{String, Nothing}
     branch_name::Union{String, Nothing}
     git_revision::Union{String, Nothing}
+    #
+    dns_prefix::Union{String, Nothing}
     # Job image configuration
     product_name::Union{String, Nothing}
     image::Union{String, Nothing}
@@ -54,6 +56,7 @@ struct _JobSubmission1
         package_name::Union{AbstractString, Nothing}=nothing,
         branch_name::Union{AbstractString, Nothing}=nothing,
         git_revision::Union{AbstractString, Nothing}=nothing,
+        dns_prefix::Union{AbstractString, Nothing}=nothing,
         # Job image configuration
         product_name::Union{AbstractString, Nothing}=nothing,
         image::Union{AbstractString, Nothing}=nothing,
@@ -139,6 +142,7 @@ struct _JobSubmission1
             ## appbundles
             appbundle, appbundle_upload_info,
             registry_name, package_name, branch_name, git_revision,
+            dns_prefix,
             # Job image configuration
             product_name, image, image_tag, image_sha256,
             string(sysimage_build), sysimage_manifest_sha,
@@ -199,6 +203,56 @@ function _submit_job(auth::Authentication, j::_JobSubmission1)
         return r_json["jobname"]
     end
     _throw_invalidresponse(r)
+end
+
+module JobAccessMode
+abstract type T end
+struct JustMe <: T end
+struct Password <: T
+    password::String
+end
+struct LoggedInUsers <: T end
+struct TotallyPublic <: T end
+end
+
+struct JobRemoteAccess
+    port::Int
+    mode::JobAccessMode.T
+    dns_prefix::Union{String, Nothing}
+
+    function JobRemoteAccess(
+        port::Integer;
+        mode::JobAccessMode.T=JobAccessMode.JustMe(),
+        dns_prefix::Union{AbstractString, Nothing}=nothing,
+    )
+        if !_is_valid_port(port)
+            Base.throw(
+                ArgumentError(
+                    "Invalid port value for expose: '$(port)', must be in 1025:9008, 9010:23399, 23500:32767"
+                ),
+            )
+        end
+        return new(port, mode, dns_prefix)
+    end
+end
+
+abstract type PackageAppRevision end
+struct LatestRelease <: PackageAppRevision end
+"""
+Launches the job with the latest commit on the specifies branch.
+
+If `branch_name` is `nothing` (or unset in `Branch()`), it uses the default branch of
+the repository (e.g. `main`, `master`).
+"""
+struct Branch <: PackageAppRevision
+    branch_name::Union{String, Nothing}
+
+    function Branch(branch_name::Union{AbstractString, Nothing}=nothing)
+        return new(branch_name)
+    end
+end
+struct GitRevision <: PackageAppRevision
+    git_revision::String
 end
 
 """
@@ -879,6 +933,8 @@ function _get_appbundle_upload_url(auth::Authentication, appbundle_tar_path::Abs
     return upload_url, appbundle_params
 end
 
+const _DEFAULT_PackageJob_revision = LatestRelease()
+
 """
     struct PackageJob <: AbstractJobConfig
 
@@ -916,13 +972,28 @@ struct PackageJob <: AbstractJobConfig
     jr_uuid::String
     args::Dict
     sysimage::Bool
+    image::Union{BatchImage, Nothing}
+    revision::PackageAppRevision
 
-    PackageJob(
-        app::PackageApp; args::AbstractDict=Dict(), sysimage::Bool=_DEFAULT_BatchJob_sysimage
-    ) =
-        new(app, app.name, app._registry.name, string(app._uuid), args, sysimage)
-    PackageJob(app::UserApp; args::AbstractDict=Dict(), sysimage::Bool=_DEFAULT_BatchJob_sysimage) =
-        new(app, app.name, nothing, app._repository, args, sysimage)
+    function PackageJob(
+        app::PackageApp; args::AbstractDict=Dict(),
+        image::Union{BatchImage, Nothing}=_DEFAULT_BatchJob_image,
+        sysimage::Bool=_DEFAULT_BatchJob_sysimage,
+        revision::PackageAppRevision=_DEFAULT_PackageJob_revision,
+    )
+        return new(
+            app, app.name, app._registry.name, string(app._uuid), args, sysimage, image, revision
+        )
+    end
+    function PackageJob(
+        app::UserApp;
+        args::AbstractDict=Dict(),
+        image::Union{BatchImage, Nothing}=_DEFAULT_BatchJob_image,
+        sysimage::Bool=_DEFAULT_BatchJob_sysimage,
+        revision::PackageAppRevision=_DEFAULT_PackageJob_revision,
+    )
+        return new(app, app.name, nothing, app._repository, args, sysimage, image, revision)
+    end
 end
 
 function _check_packagebundler_dir(bundlepath::AbstractString)
@@ -1024,7 +1095,7 @@ struct WorkloadConfig
     env::Dict{String, String}
     project::Union{UUIDs.UUID, Nothing}
     timelimit::Union{Dates.Hour, Unlimited}
-    exposed_port::Union{Int, Nothing}
+    jobaccess::Union{JobRemoteAccess, Nothing}
     # internal, undocumented, may be removed an any point, not part of the public API:
     _image_sha256::Union{String, Nothing}
 
@@ -1034,7 +1105,7 @@ struct WorkloadConfig
         env=(),
         project::Union{UUIDs.UUID, Nothing}=nothing,
         timelimit::Limit=_DEFAULT_WorkloadConfig_timelimit,
-        expose::Union{Integer, Nothing}=nothing,
+        expose::Union{Integer, JobRemoteAccess, Nothing}=nothing,
         # internal, undocumented, may be removed an any point, not part of the public API:
         _image_sha256::Union{AbstractString, Nothing}=nothing,
     )
@@ -1045,13 +1116,12 @@ struct WorkloadConfig
                 ),
             )
         end
-        if !isnothing(expose) && !_is_valid_port(expose)
-            Base.throw(
-                ArgumentError(
-                    "Invalid port value for expose: '$(expose)', must be in 1025:9008, 9010:23399, 23500:32767"
-                ),
-            )
-        end
+        jobaccess::Union{JobRemoteAccess, Nothing} =
+            if isnothing(expose) || isa(expose, JobRemoteAccess)
+                expose
+            else
+                JobRemoteAccess(expose)
+            end
         new(
             app,
             compute,
@@ -1059,7 +1129,7 @@ struct WorkloadConfig
             Dict(string(k) => v for (k, v) in pairs(env)),
             project,
             @_timelimit(timelimit),
-            expose,
+            jobaccess,
             _image_sha256,
         )
     end
@@ -1205,7 +1275,7 @@ function submit_job(
     env=(),
     project::Union{UUIDs.UUID, AbstractString, Nothing}=nothing,
     timelimit::Limit=_DEFAULT_WorkloadConfig_timelimit,
-    expose::Union{Integer, Nothing}=nothing,
+    expose::Union{Integer, JobRemoteAccess, Nothing}=nothing,
     # internal, undocumented, may be removed an any point, not part of the public API:
     _image_sha256::Union{AbstractString, Nothing}=nothing,
     # General submit_job arguments
@@ -1298,39 +1368,40 @@ function _job_submit_args(
     )
 end
 
+_job_batch_image_args(::WorkloadConfig, ::Any) = (;)
+function _job_batch_image_args(workload::WorkloadConfig, batch_image::BatchImage)
+    image = if _is_gpu_job(workload)
+        if isnothing(batch_image._gpu_image_key)
+            throw(
+                InvalidRequestError(
+                    "GPU job requested, but $(batch_image) does not support GPU jobs."
+                ),
+            )
+        end
+        batch_image._gpu_image_key
+    else
+        if isnothing(batch_image._cpu_image_key)
+            throw(
+                InvalidRequestError(
+                    "CPU job requested, but $(batch_image) does not support CPU jobs."
+                ),
+            )
+        end
+        batch_image._cpu_image_key
+    end
+    return (;
+        product_name=batch_image.product,
+        image,
+        image_tag=batch_image._image_tag,
+        image_sha256=batch_image._image_sha,
+    )
+end
+
 function _job_submit_args(
     auth::Authentication, workload::WorkloadConfig, batch::BatchJob, ::Type{_JobSubmission1};
     kwargs...,
 )
-    image_args = if !isnothing(batch.image)
-        image = if _is_gpu_job(workload)
-            if isnothing(batch.image._gpu_image_key)
-                throw(
-                    InvalidRequestError(
-                        "GPU job requested, but $(batch.image) does not support GPU jobs."
-                    ),
-                )
-            end
-            batch.image._gpu_image_key
-        else
-            if isnothing(batch.image._cpu_image_key)
-                throw(
-                    InvalidRequestError(
-                        "CPU job requested, but $(batch.image) does not support CPU jobs."
-                    ),
-                )
-            end
-            batch.image._cpu_image_key
-        end
-        (;
-            product_name=batch.image.product,
-            image,
-            image_tag=batch.image._image_tag,
-            image_sha256=batch.image._image_sha,
-        )
-    else
-        (;)
-    end
+    image_args = _job_batch_image_args(workload, batch.image)
     # Note: this set of arguments will also set product_name which must override the value
     # in `image_args`, achieved by splatting it later in the named tuple constructor below.
     exposed_port_args = if !isnothing(workload.exposed_port)
@@ -1407,10 +1478,52 @@ function _job_submit_args(
     )
 end
 
+function _job_submit_package_revision_args(rev::Branch)
+    return (; branch_name=something(rev.branch_name, "HEAD"))
+end
+function _job_submit_package_revision_args(rev::GitRevision)
+    return (; git_revision=rev.git_revision)
+end
+function _job_submit_package_revision_args(::LatestRelease)
+    return (; branch_name="")
+end
+
 function _job_submit_args(
     auth::Authentication, workload::WorkloadConfig, packagejob::PackageJob, ::Type{_JobSubmission1};
     kwargs...,
 )
+    image_args = _job_batch_image_args(workload, packagejob.image)
+    # Note: this set of arguments will also set product_name which must override the value
+    # in `image_args`, achieved by splatting it later in the named tuple constructor below.
+    exposed_port_args = if !isnothing(workload.jobaccess)
+        auth_args = if isa(workload.jobaccess.mode, JobAccessMode.JustMe)
+            Dict("authentication" => true, "authorization" => "me")
+        elseif isa(workload.jobaccess.mode, JobAccessMode.Password)
+            # (; "authentication" => true, "authorization" => "me") # TODO
+        elseif isa(workload.jobaccess.mode, JobAccessMode.LoggedInUsers)
+            # (; "authentication" => true, "authorization" => "me") # TODO
+        elseif isa(workload.jobaccess.mode, JobAccessMode.TotallyPublic)
+            Dict("authentication" => false, "authorization" => "anyone")
+        else
+            error("Bad .jobaccess.mode: $(workload.jobaccess.mode)")
+        end
+        dns_prefix_args = if !isnothing(workload.jobaccess.dns_prefix)
+            (; dns_prefix=workload.jobaccess.dns_prefix)
+        else
+            (;)
+        end
+        (;
+            product_name="package-interactive",
+            dns_prefix_args...,
+            appArgs=Dict(
+                "port" => workload.jobaccess.port,
+                auth_args...,
+            ),
+        )
+    else
+        (;)
+    end
+
     return (;
         appType="userapp",
         customcode=false,
@@ -1422,6 +1535,9 @@ function _job_submit_args(
         ),
         # Just in case, we want to omit sysimage_build altogether when it is not requested.
         sysimage_build=packagejob.sysimage ? true : nothing,
+        image_args...,
+        exposed_port_args...,
+        _job_submit_package_revision_args(packagejob.revision)...,
     )
 end
 
