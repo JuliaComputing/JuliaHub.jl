@@ -1404,7 +1404,7 @@ function _job_submit_args(
     image_args = _job_batch_image_args(workload, batch.image)
     # Note: this set of arguments will also set product_name which must override the value
     # in `image_args`, achieved by splatting it later in the named tuple constructor below.
-    exposed_port_args = if !isnothing(workload.exposed_port)
+    exposed_port_args = if !isnothing(workload.jobaccess)
         product_name = if isnothing(batch.image)
             # If the image was not specified for the job submissions, we assume that the
             # corresponding interactive product is called 'standard-interactive' and that it
@@ -1419,12 +1419,27 @@ function _job_submit_args(
         else
             batch.image._interactive_product_name
         end
+        # Mirror the PackageJob path: derive auth + dns_prefix + port from the
+        # WorkloadConfig.jobaccess (JobRemoteAccess) rather than the removed
+        # `exposed_port` field.
+        auth_args = if isa(workload.jobaccess.mode, JobAccessMode.JustMe)
+            Dict("authentication" => true, "authorization" => "me")
+        elseif isa(workload.jobaccess.mode, JobAccessMode.TotallyPublic)
+            Dict("authentication" => false, "authorization" => "anyone")
+        else
+            error("Unsupported .jobaccess.mode for a batch job: $(workload.jobaccess.mode)")
+        end
+        dns_prefix_args = if !isnothing(workload.jobaccess.dns_prefix)
+            (; dns_prefix=workload.jobaccess.dns_prefix)
+        else
+            (;)
+        end
         (;
             product_name,
+            dns_prefix_args...,
             appArgs=Dict(
-                "authentication" => true,
-                "authorization" => "me",
-                "port" => workload.exposed_port,
+                "port" => workload.jobaccess.port,
+                auth_args...,
             ),
         )
     else
