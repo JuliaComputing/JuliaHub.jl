@@ -269,6 +269,8 @@ submit_job
 Limit
 Unlimited
 WorkloadConfig
+JobRemoteAccess
+JobAccessMode
 ```
 
 ## Experimental APIs
@@ -287,6 +289,10 @@ PackageApp
 UserApp
 ApplicationJob
 PackageJob
+PackageAppRevision
+LatestRelease
+Branch
+GitRevision
 ```
 
 ## Index

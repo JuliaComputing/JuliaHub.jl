@@ -205,6 +205,22 @@ function _submit_job(auth::Authentication, j::_JobSubmission1)
     _throw_invalidresponse(r)
 end
 
+"""
+    module JobAccessMode
+
+Contains the types used to specify who can access a job's exposed port
+(the `mode` argument of [`JobRemoteAccess`](@ref)):
+
+* `JobAccessMode.JustMe()`: only the user who submitted the job can access the port,
+  after authenticating. This is the default.
+* `JobAccessMode.TotallyPublic()`: anyone can access the port, without authentication.
+* `JobAccessMode.Password(password)`: access is protected by a shared password.
+  **Not yet supported.**
+* `JobAccessMode.LoggedInUsers()`: any authenticated user of the JuliaHub instance can
+  access the port. **Not yet supported.**
+
+All modes are subtypes of `JobAccessMode.T`.
+"""
 module JobAccessMode
 abstract type T end
 struct JustMe <: T end
@@ -215,6 +231,35 @@ struct LoggedInUsers <: T end
 struct TotallyPublic <: T end
 end
 
+# Make sure the password can not leak into error messages, logs, or the REPL via the
+# default struct printing.
+Base.show(io::IO, ::JobAccessMode.Password) = print(io, "JobAccessMode.Password(<redacted>)")
+
+"""
+    struct JobRemoteAccess
+
+Specifies how a job's exposed port is made accessible over HTTPS. Can be passed to
+[`submit_job`](@ref) via the `expose` keyword argument.
+
+# Constructors
+
+```julia
+JuliaHub.JobRemoteAccess(
+    port::Integer;
+    mode::JobAccessMode.T = JobAccessMode.JustMe(),
+    dns_prefix::Union{AbstractString, Nothing} = nothing,
+)
+```
+
+* `port`: the port the job binds its HTTP server to; must be in the ranges `1025:9008`,
+  `9010:23399`, or `23500:32767`.
+* `mode`: who is allowed to access the exposed port (see [`JobAccessMode`](@ref)).
+* `dns_prefix`: if set, the job is exposed under this fixed, human-readable DNS prefix,
+  rather than a randomly generated one.
+
+Passing an integer to the `expose` keyword of [`submit_job`](@ref) is equivalent to
+passing `JobRemoteAccess(port)`.
+"""
 struct JobRemoteAccess
     port::Int
     mode::JobAccessMode.T
@@ -236,10 +281,30 @@ struct JobRemoteAccess
     end
 end
 
-abstract type PackageAppRevision end
-struct LatestRelease <: PackageAppRevision end
 """
-Launches the job with the latest commit on the specifies branch.
+    abstract type PackageAppRevision
+
+Supertype of the types that specify which revision of a package application to launch
+(the `revision` argument of [`PackageJob`](@ref)):
+
+* [`LatestRelease`](@ref): the latest registered release (the default)
+* [`Branch`](@ref): the latest commit on a Git branch
+* [`GitRevision`](@ref): a fixed Git revision
+"""
+abstract type PackageAppRevision end
+
+"""
+    struct LatestRelease <: PackageAppRevision
+
+Launches the job with the latest registered release of the package application.
+This is the default revision.
+"""
+struct LatestRelease <: PackageAppRevision end
+
+"""
+    struct Branch <: PackageAppRevision
+
+Launches the job with the latest commit on the specified branch.
 
 If `branch_name` is `nothing` (or unset in `Branch()`), it uses the default branch of
 the repository (e.g. `main`, `master`).
@@ -251,6 +316,13 @@ struct Branch <: PackageAppRevision
         return new(branch_name)
     end
 end
+
+"""
+    struct GitRevision <: PackageAppRevision
+
+Launches the job with the package application checked out at a fixed Git revision
+(e.g. a commit SHA or a tag).
+"""
 struct GitRevision <: PackageAppRevision
     git_revision::String
 end
