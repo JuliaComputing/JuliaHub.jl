@@ -967,13 +967,13 @@ end
 @testset "JobRemoteAccess submission arguments" begin
     # JobAccessMode -> authentication-related appArgs (legacy encoding)
     @test JuliaHub._jobaccess_auth_args(JuliaHub.JobAccessMode.JustMe()) ==
-          Dict("authentication" => true, "authorization" => "me")
+        Dict("authentication" => true, "authorization" => "me")
     @test JuliaHub._jobaccess_auth_args(JuliaHub.JobAccessMode.LoggedInUsers()) ==
-          Dict("authentication" => true, "authorization" => "anyone")
+        Dict("authentication" => true, "authorization" => "anyone")
     @test JuliaHub._jobaccess_auth_args(JuliaHub.JobAccessMode.Password("s3cret")) ==
-          Dict("authentication" => true, "authorization" => "anyone", "password" => "s3cret")
+        Dict("authentication" => true, "authorization" => "anyone", "password" => "s3cret")
     @test JuliaHub._jobaccess_auth_args(JuliaHub.JobAccessMode.TotallyPublic()) ==
-          Dict("authentication" => false, "authorization" => "anyone")
+        Dict("authentication" => false, "authorization" => "anyone")
     # The password must not leak via the default struct printing
     @test !occursin("s3cret", sprint(show, JuliaHub.JobAccessMode.Password("s3cret")))
 
@@ -984,7 +984,7 @@ end
         @test args.product_name == "standard-interactive"
         @test !haskey(args, :dns_prefix)
         @test args.appArgs ==
-              Dict("port" => 8080, "authentication" => true, "authorization" => "me")
+            Dict("port" => 8080, "authentication" => true, "authorization" => "me")
     end
     let ra = JuliaHub.JobRemoteAccess(
             9000; mode=JuliaHub.JobAccessMode.TotallyPublic(), dns_prefix="myapp"
@@ -993,7 +993,7 @@ end
         @test args.product_name == "package-interactive"
         @test args.dns_prefix == "myapp"
         @test args.appArgs ==
-              Dict("port" => 9000, "authentication" => false, "authorization" => "anyone")
+            Dict("port" => 9000, "authentication" => false, "authorization" => "anyone")
     end
 
     # Interactive product resolution
@@ -1004,7 +1004,7 @@ end
     )
     @test JuliaHub._interactive_product_name(nothing, "some-default") == "some-default"
     @test JuliaHub._interactive_product_name(batchimage("my-interactive"), "some-default") ==
-          "my-interactive"
+        "my-interactive"
     @test_throws JuliaHub.InvalidRequestError JuliaHub._interactive_product_name(
         batchimage(nothing), "some-default"
     )
@@ -1013,11 +1013,11 @@ end
 @testset "PackageJob revision arguments" begin
     @test JuliaHub._job_submit_package_revision_args(JuliaHub.LatestRelease()) == (;)
     @test JuliaHub._job_submit_package_revision_args(JuliaHub.Branch()) ==
-          (; branch_name="HEAD")
+        (; branch_name="HEAD")
     @test JuliaHub._job_submit_package_revision_args(JuliaHub.Branch("dev")) ==
-          (; branch_name="dev")
+        (; branch_name="dev")
     @test JuliaHub._job_submit_package_revision_args(JuliaHub.GitRevision("0123abc")) ==
-          (; git_revision="0123abc")
+        (; git_revision="0123abc")
 end
 
 @testset "JuliaHub.request" begin
