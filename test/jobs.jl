@@ -926,11 +926,12 @@ end
     empty!(MOCK_JULIAHUB_STATE)
     Mocking.apply(mocking_patch) do
         let jc = JuliaHub.submit_job(JuliaHub.script""; dryrun=true)
-            @test jc.exposed_port === nothing
+            @test jc.jobaccess === nothing
         end
         @testset "port $port" for port in (1025, 8080, 9008, 9010, 18000, 23_399, 23_500, 32_767)
             jc = JuliaHub.submit_job(JuliaHub.script""; expose=port, dryrun=true)
-            @test jc.exposed_port == port
+            @test jc.jobaccess isa JuliaHub.JobRemoteAccess
+            @test jc.jobaccess.port == port
         end
         # Basic invalid ranges for ports
         @test_throws ArgumentError JuliaHub.submit_job(JuliaHub.script"", expose=-200)
