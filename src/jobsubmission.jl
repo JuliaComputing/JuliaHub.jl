@@ -19,6 +19,7 @@ struct _JobSubmission1
     package_name::Union{String, Nothing}
     branch_name::Union{String, Nothing}
     git_revision::Union{String, Nothing}
+    dns_prefix::Union{String, Nothing}
     # Job image configuration
     product_name::Union{String, Nothing}
     image::Union{String, Nothing}
@@ -54,6 +55,7 @@ struct _JobSubmission1
         package_name::Union{AbstractString, Nothing}=nothing,
         branch_name::Union{AbstractString, Nothing}=nothing,
         git_revision::Union{AbstractString, Nothing}=nothing,
+        dns_prefix::Union{AbstractString, Nothing}=nothing,
         # Job image configuration
         product_name::Union{AbstractString, Nothing}=nothing,
         image::Union{AbstractString, Nothing}=nothing,
@@ -139,6 +141,7 @@ struct _JobSubmission1
             ## appbundles
             appbundle, appbundle_upload_info,
             registry_name, package_name, branch_name, git_revision,
+            dns_prefix,
             # Job image configuration
             product_name, image, image_tag, image_sha256,
             string(sysimage_build), sysimage_manifest_sha,
@@ -199,6 +202,149 @@ function _submit_job(auth::Authentication, j::_JobSubmission1)
         return r_json["jobname"]
     end
     _throw_invalidresponse(r)
+end
+
+"""
+    module JobAccessMode
+
+Contains the types used to specify who can access a job's exposed port
+(the `mode` argument of [`JuliaHub.JobRemoteAccess`](@ref)):
+
+* `JobAccessMode.JustMe()`: only the user who submitted the job can access the port,
+  after authenticating. This is the default.
+* `JobAccessMode.LoggedInUsers()`: any authenticated user of the JuliaHub instance can
+  access the port.
+* `JobAccessMode.Password(password)`: anyone can access the port with the shared
+  password.
+* `JobAccessMode.TotallyPublic()`: anyone can access the port, without authentication.
+
+All modes are subtypes of `JobAccessMode.T`.
+"""
+module JobAccessMode
+abstract type T end
+struct JustMe <: T end
+struct Password <: T
+    password::String
+end
+struct LoggedInUsers <: T end
+struct TotallyPublic <: T end
+end
+
+# Make sure the password can not leak into error messages, logs, or the REPL via the
+# default struct printing.
+Base.show(io::IO, ::JobAccessMode.Password) = print(io, "JobAccessMode.Password(<redacted>)")
+
+"""
+    struct JobRemoteAccess
+
+Specifies how a job's exposed port is made accessible over HTTPS. Can be passed to
+[`submit_job`](@ref) via the `expose` keyword argument.
+
+# Constructors
+
+```julia
+JuliaHub.JobRemoteAccess(
+    port::Integer;
+    mode::JobAccessMode.T = JobAccessMode.JustMe(),
+    dns_prefix::Union{AbstractString, Nothing} = nothing,
+)
+```
+
+* `port`: the port the job binds its HTTP server to; must be in the ranges `1025:9008`,
+  `9010:23399`, or `23500:32767`.
+* `mode`: who is allowed to access the exposed port (see [`JobAccessMode`](@ref)).
+* `dns_prefix`: if set, the job is exposed under this fixed, human-readable DNS prefix,
+  rather than a randomly generated one.
+
+Passing an integer to the `expose` keyword of [`submit_job`](@ref) is equivalent to
+passing `JobRemoteAccess(port)`.
+"""
+struct JobRemoteAccess
+    port::Int
+    mode::JobAccessMode.T
+    dns_prefix::Union{String, Nothing}
+
+    function JobRemoteAccess(
+        port::Integer;
+        mode::JobAccessMode.T=JobAccessMode.JustMe(),
+        dns_prefix::Union{AbstractString, Nothing}=nothing,
+    )
+        if !_is_valid_port(port)
+            Base.throw(
+                ArgumentError(
+                    "Invalid port value for expose: '$(port)', must be in 1025:9008, 9010:23399, 23500:32767"
+                ),
+            )
+        end
+        return new(port, mode, dns_prefix)
+    end
+end
+
+# Maps a job access mode to the corresponding authentication-related appArgs of a job
+# submission, using the legacy encoding (authentication::Bool + authorization::String,
+# plus password for password-protected access) that the backend normalizes in
+# translate_auth_args!.
+function _jobaccess_auth_args(mode::JobAccessMode.T)
+    if mode isa JobAccessMode.JustMe
+        Dict("authentication" => true, "authorization" => "me")
+    elseif mode isa JobAccessMode.LoggedInUsers
+        Dict("authentication" => true, "authorization" => "anyone")
+    elseif mode isa JobAccessMode.Password
+        Dict(
+            "authentication" => true, "authorization" => "anyone",
+            "password" => mode.password,
+        )
+    elseif mode isa JobAccessMode.TotallyPublic
+        Dict("authentication" => false, "authorization" => "anyone")
+    else
+        throw(InvalidRequestError("Unsupported job access mode: $(nameof(typeof(mode)))"))
+    end
+end
+
+"""
+    abstract type PackageAppRevision
+
+Supertype of the types that specify which revision of a package application to launch
+(the `revision` argument of [`PackageJob`](@ref)):
+
+* [`LatestRelease`](@ref): the latest registered release (the default)
+* [`Branch`](@ref): the latest commit on a Git branch
+* [`GitRevision`](@ref): a fixed Git revision
+"""
+abstract type PackageAppRevision end
+
+"""
+    struct LatestRelease <: PackageAppRevision
+
+Launches the job with the latest registered release of the package application.
+This is the default revision.
+"""
+struct LatestRelease <: PackageAppRevision end
+
+"""
+    struct Branch <: PackageAppRevision
+
+Launches the job with the latest commit on the specified branch.
+
+If `branch_name` is `nothing` (or unset in `Branch()`), it uses the default branch of
+the repository (e.g. `main`, `master`).
+"""
+struct Branch <: PackageAppRevision
+    branch_name::Union{String, Nothing}
+
+    function Branch(branch_name::Union{AbstractString, Nothing}=nothing)
+        return new(branch_name)
+    end
+end
+
+"""
+    struct GitRevision <: PackageAppRevision
+
+Launches the job with the package application checked out at a fixed Git revision
+(e.g. a commit SHA or a tag).
+"""
+struct GitRevision <: PackageAppRevision
+    git_revision::String
 end
 
 """
@@ -879,6 +1025,8 @@ function _get_appbundle_upload_url(auth::Authentication, appbundle_tar_path::Abs
     return upload_url, appbundle_params
 end
 
+const _DEFAULT_PackageJob_revision = LatestRelease()
+
 """
     struct PackageJob <: AbstractJobConfig
 
@@ -888,12 +1036,22 @@ This is primarily used internally and should rarely be constructed explicitly.
 # Constructors
 
 ```julia
-JuliaHub.PackageJob(app::Union{JuliaHub.PackageApp,JuliaHub.UserApp}; [sysimage::Bool = false])
+JuliaHub.PackageJob(
+    app::Union{JuliaHub.PackageApp,JuliaHub.UserApp};
+    [sysimage::Bool = false],
+    [image::Union{JuliaHub.BatchImage, Nothing}],
+    [revision::JuliaHub.PackageAppRevision = JuliaHub.LatestRelease()],
+)
 ```
 
 Can be used to construct a [`PackageApp`](@ref) or [`UserApp`](@ref) based job, but allows for some
-job parameters to be overridden. Currently, only support the enabling of a system image based job
-by setting `sysimage = true`.
+job parameters to be overridden:
+
+* `sysimage :: Bool`: enables a system image based job when set to `true`.
+* `image :: Union{BatchImage, Nothing}`: overrides the job image the application runs on
+  (see [`batchimage`](@ref)).
+* `revision :: PackageAppRevision`: selects which revision of the application to launch
+  (see [`PackageAppRevision`](@ref)).
 
 ```jldoctest; setup = :(Main.MOCK_JULIAHUB_STATE[:jobs] = Dict("jr-xf4tslavut" => Dict("status" => "Submitted","files" => [],"outputs" => "")))
 julia> app = JuliaHub.application(:package, "RegisteredPackageApp")
@@ -916,13 +1074,28 @@ struct PackageJob <: AbstractJobConfig
     jr_uuid::String
     args::Dict
     sysimage::Bool
+    image::Union{BatchImage, Nothing}
+    revision::PackageAppRevision
 
-    PackageJob(
-        app::PackageApp; args::AbstractDict=Dict(), sysimage::Bool=_DEFAULT_BatchJob_sysimage
-    ) =
-        new(app, app.name, app._registry.name, string(app._uuid), args, sysimage)
-    PackageJob(app::UserApp; args::AbstractDict=Dict(), sysimage::Bool=_DEFAULT_BatchJob_sysimage) =
-        new(app, app.name, nothing, app._repository, args, sysimage)
+    function PackageJob(
+        app::PackageApp; args::AbstractDict=Dict(),
+        image::Union{BatchImage, Nothing}=_DEFAULT_BatchJob_image,
+        sysimage::Bool=_DEFAULT_BatchJob_sysimage,
+        revision::PackageAppRevision=_DEFAULT_PackageJob_revision,
+    )
+        return new(
+            app, app.name, app._registry.name, string(app._uuid), args, sysimage, image, revision
+        )
+    end
+    function PackageJob(
+        app::UserApp;
+        args::AbstractDict=Dict(),
+        image::Union{BatchImage, Nothing}=_DEFAULT_BatchJob_image,
+        sysimage::Bool=_DEFAULT_BatchJob_sysimage,
+        revision::PackageAppRevision=_DEFAULT_PackageJob_revision,
+    )
+        return new(app, app.name, nothing, app._repository, args, sysimage, image, revision)
+    end
 end
 
 function _check_packagebundler_dir(bundlepath::AbstractString)
@@ -1024,7 +1197,7 @@ struct WorkloadConfig
     env::Dict{String, String}
     project::Union{UUIDs.UUID, Nothing}
     timelimit::Union{Dates.Hour, Unlimited}
-    exposed_port::Union{Int, Nothing}
+    jobaccess::Union{JobRemoteAccess, Nothing}
     # internal, undocumented, may be removed an any point, not part of the public API:
     _image_sha256::Union{String, Nothing}
 
@@ -1034,7 +1207,7 @@ struct WorkloadConfig
         env=(),
         project::Union{UUIDs.UUID, Nothing}=nothing,
         timelimit::Limit=_DEFAULT_WorkloadConfig_timelimit,
-        expose::Union{Integer, Nothing}=nothing,
+        expose::Union{Integer, JobRemoteAccess, Nothing}=nothing,
         # internal, undocumented, may be removed an any point, not part of the public API:
         _image_sha256::Union{AbstractString, Nothing}=nothing,
     )
@@ -1045,13 +1218,12 @@ struct WorkloadConfig
                 ),
             )
         end
-        if !isnothing(expose) && !_is_valid_port(expose)
-            Base.throw(
-                ArgumentError(
-                    "Invalid port value for expose: '$(expose)', must be in 1025:9008, 9010:23399, 23500:32767"
-                ),
-            )
-        end
+        jobaccess::Union{JobRemoteAccess, Nothing} =
+            if isnothing(expose) || isa(expose, JobRemoteAccess)
+                expose
+            else
+                JobRemoteAccess(expose)
+            end
         new(
             app,
             compute,
@@ -1059,7 +1231,7 @@ struct WorkloadConfig
             Dict(string(k) => v for (k, v) in pairs(env)),
             project,
             @_timelimit(timelimit),
-            expose,
+            jobaccess,
             _image_sha256,
         )
     end
@@ -1104,7 +1276,7 @@ end
         elastic::Bool = false,
         process_per_node::Bool = true,
         # Runtime configuration keyword arguments
-        [alias::AbstractString], [env], [expose::Integer],
+        [alias::AbstractString], [env], [expose::Union{Integer, JobRemoteAccess}],
         [project::Union{UUID, AbstractString}], timelimit::Limit = Hour(1),
         # General keyword arguments
         dryrun::Bool = false,
@@ -1141,10 +1313,15 @@ of the job.
   with. If a string is passed, it must parse as a valid UUID. Passing `nothing` is equivalent to omitting the
   argument.
 
-* `expose :: Union{Integer, Nothing}`: if set to an integer in the valid port ranges, that port will be exposed
+* `expose :: Union{Integer, JobRemoteAccess, Nothing}`: if set to an integer in the valid port ranges, that port will be exposed
   over HTTPS, allowing for (authenticated) HTTP request to be performed against the job, as long as the job
-  binds an HTTP server to that port. The allowed port ranges are `1025-9008``, `9010-23399`, `23500-32767`
+  binds an HTTP server to that port. The allowed port ranges are `1025-9008`, `9010-23399`, `23500-32767`
   (in other words, `<= 1024`, `9009`, `23400-23499`, and `>= 32768` can not be used).
+  Alternatively, a [`JobRemoteAccess`](@ref) object can be passed to additionally control
+  who can access the exposed port and the DNS prefix the job is exposed under. Passing a
+  plain port number is equivalent to passing `JobRemoteAccess(port)`, i.e. only the
+  submitting user can access the port (`JobAccessMode.JustMe()`), under a randomly
+  generated DNS name.
   [See the relevant manual section for more information.](@ref jobs-batch-expose-port)
 
 **General arguments.**
@@ -1205,7 +1382,7 @@ function submit_job(
     env=(),
     project::Union{UUIDs.UUID, AbstractString, Nothing}=nothing,
     timelimit::Limit=_DEFAULT_WorkloadConfig_timelimit,
-    expose::Union{Integer, Nothing}=nothing,
+    expose::Union{Integer, JobRemoteAccess, Nothing}=nothing,
     # internal, undocumented, may be removed an any point, not part of the public API:
     _image_sha256::Union{AbstractString, Nothing}=nothing,
     # General submit_job arguments
@@ -1298,64 +1475,80 @@ function _job_submit_args(
     )
 end
 
+_job_batch_image_args(::WorkloadConfig, ::Any) = (;)
+function _job_batch_image_args(workload::WorkloadConfig, batch_image::BatchImage)
+    image = if _is_gpu_job(workload)
+        if isnothing(batch_image._gpu_image_key)
+            throw(
+                InvalidRequestError(
+                    "GPU job requested, but $(batch_image) does not support GPU jobs."
+                ),
+            )
+        end
+        batch_image._gpu_image_key
+    else
+        if isnothing(batch_image._cpu_image_key)
+            throw(
+                InvalidRequestError(
+                    "CPU job requested, but $(batch_image) does not support CPU jobs."
+                ),
+            )
+        end
+        batch_image._cpu_image_key
+    end
+    return (;
+        product_name=batch_image.product,
+        image,
+        image_tag=batch_image._image_tag,
+        image_sha256=batch_image._image_sha,
+    )
+end
+
+# Determines the interactive product a port-exposing job is submitted under: derived from
+# the job image if one was specified, falling back to a job-type-specific default product
+# otherwise. We assume that the default product is available to the user (we can not
+# verify that at this point anymore though).
+function _interactive_product_name(image::Union{BatchImage, Nothing}, default::AbstractString)
+    isnothing(image) && return default
+    if isnothing(image._interactive_product_name)
+        throw(
+            InvalidRequestError(
+                "Product '$(image.product)' does not support exposing a port."
+            ),
+        )
+    end
+    return image._interactive_product_name
+end
+
+# Shared between the batch and package job submission paths: maps a JobRemoteAccess to
+# the corresponding job submission arguments. `product_name` is the interactive product
+# the job is submitted under, which differs between job types.
+function _jobaccess_submit_args(jobaccess::JobRemoteAccess, product_name::AbstractString)
+    dns_prefix_args = if !isnothing(jobaccess.dns_prefix)
+        (; dns_prefix=jobaccess.dns_prefix)
+    else
+        (;)
+    end
+    return (;
+        product_name,
+        dns_prefix_args...,
+        appArgs=Dict(
+            "port" => jobaccess.port,
+            _jobaccess_auth_args(jobaccess.mode)...,
+        ),
+    )
+end
+
 function _job_submit_args(
     auth::Authentication, workload::WorkloadConfig, batch::BatchJob, ::Type{_JobSubmission1};
     kwargs...,
 )
-    image_args = if !isnothing(batch.image)
-        image = if _is_gpu_job(workload)
-            if isnothing(batch.image._gpu_image_key)
-                throw(
-                    InvalidRequestError(
-                        "GPU job requested, but $(batch.image) does not support GPU jobs."
-                    ),
-                )
-            end
-            batch.image._gpu_image_key
-        else
-            if isnothing(batch.image._cpu_image_key)
-                throw(
-                    InvalidRequestError(
-                        "CPU job requested, but $(batch.image) does not support CPU jobs."
-                    ),
-                )
-            end
-            batch.image._cpu_image_key
-        end
-        (;
-            product_name=batch.image.product,
-            image,
-            image_tag=batch.image._image_tag,
-            image_sha256=batch.image._image_sha,
-        )
-    else
-        (;)
-    end
+    image_args = _job_batch_image_args(workload, batch.image)
     # Note: this set of arguments will also set product_name which must override the value
     # in `image_args`, achieved by splatting it later in the named tuple constructor below.
-    exposed_port_args = if !isnothing(workload.exposed_port)
-        product_name = if isnothing(batch.image)
-            # If the image was not specified for the job submissions, we assume that the
-            # corresponding interactive product is called 'standard-interactive' and that it
-            # is available to the user (we can not verify that at this point anymore though).
-            "standard-interactive"
-        elseif isnothing(batch.image._interactive_product_name)
-            throw(
-                InvalidRequestError(
-                    "Product '$(batch.image.product_name)' does not support exposing a port."
-                ),
-            )
-        else
-            batch.image._interactive_product_name
-        end
-        (;
-            product_name,
-            appArgs=Dict(
-                "authentication" => true,
-                "authorization" => "me",
-                "port" => workload.exposed_port,
-            ),
-        )
+    exposed_port_args = if !isnothing(workload.jobaccess)
+        product_name = _interactive_product_name(batch.image, "standard-interactive")
+        _jobaccess_submit_args(workload.jobaccess, product_name)
     else
         (;)
     end
@@ -1407,10 +1600,33 @@ function _job_submit_args(
     )
 end
 
+function _job_submit_package_revision_args(rev::Branch)
+    return (; branch_name=something(rev.branch_name, "HEAD"))
+end
+function _job_submit_package_revision_args(rev::GitRevision)
+    return (; git_revision=rev.git_revision)
+end
+function _job_submit_package_revision_args(::LatestRelease)
+    # Omitting branch_name and git_revision launches the latest release, matching the
+    # behavior of clients that predate revision support.
+    return (;)
+end
+
 function _job_submit_args(
     auth::Authentication, workload::WorkloadConfig, packagejob::PackageJob, ::Type{_JobSubmission1};
     kwargs...,
 )
+    image_args = _job_batch_image_args(workload, packagejob.image)
+    # Note: this set of arguments will also set product_name which must override the value
+    # in `image_args`, achieved by splatting it later in the named tuple constructor below.
+    exposed_port_args = if !isnothing(workload.jobaccess)
+        # Package (appType=userapp) jobs always run under the 'package-interactive'
+        # product when exposing a port, even if a custom image is specified.
+        _jobaccess_submit_args(workload.jobaccess, "package-interactive")
+    else
+        (;)
+    end
+
     return (;
         appType="userapp",
         customcode=false,
@@ -1422,6 +1638,9 @@ function _job_submit_args(
         ),
         # Just in case, we want to omit sysimage_build altogether when it is not requested.
         sysimage_build=packagejob.sysimage ? true : nothing,
+        image_args...,
+        exposed_port_args...,
+        _job_submit_package_revision_args(packagejob.revision)...,
     )
 end
 
@@ -1431,7 +1650,7 @@ function _job_submit_args(
 )
     return (;
         appType=appjob.app._apptype,
-        appArgs=Dict("authentication" => true, "authorization" => "me"),
+        appArgs=_jobaccess_auth_args(JobAccessMode.JustMe()),
         customcode=false,
         # `jr_uuid` is set to associate the running job with the application icon in the UI
         args=Dict("jobname" => appjob.app.name, "jr_uuid" => appjob.app._apptype),
