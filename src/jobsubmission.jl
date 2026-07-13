@@ -281,6 +281,18 @@ struct JobRemoteAccess
     end
 end
 
+# Maps a job access mode to the corresponding authentication-related appArgs of a job
+# submission.
+function _jobaccess_auth_args(mode::JobAccessMode.T)
+    if mode isa JobAccessMode.JustMe
+        Dict("authentication" => true, "authorization" => "me")
+    elseif mode isa JobAccessMode.TotallyPublic
+        Dict("authentication" => false, "authorization" => "anyone")
+    else
+        throw(InvalidRequestError("Unsupported job access mode: $(nameof(typeof(mode)))"))
+    end
+end
+
 """
     abstract type PackageAppRevision
 
@@ -1469,6 +1481,25 @@ function _job_batch_image_args(workload::WorkloadConfig, batch_image::BatchImage
     )
 end
 
+# Shared between the batch and package job submission paths: maps a JobRemoteAccess to
+# the corresponding job submission arguments. `product_name` is the interactive product
+# the job is submitted under, which differs between job types.
+function _jobaccess_submit_args(jobaccess::JobRemoteAccess, product_name::AbstractString)
+    dns_prefix_args = if !isnothing(jobaccess.dns_prefix)
+        (; dns_prefix=jobaccess.dns_prefix)
+    else
+        (;)
+    end
+    return (;
+        product_name,
+        dns_prefix_args...,
+        appArgs=Dict(
+            "port" => jobaccess.port,
+            _jobaccess_auth_args(jobaccess.mode)...,
+        ),
+    )
+end
+
 function _job_submit_args(
     auth::Authentication, workload::WorkloadConfig, batch::BatchJob, ::Type{_JobSubmission1};
     kwargs...,
@@ -1491,29 +1522,7 @@ function _job_submit_args(
         else
             batch.image._interactive_product_name
         end
-        # Mirror the PackageJob path: derive auth + dns_prefix + port from the
-        # WorkloadConfig.jobaccess (JobRemoteAccess) rather than the removed
-        # `exposed_port` field.
-        auth_args = if isa(workload.jobaccess.mode, JobAccessMode.JustMe)
-            Dict("authentication" => true, "authorization" => "me")
-        elseif isa(workload.jobaccess.mode, JobAccessMode.TotallyPublic)
-            Dict("authentication" => false, "authorization" => "anyone")
-        else
-            error("Unsupported .jobaccess.mode for a batch job: $(workload.jobaccess.mode)")
-        end
-        dns_prefix_args = if !isnothing(workload.jobaccess.dns_prefix)
-            (; dns_prefix=workload.jobaccess.dns_prefix)
-        else
-            (;)
-        end
-        (;
-            product_name,
-            dns_prefix_args...,
-            appArgs=Dict(
-                "port" => workload.jobaccess.port,
-                auth_args...,
-            ),
-        )
+        _jobaccess_submit_args(workload.jobaccess, product_name)
     else
         (;)
     end
@@ -1583,30 +1592,7 @@ function _job_submit_args(
     # Note: this set of arguments will also set product_name which must override the value
     # in `image_args`, achieved by splatting it later in the named tuple constructor below.
     exposed_port_args = if !isnothing(workload.jobaccess)
-        auth_args = if isa(workload.jobaccess.mode, JobAccessMode.JustMe)
-            Dict("authentication" => true, "authorization" => "me")
-        elseif isa(workload.jobaccess.mode, JobAccessMode.Password)
-            # (; "authentication" => true, "authorization" => "me") # TODO
-        elseif isa(workload.jobaccess.mode, JobAccessMode.LoggedInUsers)
-            # (; "authentication" => true, "authorization" => "me") # TODO
-        elseif isa(workload.jobaccess.mode, JobAccessMode.TotallyPublic)
-            Dict("authentication" => false, "authorization" => "anyone")
-        else
-            error("Bad .jobaccess.mode: $(workload.jobaccess.mode)")
-        end
-        dns_prefix_args = if !isnothing(workload.jobaccess.dns_prefix)
-            (; dns_prefix=workload.jobaccess.dns_prefix)
-        else
-            (;)
-        end
-        (;
-            product_name="package-interactive",
-            dns_prefix_args...,
-            appArgs=Dict(
-                "port" => workload.jobaccess.port,
-                auth_args...,
-            ),
-        )
+        _jobaccess_submit_args(workload.jobaccess, "package-interactive")
     else
         (;)
     end
@@ -1634,7 +1620,7 @@ function _job_submit_args(
 )
     return (;
         appType=appjob.app._apptype,
-        appArgs=Dict("authentication" => true, "authorization" => "me"),
+        appArgs=_jobaccess_auth_args(JobAccessMode.JustMe()),
         customcode=false,
         # `jr_uuid` is set to associate the running job with the application icon in the UI
         args=Dict("jobname" => appjob.app.name, "jr_uuid" => appjob.app._apptype),
