@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 * The `expose` argument of `submit_job` now also accepts a `JuliaHub.JobRemoteAccess` object, which additionally allows configuring who can access the exposed port (`JuliaHub.JobAccessMode`) and a fixed DNS prefix for the job. Ports can now also be exposed on package application jobs. ([#154], [#158])
 * `JuliaHub.PackageJob` now supports overriding the job image (`image`) and selecting which revision of the application to launch (`revision`, see `JuliaHub.PackageAppRevision`). ([#154])
+* `.juliabundleignore` now supports `.gitignore`-style negation: a pattern starting with `!` re-includes paths excluded by an earlier pattern, with last-matching-pattern-wins semantics. Comment (`#`) and blank lines are also now skipped. ([#130])
 
 ### Fixed
 
@@ -242,6 +243,7 @@ Initial package release.
 [#117]: https://github.com/JuliaComputing/JuliaHub.jl/issues/117
 [#124]: https://github.com/JuliaComputing/JuliaHub.jl/issues/124
 [#127]: https://github.com/JuliaComputing/JuliaHub.jl/issues/127
+[#130]: https://github.com/JuliaComputing/JuliaHub.jl/issues/130
 [#132]: https://github.com/JuliaComputing/JuliaHub.jl/issues/132
 [#133]: https://github.com/JuliaComputing/JuliaHub.jl/issues/133
 [#149]: https://github.com/JuliaComputing/JuliaHub.jl/issues/149

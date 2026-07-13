@@ -73,17 +73,35 @@ function is_subpath(dir, subpath)
     return startswith(norm_subpath, norm_dir)
 end
 
+# Parse one line of a `.juliabundleignore` file into an ordered rule, mirroring
+# `.gitignore` syntax. Returns `nothing` for blank lines and `#` comments. A
+# leading `!` marks a negated (re-include) rule; a leading `\#` or `\!` escapes a
+# literal `#`/`!`. The remainder is compiled with `Glob.FilenameMatch`, so glob
+# and trailing-slash directory patterns behave exactly as before.
+function _parse_bundleignore_line(line)
+    s = strip(line)
+    (isempty(s) || startswith(s, '#')) && return nothing
+    negated = false
+    if startswith(s, '!')
+        negated = true
+        s = chop(s; head=1, tail=0)
+    elseif startswith(s, "\\!") || startswith(s, "\\#")
+        s = chop(s; head=1, tail=0)
+    end
+    return (; negated, pattern=Glob.FilenameMatch(String(s)))
+end
+
 function get_bundleignore(file, top)
     dir = dirname(file)
-    patterns = Set{Any}()
+    rules = @NamedTuple{negated::Bool, pattern::Glob.FilenameMatch}[]
     try
         while true
             if isfile(joinpath(dir, ".juliabundleignore"))
-                union!(
-                    patterns,
-                    Glob.FilenameMatch.(strip.(readlines(joinpath(dir, ".juliabundleignore")))),
-                )
-                return patterns, dir
+                for line in readlines(joinpath(dir, ".juliabundleignore"))
+                    rule = _parse_bundleignore_line(line)
+                    rule !== nothing && push!(rules, rule)
+                end
+                return rules, dir
             end
             if dir == dirname(dir) || dir == top
                 break
@@ -93,7 +111,7 @@ function get_bundleignore(file, top)
     catch err
         @warn "Internal error" exception = (err, catch_backtrace())
     end
-    return patterns, top
+    return rules, top
 end
 
 """
@@ -139,18 +157,26 @@ function path_filterer(top)
             return false
         end
 
-        patterns, ignorepath = get_bundleignore(path, top)
+        rules, ignorepath = get_bundleignore(path, top)
 
-        rpath = relpath(path, ignorepath)
+        rel = relpath(path, ignorepath)
+        rpath = sanitize_windows_path(rel)
+        # directories can be matched by patterns ending in a path separator, so we
+        # also test the path with a trailing separator appended.
+        rpath_dir = sanitize_windows_path(joinpath(rel, ""))
+        isdirp = isdir(path)
 
-        return !(
-            any(p -> occursin(p, sanitize_windows_path(rpath)), patterns) ||
-            # directories specifically can be excluded by patterns that end with a
-            # path separator, and to match them in case `path` does not have that
-            # path separator appended, we append it ourselves before matching
-            isdir(path) &&
-            any(p -> occursin(p, sanitize_windows_path(joinpath(rpath, ""))), patterns)
-        )
+        # gitignore semantics: evaluate rules in file order; the last rule that
+        # matches decides. A plain (non-negated) rule that matches excludes the
+        # path; a negated (`!`) rule that matches re-includes it. Paths matched by
+        # no rule are kept.
+        included = true
+        for rule in rules
+            if occursin(rule.pattern, rpath) || (isdirp && occursin(rule.pattern, rpath_dir))
+                included = rule.negated
+            end
+        end
+        return included
     end
 end
 
