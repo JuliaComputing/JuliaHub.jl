@@ -1481,6 +1481,22 @@ function _job_batch_image_args(workload::WorkloadConfig, batch_image::BatchImage
     )
 end
 
+# Determines the interactive product a port-exposing job is submitted under: derived from
+# the job image if one was specified, falling back to a job-type-specific default product
+# otherwise. We assume that the default product is available to the user (we can not
+# verify that at this point anymore though).
+function _interactive_product_name(image::Union{BatchImage, Nothing}, default::AbstractString)
+    isnothing(image) && return default
+    if isnothing(image._interactive_product_name)
+        throw(
+            InvalidRequestError(
+                "Product '$(image.product)' does not support exposing a port."
+            ),
+        )
+    end
+    return image._interactive_product_name
+end
+
 # Shared between the batch and package job submission paths: maps a JobRemoteAccess to
 # the corresponding job submission arguments. `product_name` is the interactive product
 # the job is submitted under, which differs between job types.
@@ -1508,20 +1524,7 @@ function _job_submit_args(
     # Note: this set of arguments will also set product_name which must override the value
     # in `image_args`, achieved by splatting it later in the named tuple constructor below.
     exposed_port_args = if !isnothing(workload.jobaccess)
-        product_name = if isnothing(batch.image)
-            # If the image was not specified for the job submissions, we assume that the
-            # corresponding interactive product is called 'standard-interactive' and that it
-            # is available to the user (we can not verify that at this point anymore though).
-            "standard-interactive"
-        elseif isnothing(batch.image._interactive_product_name)
-            throw(
-                InvalidRequestError(
-                    "Product '$(batch.image.product_name)' does not support exposing a port."
-                ),
-            )
-        else
-            batch.image._interactive_product_name
-        end
+        product_name = _interactive_product_name(batch.image, "standard-interactive")
         _jobaccess_submit_args(workload.jobaccess, product_name)
     else
         (;)
@@ -1592,6 +1595,8 @@ function _job_submit_args(
     # Note: this set of arguments will also set product_name which must override the value
     # in `image_args`, achieved by splatting it later in the named tuple constructor below.
     exposed_port_args = if !isnothing(workload.jobaccess)
+        # Package (appType=userapp) jobs always run under the 'package-interactive'
+        # product when exposing a port, even if a custom image is specified.
         _jobaccess_submit_args(workload.jobaccess, "package-interactive")
     else
         (;)
