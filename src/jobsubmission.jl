@@ -213,11 +213,11 @@ Contains the types used to specify who can access a job's exposed port
 
 * `JobAccessMode.JustMe()`: only the user who submitted the job can access the port,
   after authenticating. This is the default.
-* `JobAccessMode.TotallyPublic()`: anyone can access the port, without authentication.
-* `JobAccessMode.Password(password)`: access is protected by a shared password.
-  **Not yet supported.**
 * `JobAccessMode.LoggedInUsers()`: any authenticated user of the JuliaHub instance can
-  access the port. **Not yet supported.**
+  access the port.
+* `JobAccessMode.Password(password)`: anyone can access the port with the shared
+  password.
+* `JobAccessMode.TotallyPublic()`: anyone can access the port, without authentication.
 
 All modes are subtypes of `JobAccessMode.T`.
 """
@@ -282,10 +282,19 @@ struct JobRemoteAccess
 end
 
 # Maps a job access mode to the corresponding authentication-related appArgs of a job
-# submission.
+# submission, using the legacy encoding (authentication::Bool + authorization::String,
+# plus password for password-protected access) that the backend normalizes in
+# translate_auth_args!.
 function _jobaccess_auth_args(mode::JobAccessMode.T)
     if mode isa JobAccessMode.JustMe
         Dict("authentication" => true, "authorization" => "me")
+    elseif mode isa JobAccessMode.LoggedInUsers
+        Dict("authentication" => true, "authorization" => "anyone")
+    elseif mode isa JobAccessMode.Password
+        Dict(
+            "authentication" => true, "authorization" => "anyone",
+            "password" => mode.password,
+        )
     elseif mode isa JobAccessMode.TotallyPublic
         Dict("authentication" => false, "authorization" => "anyone")
     else
@@ -1584,7 +1593,9 @@ function _job_submit_package_revision_args(rev::GitRevision)
     return (; git_revision=rev.git_revision)
 end
 function _job_submit_package_revision_args(::LatestRelease)
-    return (; branch_name="")
+    # Omitting branch_name and git_revision launches the latest release, matching the
+    # behavior of clients that predate revision support.
+    return (;)
 end
 
 function _job_submit_args(
