@@ -4,6 +4,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## Unreleased
 
+### Added
+
+* The `expose` argument of `submit_job` now also accepts a `JuliaHub.JobRemoteAccess` object, which additionally allows configuring who can access the exposed port (`JuliaHub.JobAccessMode`) and a fixed DNS prefix for the job. Ports can now also be exposed on package application jobs. ([#154], [#158])
+* `JuliaHub.PackageJob` now supports overriding the job image (`image`) and selecting which revision of the application to launch (`revision`, see `JuliaHub.PackageAppRevision`). ([#154])
+
 ### Fixed
 
 * Fix a `MethodError` when calling `JuliaHub.Experimental.registries`. ([#132])
@@ -240,3 +245,5 @@ Initial package release.
 [#132]: https://github.com/JuliaComputing/JuliaHub.jl/issues/132
 [#133]: https://github.com/JuliaComputing/JuliaHub.jl/issues/133
 [#149]: https://github.com/JuliaComputing/JuliaHub.jl/issues/149
+[#154]: https://github.com/JuliaComputing/JuliaHub.jl/issues/154
+[#158]: https://github.com/JuliaComputing/JuliaHub.jl/issues/158

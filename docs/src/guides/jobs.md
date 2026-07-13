@@ -265,6 +265,21 @@ job = JuliaHub.submit_job(
 )
 ```
 
+By default, only the user who submitted the job can access the exposed port, after authenticating.
+To control who can access the port, or to expose the job under a fixed DNS prefix, a
+[`JuliaHub.JobRemoteAccess`](@ref) object can be passed via `expose` instead of a plain port number:
+
+```julia
+JuliaHub.submit_job(
+    JuliaHub.script"...",
+    expose = JuliaHub.JobRemoteAccess(
+        8080;
+        mode = JuliaHub.JobAccessMode.TotallyPublic(),
+        dns_prefix = "myapp",
+    ),
+)
+```
+
 Note that, unlike a usual batch job, this job has a `.hostname` property, that will point to the DNS hostname that can be used to access the server exposed by the job (see also [the relevant reference section](@ref jobs-apis-expose-ports)).
 
 Once the job has started and the Oxygen-based server has started serving the page, you can perform [HTTP.jl](https://juliahub.com/ui/Packages/General/HTTP) requests against the job with the [`JuliaHub.request`](@ref) function, which is thin wrapper around the `HTTP.request` function that sets up the necessary authentication headers and constructs the full URL.

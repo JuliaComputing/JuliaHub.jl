@@ -19,7 +19,6 @@ struct _JobSubmission1
     package_name::Union{String, Nothing}
     branch_name::Union{String, Nothing}
     git_revision::Union{String, Nothing}
-    #
     dns_prefix::Union{String, Nothing}
     # Job image configuration
     product_name::Union{String, Nothing}
@@ -209,7 +208,7 @@ end
     module JobAccessMode
 
 Contains the types used to specify who can access a job's exposed port
-(the `mode` argument of [`JobRemoteAccess`](@ref)):
+(the `mode` argument of [`JuliaHub.JobRemoteAccess`](@ref)):
 
 * `JobAccessMode.JustMe()`: only the user who submitted the job can access the port,
   after authenticating. This is the default.
@@ -1037,12 +1036,22 @@ This is primarily used internally and should rarely be constructed explicitly.
 # Constructors
 
 ```julia
-JuliaHub.PackageJob(app::Union{JuliaHub.PackageApp,JuliaHub.UserApp}; [sysimage::Bool = false])
+JuliaHub.PackageJob(
+    app::Union{JuliaHub.PackageApp,JuliaHub.UserApp};
+    [sysimage::Bool = false],
+    [image::Union{JuliaHub.BatchImage, Nothing}],
+    [revision::JuliaHub.PackageAppRevision = JuliaHub.LatestRelease()],
+)
 ```
 
 Can be used to construct a [`PackageApp`](@ref) or [`UserApp`](@ref) based job, but allows for some
-job parameters to be overridden. Currently, only support the enabling of a system image based job
-by setting `sysimage = true`.
+job parameters to be overridden:
+
+* `sysimage :: Bool`: enables a system image based job when set to `true`.
+* `image :: Union{BatchImage, Nothing}`: overrides the job image the application runs on
+  (see [`batchimage`](@ref)).
+* `revision :: PackageAppRevision`: selects which revision of the application to launch
+  (see [`PackageAppRevision`](@ref)).
 
 ```jldoctest; setup = :(Main.MOCK_JULIAHUB_STATE[:jobs] = Dict("jr-xf4tslavut" => Dict("status" => "Submitted","files" => [],"outputs" => "")))
 julia> app = JuliaHub.application(:package, "RegisteredPackageApp")
@@ -1267,7 +1276,7 @@ end
         elastic::Bool = false,
         process_per_node::Bool = true,
         # Runtime configuration keyword arguments
-        [alias::AbstractString], [env], [expose::Integer],
+        [alias::AbstractString], [env], [expose::Union{Integer, JobRemoteAccess}],
         [project::Union{UUID, AbstractString}], timelimit::Limit = Hour(1),
         # General keyword arguments
         dryrun::Bool = false,
@@ -1304,10 +1313,15 @@ of the job.
   with. If a string is passed, it must parse as a valid UUID. Passing `nothing` is equivalent to omitting the
   argument.
 
-* `expose :: Union{Integer, Nothing}`: if set to an integer in the valid port ranges, that port will be exposed
+* `expose :: Union{Integer, JobRemoteAccess, Nothing}`: if set to an integer in the valid port ranges, that port will be exposed
   over HTTPS, allowing for (authenticated) HTTP request to be performed against the job, as long as the job
-  binds an HTTP server to that port. The allowed port ranges are `1025-9008``, `9010-23399`, `23500-32767`
+  binds an HTTP server to that port. The allowed port ranges are `1025-9008`, `9010-23399`, `23500-32767`
   (in other words, `<= 1024`, `9009`, `23400-23499`, and `>= 32768` can not be used).
+  Alternatively, a [`JobRemoteAccess`](@ref) object can be passed to additionally control
+  who can access the exposed port and the DNS prefix the job is exposed under. Passing a
+  plain port number is equivalent to passing `JobRemoteAccess(port)`, i.e. only the
+  submitting user can access the port (`JobAccessMode.JustMe()`), under a randomly
+  generated DNS name.
   [See the relevant manual section for more information.](@ref jobs-batch-expose-port)
 
 **General arguments.**
