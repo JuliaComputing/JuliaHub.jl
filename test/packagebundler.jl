@@ -267,6 +267,104 @@ end
     end
 end
 
+@testset "path_filterer negation" begin
+    # gitignore-style: ignore everything, then re-include specific paths.
+    root = mktempdir()
+    write(
+        joinpath(root, ".juliabundleignore"),
+        """
+*
+!programs/
+!programs/*
+!Project.toml
+!Manifest.toml
+""",
+    )
+    mkpath(joinpath(root, "programs", "appA"))
+    touch(joinpath(root, "programs", "appA", "main.jl"))
+    touch(joinpath(root, "programs", "loose.txt"))
+    mkpath(joinpath(root, "secret"))
+    touch(joinpath(root, "secret", "data.csv"))
+    touch(joinpath(root, "Project.toml"))
+    touch(joinpath(root, "Manifest.toml"))
+    touch(joinpath(root, "README.md"))
+    pred = JuliaHub._PackageBundler.path_filterer(root)
+
+    # Re-included: parent dir (so Tar descends), its subdir, deep file, loose file.
+    @test pred(joinpath(root, "programs"))
+    @test pred(joinpath(root, "programs", "appA"))
+    @test pred(joinpath(root, "programs", "appA", "main.jl"))
+    @test pred(joinpath(root, "programs", "loose.txt"))
+    @test pred(joinpath(root, "Project.toml"))
+    @test pred(joinpath(root, "Manifest.toml"))
+    # Still excluded: unlisted dir and file.
+    @test !pred(joinpath(root, "secret"))
+    @test !pred(joinpath(root, "README.md"))
+
+    # Last-matching rule wins (order matters).
+    root2 = mktempdir()
+    write(
+        joinpath(root2, ".juliabundleignore"),
+        """
+*.log
+!keep*.log
+keep-tmp.log
+""",
+    )
+    touch(joinpath(root2, "app.log"))
+    touch(joinpath(root2, "keep-final.log"))
+    touch(joinpath(root2, "keep-tmp.log"))
+    pred2 = JuliaHub._PackageBundler.path_filterer(root2)
+    @test !pred2(joinpath(root2, "app.log"))       # ignored by *.log
+    @test pred2(joinpath(root2, "keep-final.log")) # re-included by !keep*.log
+    @test !pred2(joinpath(root2, "keep-tmp.log"))  # re-ignored by later keep-tmp.log
+
+    # Comments and blank lines are inert.
+    root3 = mktempdir()
+    write(joinpath(root3, ".juliabundleignore"), "# just a comment\n\n*.tmp\n")
+    touch(joinpath(root3, "a.tmp"))
+    touch(joinpath(root3, "b.jl"))
+    pred3 = JuliaHub._PackageBundler.path_filterer(root3)
+    @test !pred3(joinpath(root3, "a.tmp"))
+    @test pred3(joinpath(root3, "b.jl"))
+end
+
+@testset "bundle negation (Tar)" begin
+    root = mktempdir()
+    write(
+        joinpath(root, ".juliabundleignore"),
+        """
+*
+!programs/
+!programs/*
+!Project.toml
+!Manifest.toml
+""",
+    )
+    mkpath(joinpath(root, "programs", "appA"))
+    write(joinpath(root, "programs", "appA", "main.jl"), "println(1)")
+    write(joinpath(root, "programs", "notes.txt"), "hi")
+    mkpath(joinpath(root, "secret"))
+    write(joinpath(root, "secret", "data.csv"), "x,y")
+    write(joinpath(root, "Project.toml"), "name = \"X\"\n")
+    write(joinpath(root, "Manifest.toml"), "")
+    write(joinpath(root, "README.md"), "readme")
+
+    tb = tempname()
+    Tar.create(JuliaHub._PackageBundler.path_filterer(root), root, tb)
+    ex = mktempdir()
+    Tar.extract(tb, ex)
+
+    # Non-empty and contains exactly the re-included content.
+    @test isfile(joinpath(ex, "programs", "appA", "main.jl"))
+    @test isfile(joinpath(ex, "programs", "notes.txt"))
+    @test isfile(joinpath(ex, "Project.toml"))
+    @test isfile(joinpath(ex, "Manifest.toml"))
+    # Excluded paths must not be present.
+    @test !ispath(joinpath(ex, "secret"))
+    @test !isfile(joinpath(ex, "README.md"))
+end
+
 @testset "cp_skip_dangling_symlinks" begin
     mktempdir() do src
         # Regular file

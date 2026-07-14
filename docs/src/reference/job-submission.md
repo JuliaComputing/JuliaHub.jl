@@ -150,6 +150,33 @@ This `.juliabundleignore` will ignore:
 
 You can also have additional `.juliabundleignore` files in subdirectories and they will only apply to those directories and their subdirectories.
 
+#### Negating patterns (`!`)
+
+Like `.gitignore`, a pattern starting with `!` re-includes files that an earlier
+pattern excluded. Patterns are applied top to bottom and the **last matching
+pattern wins**. This lets you ignore everything and then add back only what you
+need:
+
+```
+*
+!programs/
+!programs/*
+!Project.toml
+!Manifest.toml
+```
+
+This bundles only the `programs/` directory (and everything under it) plus the
+top-level `Project.toml` and `Manifest.toml`, and ignores everything else.
+
+!!! note "Re-include the parent directory first"
+    You cannot re-include a file whose parent directory is still excluded — the
+    bundler skips excluded directories entirely and never descends into them (the
+    same limitation `git` has). Re-include the directory itself (e.g. `!programs/`)
+    before, or together with, its contents (`!programs/*`).
+
+Lines beginning with `#` are treated as comments, and blank lines are ignored.
+Use `\!` or `\#` to match a file whose name literally begins with `!` or `#`.
+
 ### Specifying the job image
 
 JuliaHub batch jobs can run in various container images.
