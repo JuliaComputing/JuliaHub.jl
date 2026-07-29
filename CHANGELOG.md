@@ -4,6 +4,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## Unreleased
 
+## Version [v0.1.18] - 2026-07-29
+
 ### Added
 
 * The `expose` argument of `submit_job` now also accepts a `JuliaHub.JobRemoteAccess` object, which additionally allows configuring who can access the exposed port (`JuliaHub.JobAccessMode`) and a fixed DNS prefix for the job. Ports can now also be exposed on package application jobs. ([#154], [#158])
@@ -14,6 +16,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 * Fix a `MethodError` when calling `JuliaHub.Experimental.registries`. ([#132])
 * `JuliaHub.application(s)` now handles bad API responses more gracefully. ([#133])
+* Dataset uploads no longer abort with `Data upload failed` when Rclone_jll resolves to v1.72 or newer; the S3 backend's HeadObject probe (which the platform's scoped credentials deny) is now suppressed with `--s3-no-head-object`. ([#146])
+* `JuliaHub.appbundle` no longer errors out when the bundled directory contains dangling symlinks; they are now skipped instead of aborting the copy. ([#143])
 * Streamed job logs (`job_logs_buffered(...; offset, stream=true)`) now resume from the requested offset instead of tailing the log, so log lines produced before the websocket connects are no longer dropped. ([#149])
 
 ## Version [v0.1.17] - 2025-12-16
@@ -246,6 +250,8 @@ Initial package release.
 [#130]: https://github.com/JuliaComputing/JuliaHub.jl/issues/130
 [#132]: https://github.com/JuliaComputing/JuliaHub.jl/issues/132
 [#133]: https://github.com/JuliaComputing/JuliaHub.jl/issues/133
+[#143]: https://github.com/JuliaComputing/JuliaHub.jl/issues/143
+[#146]: https://github.com/JuliaComputing/JuliaHub.jl/issues/146
 [#149]: https://github.com/JuliaComputing/JuliaHub.jl/issues/149
 [#154]: https://github.com/JuliaComputing/JuliaHub.jl/issues/154
 [#158]: https://github.com/JuliaComputing/JuliaHub.jl/issues/158
