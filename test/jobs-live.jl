@@ -1,4 +1,6 @@
-HIGH_JOB_LIMIT = 999999999
+# Note: the test account may well have more jobs than this, so the job listings
+# fetched with this limit are not necessarily complete.
+HIGH_JOB_LIMIT = 1000
 nodes = JuliaHub.nodespecs(; auth=auth)
 @testset "[LIVE] JuliaHub.nodespecs()" begin
     @test nodes isa Vector{JuliaHub.NodeSpec}
@@ -127,8 +129,10 @@ end
     # all the logs.
     logbuffer = JuliaHub.job_logs_buffered(job; offset=0, stream=true, auth)
 
-    jobs = JuliaHub.jobs(; limit=HIGH_JOB_LIMIT, auth)
-    @test length(jobs) > num_jobs_prev
+    # Jobs are listed latest first, so the freshly submitted job should show up
+    # in a small listing of the most recent jobs.
+    recent_jobs = JuliaHub.jobs(; limit=20, auth)
+    @test any(j -> j.id == job.id, recent_jobs)
     @test job != previous_last_job
     @test JuliaHub.job(job.id; auth).id == job.id
 
