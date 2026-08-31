@@ -278,6 +278,22 @@ function _restcall_mocked(method, url, headers, payload; query)
                         "product_name" => "extra-images",
                         "appType" => "batchjob",
                     ),
+                    # Models a product whose job image runs on its own with no
+                    # user-supplied code (input_type_name="image", not "userinput"),
+                    # so it is not classified as a batch app by _is_batch_app and
+                    # shows up as an ordinary DefaultApp tile instead - like IQOQ's
+                    # real product config. Regression fixture for product_name being
+                    # threaded through ApplicationJob submission: omitting it made
+                    # the server fall back to a generic product that wrongly
+                    # demanded usercode this product's own image never needed.
+                    Dict{String, Any}(
+                        "name" => "IQOQ Test",
+                        "image_group" => "iqoq",
+                        "compute_type_name" => "cloudstation-ide",
+                        "input_type_name" => "image",
+                        "product_name" => "iqoq",
+                        "appType" => "iqoq",
+                    ),
                 ],
                 "defaultUserAppArgs" => [],
             )
