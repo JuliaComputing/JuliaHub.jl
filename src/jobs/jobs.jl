@@ -356,7 +356,7 @@ function jobs(; limit::Union{Integer, Nothing}=nothing, auth::Authentication=__a
 end
 
 function _jobs(auth::Authentication, limit::Union{Integer, Nothing}=nothing)
-    query = isnothing(limit) ? (;) : (; limit)
+    query = isnothing(limit) ? nothing : ["limit" => string(limit)]
     _restcall(auth, :GET, "juliaruncloud", "get_jobs"; query)
 end
 
@@ -557,7 +557,7 @@ function kill_job end
 kill_job(job::Job; auth::Authentication=__auth__()) = kill_job(job.id; auth)
 
 function kill_job(jobname::AbstractString; auth::Authentication=__auth__())
-    r = _restcall(auth, :GET, "juliaruncloud", "kill_job"; query=(; jobname=string(jobname)))
+    r = _restcall(auth, :GET, "juliaruncloud", "kill_job"; query=["jobname" => string(jobname)])
     if r.status == 200
         response, json = _parse_response_json(r, AbstractDict)
         # response_json["status"] might not be a Bool

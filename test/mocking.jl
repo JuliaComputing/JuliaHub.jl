@@ -158,6 +158,12 @@ const MOCK_JULIAHUB_DEFAULT_JOB_FILES = Any[
         "type" => "project",
     ),
 ]
+# HTTP.jl v2 no longer accepts NamedTuples as the `query` argument, so `_restcall`
+# passes queries as vectors of string pairs (or `nothing`, if unset). This normalizes
+# them into a dictionary for the mock request handlers below.
+_query_dict(::Nothing) = Dict{String, String}()
+_query_dict(query) = Dict{String, String}(string(k) => string(v) for (k, v) in query)
+
 function _restcall_mocked(method, url, headers, payload; query)
     GET_JOB_REGEX = r"api/rest/jobs/([a-z0-9-]+)"
     DATASET_REGEX = r"user/datasets/([A-Za-z0-9%-]+)"
@@ -383,21 +389,22 @@ function _restcall_mocked(method, url, headers, payload; query)
         jobs = isnothing(idx) ? [] : [mock_job(idx)]
         Dict("details" => jobs) |> jsonresponse(200)
     elseif (method == :GET) && endswith(url, "juliaruncloud/get_jobs")
-        njobs = get(query, :limit, 20)
+        njobs = parse(Int, get(_query_dict(query), "limit", "20"))
         jobs_overrides = get(MOCK_JULIAHUB_STATE, :jobs, Dict{Int, Any}())
         jobs = [mock_job(i) for i = 1:njobs]
         jobs |> jsonresponse(200)
     elseif (method == :GET) && endswith(url, "juliaruncloud/kill_job")
-        idx = findfirst(isequal(query.jobname), job_names)
+        kill_jobname = _query_dict(query)["jobname"]
+        idx = findfirst(isequal(kill_jobname), job_names)
         if isnothing(idx)
             JuliaHub._RESTResponse(403, "User does not have access to this job")
         else
             jobs_overrides = get!(MOCK_JULIAHUB_STATE, :jobs, Dict{String, Any}())
-            job_info = get!(jobs_overrides, query.jobname, Dict{String, Any}())
+            job_info = get!(jobs_overrides, kill_jobname, Dict{String, Any}())
             job_info["status"] = "Stopped"
             Dict{String, Any}(
                 "status" => true,
-                "message" => "Job $(query.jobname) stopped successfully",
+                "message" => "Job $(kill_jobname) stopped successfully",
             ) |> jsonresponse(200)
         end
     elseif (method == :POST) && endswith(url, "juliaruncloud/extend_job_time_limit")
@@ -411,7 +418,7 @@ function _restcall_mocked(method, url, headers, payload; query)
     elseif (method == :GET) && endswith(url, "datasets")
         # Note: query will be `nothing` if it's unset in _restcall, so we need
         # to handle that case too.
-        project_uuid = get(something(query, (;)), :project, nothing)
+        project_uuid = get(_query_dict(query), "project", nothing)
         datasets = Dict[]
         for dataset_name in existing_datasets
             d = _dataset_json(

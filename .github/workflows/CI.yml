@@ -26,7 +26,6 @@ jobs:
         # Note that we can't run too many parallel CI jobs, since the live
         # tests will run into the platform job limit.
         version:
-          - "1.6"
           - "1.10"
           - "1"
           - "nightly"
