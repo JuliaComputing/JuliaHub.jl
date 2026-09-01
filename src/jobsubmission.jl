@@ -1654,5 +1654,15 @@ function _job_submit_args(
         customcode=false,
         # `jr_uuid` is set to associate the running job with the application icon in the UI
         args=Dict("jobname" => appjob.app.name, "jr_uuid" => appjob.app._apptype),
+        # Omitting this left the server unable to tell which product a DefaultApp
+        # actually belongs to, so it fell back to inferring one from the deprecated
+        # `appType` field instead - ambiguous whenever multiple products share a
+        # legacy_apptype (e.g. every "batchjob"-typed product resolves to
+        # "standard-batch" regardless of which one was actually launched; see
+        # jobsubmit_common.jl's own "Deprecated submission format" warning
+        # server-side). The web frontend already sends this on every launch
+        # (LaunchButton.vue); this brings ApplicationJob submission in line with it
+        # and with how BatchJob/PackageJob already set product_name below.
+        product_name=get(appjob.app._json, "product_name", nothing),
     )
 end
