@@ -23,7 +23,7 @@ macro _httpcatch(ex, kwargexprs...)
         try
             $(esc(ex))
         catch e
-            e isa HTTP.Exceptions.HTTPError || rethrow(e)
+            e isa HTTP.HTTPError || rethrow(e)
             throw(JuliaHubConnectionError($message, e, catch_backtrace()))
         end
     end

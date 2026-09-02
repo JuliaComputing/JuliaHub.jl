@@ -1,21 +1,21 @@
 using Test
 
 @testset "@_httpcatch" begin
-    throw_connecterror() = throw(HTTP.Exceptions.ConnectError("", nothing))
+    throw_connecterror() = throw(HTTP.ConnectError("", ErrorException("")))
     @test JuliaHub.@_httpcatch(nothing) === nothing
     @test JuliaHub.@_httpcatch(nothing, msg = "...") === nothing
     msgortype(x) =
         VERSION >= v"1.8" ? "JuliaHubConnectionError: $x" : JuliaHub.JuliaHubConnectionError
-    @test_throws msgortype("HTTP connection to JuliaHub failed (HTTP.Exceptions.ConnectError)") JuliaHub.@_httpcatch(
+    @test_throws msgortype("HTTP connection to JuliaHub failed (HTTP.ConnectError)") JuliaHub.@_httpcatch(
         throw_connecterror()
     )
     @test_throws msgortype(
-        "Custom message\nHTTP connection to JuliaHub failed (HTTP.Exceptions.ConnectError)"
+        "Custom message\nHTTP connection to JuliaHub failed (HTTP.ConnectError)"
     ) JuliaHub.@_httpcatch(
         throw_connecterror(), msg = "Custom message"
     )
     @test_throws msgortype(
-        "Custom interpolation 2=2\nHTTP connection to JuliaHub failed (HTTP.Exceptions.ConnectError)"
+        "Custom interpolation 2=2\nHTTP connection to JuliaHub failed (HTTP.ConnectError)"
     ) JuliaHub.@_httpcatch(
         throw_connecterror(), msg = "Custom interpolation $(1+1)=2"
     )
