@@ -62,7 +62,7 @@ end
             include("datasets-large-live.jl")
         end
 
-    is_enabled("datasets-projects"; disabled_by_default=true) &&
+    is_enabled("datasets-projects") &&
         @testset "Project-dataset integration" begin
             include("projects-live.jl")
         end
@@ -73,7 +73,7 @@ end
                 include("jobs-live.jl")
             end
 
-            is_enabled("jobs-exposed-port"; disabled_by_default=true) &&
+            is_enabled("jobs-exposed-port") &&
                 @testset "Exposed ports" begin
                     include("jobs-exposed-port-live.jl")
                 end
