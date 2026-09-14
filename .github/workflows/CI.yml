@@ -21,6 +21,11 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
+      # The live tests submit jobs to the platform, which has an active-vCPU
+      # quota for the test user. Running all matrix legs at once exhausts it
+      # (job submissions then fail with "Your limit is set to 50 active vCPUs"),
+      # so cap the number of concurrently running legs.
+      max-parallel: 6
       matrix:
         # Run the CI on: lowest supported, LTS, latest, and nightly.
         # Note that we can't run too many parallel CI jobs, since the live
