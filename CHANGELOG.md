@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-* JuliaHub.jl now supports HTTP.jl 2.x, in addition to 1.x. Note that HTTP.jl 2.x requires Julia 1.10 or newer. ([#171], [#173], [#PRNUM])
+* JuliaHub.jl now supports HTTP.jl 2.x, in addition to 1.x. Note that HTTP.jl 2.x requires Julia 1.10 or newer. ([#171], [#173], [#174])
 
 ## Version [v0.1.18] - 2026-07-29
 
@@ -259,3 +259,6 @@ Initial package release.
 [#149]: https://github.com/JuliaComputing/JuliaHub.jl/issues/149
 [#154]: https://github.com/JuliaComputing/JuliaHub.jl/issues/154
 [#158]: https://github.com/JuliaComputing/JuliaHub.jl/issues/158
+[#171]: https://github.com/JuliaComputing/JuliaHub.jl/issues/171
+[#173]: https://github.com/JuliaComputing/JuliaHub.jl/issues/173
+[#174]: https://github.com/JuliaComputing/JuliaHub.jl/issues/174
