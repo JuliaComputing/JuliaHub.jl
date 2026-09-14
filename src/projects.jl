@@ -170,7 +170,7 @@ function _project_datasets(auth::Authentication, project::UUIDs.UUID)
     _assert_projects_enabled(auth)
     r = JuliaHub._restcall(
         auth, :GET, ("datasets",), nothing;
-        query=(; project=string(project)),
+        query=["project" => string(project)],
     )
     if r.status == 400
         throw(

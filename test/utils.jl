@@ -1,21 +1,28 @@
 using Test
 
 @testset "@_httpcatch" begin
-    throw_connecterror() = throw(HTTP.Exceptions.ConnectError("", nothing))
+    # HTTP.jl 1.x: `ConnectError(url::String, error::Any)`;
+    # HTTP.jl 2.x: `ConnectError(address, cause::Exception)`.
+    # Passing an `Exception` as the second argument works on both.
+    throw_connecterror() = throw(HTTP.ConnectError("", ErrorException("")))
+    # The error message interpolates `typeof(e)`, which prints as
+    # `HTTP.Exceptions.ConnectError` on 1.x (where the type is defined in the submodule)
+    # and `HTTP.ConnectError` on 2.x.
+    connecterror_name = string(HTTP.ConnectError)
     @test JuliaHub.@_httpcatch(nothing) === nothing
     @test JuliaHub.@_httpcatch(nothing, msg = "...") === nothing
     msgortype(x) =
         VERSION >= v"1.8" ? "JuliaHubConnectionError: $x" : JuliaHub.JuliaHubConnectionError
-    @test_throws msgortype("HTTP connection to JuliaHub failed (HTTP.Exceptions.ConnectError)") JuliaHub.@_httpcatch(
+    @test_throws msgortype("HTTP connection to JuliaHub failed ($connecterror_name)") JuliaHub.@_httpcatch(
         throw_connecterror()
     )
     @test_throws msgortype(
-        "Custom message\nHTTP connection to JuliaHub failed (HTTP.Exceptions.ConnectError)"
+        "Custom message\nHTTP connection to JuliaHub failed ($connecterror_name)"
     ) JuliaHub.@_httpcatch(
         throw_connecterror(), msg = "Custom message"
     )
     @test_throws msgortype(
-        "Custom interpolation 2=2\nHTTP connection to JuliaHub failed (HTTP.Exceptions.ConnectError)"
+        "Custom interpolation 2=2\nHTTP connection to JuliaHub failed ($connecterror_name)"
     ) JuliaHub.@_httpcatch(
         throw_connecterror(), msg = "Custom interpolation $(1+1)=2"
     )
