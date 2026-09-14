@@ -29,6 +29,7 @@ jobs:
           - "1.6"
           - "1.10"
           - "1"
+          - "1.13"
           - "nightly"
         os:
           - ubuntu-latest
@@ -141,20 +142,25 @@ jobs:
       - uses: julia-actions/setup-julia@fa02766e078afaaf09b14210362cee14137e6a32 # v3.0.2
         with:
           version: "1.13"
+      # JET is installed into the default (global) environment, while JuliaHub
+      # itself is instantiated in the project environment. Since environments are
+      # stacked, `--project=.` can load both, without JET's own dependencies
+      # interfering with the resolution of JuliaHub's.
       - name: "Install dependencies"
         shell: julia --color=yes {0}
         run: |
           import Pkg
-          Pkg.activate("juliahub-jet", shared=true)
+          Pkg.activate(".")
+          Pkg.instantiate()
+          Pkg.activate()
           Pkg.add(name="JET", version="0.12.1")
-          Pkg.develop(path=".")
       - name: "JET.test_package(..., mode=:basic) [informational]"
-        run: julia --color=yes --project=@juliahub-jet test/jet.jl
+        run: julia --color=yes --project=. test/jet.jl
         env:
           JULIAHUB_TEST_JET: basic
         continue-on-error: true
       - name: "JET.test_package() w/ custom filtering"
-        run: julia --color=yes --project=@juliahub-jet test/jet.jl
+        run: julia --color=yes --project=. test/jet.jl
         env:
           JULIAHUB_TEST_JET: custom-filtering
 

@@ -22,15 +22,17 @@ function JET.configured_reports(::JuliaHubReportFilter, reports::Vector{JET.Infe
     end
 end
 
+# Note: JET >= 0.12 requires the package to be passed as a `Module` (not a string), and
+# replaced the `target_defined_modules` configuration with `target_modules`.
 @testset "JET" begin
     if jet_mode == "custom-filtering"
         JET.test_package(
-            "JuliaHub"; report_config=JuliaHubReportFilter(),
+            JuliaHub; report_config=JuliaHubReportFilter(),
             toplevel_logger=nothing,
         )
     else
         JET.test_package(
-            "JuliaHub"; target_defined_modules=true, mode=Symbol(jet_mode), toplevel_logger=nothing
+            JuliaHub; target_modules=(JuliaHub,), mode=Symbol(jet_mode), toplevel_logger=nothing
         )
     end
 end
