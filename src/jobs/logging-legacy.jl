@@ -607,9 +607,10 @@ function _job_logs_legacy_websocket(
     # instead of tailing from the current end of the log (its default when no
     # offset is provided).
     isnothing(offset) || push!(query, "offset" => string(offset))
+    # Note: the explicit User-Agent is required on HTTP.jl 2.x, see `_USER_AGENT`.
     @_httpcatch HTTP.WebSockets.open(
         ws_url;
-        headers=_authheaders(auth),
+        headers=[_authheaders(auth)..., "User-Agent" => _USER_AGENT],
         query=query,
     ) do ws
         for msg in ws

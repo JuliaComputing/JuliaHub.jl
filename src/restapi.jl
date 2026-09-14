@@ -44,6 +44,15 @@ function _parse_macro_kwargs(kwargexprs)
     return kwargs
 end
 
+# User-Agent header sent with requests where HTTP.jl does not add one itself. HTTP.jl 1.x
+# added a default `User-Agent: HTTP.jl/...` to every request, including websocket handshakes,
+# but 2.x only does so for regular `HTTP.request` calls. Some edge proxies (e.g. Cloudflare)
+# reject requests without a User-Agent with a 403.
+const _USER_AGENT = string(
+    "JuliaHub.jl/",
+    TOML.parsefile(joinpath(@__DIR__, "..", "Project.toml"))["version"],
+)
+
 struct _RESTResponse
     status::Int
     body::String

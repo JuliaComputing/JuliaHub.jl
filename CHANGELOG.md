@@ -11,6 +11,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 
 * `download_job_file` no longer throws a `MethodError` when the server returns a non-200 response on HTTP.jl 2.x (where the response body is `nothing` for streamed downloads); the proper `JuliaHubError` / `PermissionError` is thrown instead. ([#174])
+* Streaming job logs now sends an explicit `User-Agent` header on the websocket handshake. HTTP.jl 2.x, unlike 1.x, does not add one by default, which caused a `403` from the JuliaHub edge proxy. ([#174])
+* Uploading an appbundle no longer fails with `MethodError: no method matching String(::Int64)` on HTTP.jl 2.x, which requires header values to be strings. ([#174])
 
 ## Version [v0.1.18] - 2026-07-29
 
