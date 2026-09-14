@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 * JuliaHub.jl now supports HTTP.jl 2.x, in addition to 1.x. Note that HTTP.jl 2.x requires Julia 1.10 or newer. ([#171], [#173], [#174])
 
+### Fixed
+
+* `download_job_file` no longer throws a `MethodError` when the server returns a non-200 response on HTTP.jl 2.x (where the response body is `nothing` for streamed downloads); the proper `JuliaHubError` / `PermissionError` is thrown instead. ([#174])
+
 ## Version [v0.1.18] - 2026-07-29
 
 ### Added

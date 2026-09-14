@@ -614,7 +614,10 @@ function _job_logs_legacy_websocket(
     ) do ws
         for msg in ws
             @debug "_job_log_websocket_legacy: message from websocket ($jobname)" _taskstamp() msg
-            f(ws, msg)
+            # Text frames are delivered as `String`s and binary frames as `Vector{UInt8}`s
+            # (on both HTTP.jl 1.x and 2.x). The server is expected to send text (JSON)
+            # frames, but we normalize here so that `f` always receives a `String`.
+            f(ws, msg isa AbstractVector{UInt8} ? String(msg) : msg)
         end
     end
     @debug "_job_logs_legacy_websocket: task finishing ($jobname)" _taskstamp()
