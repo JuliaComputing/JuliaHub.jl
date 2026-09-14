@@ -17,35 +17,17 @@ function gen_jobalias(alias)
     alias in USED_JOB_ALIASES && error("job alias '$alias' already used")
     return "JuliaHub.jl tests / $(TESTID) / $(alias)"
 end
-# The platform enforces per-user limits on active jobs and vCPUs. Several CI legs
-# run the live tests concurrently against the same test user, so job submissions
-# can transiently fail with one of these errors. Such failures are retried below.
-function _is_platform_limit_error(e)
-    e isa JuliaHub.JuliaHubError || return false
-    return occursin("job rate limit", e.msg) || occursin("active vCPUs", e.msg)
-end
-
 # A small wrapper around JuliaHub.submit_job, which sets a unique alias
 # for each job, and also prints an at-info message into the logs.
-function submit_test_job(
-    args...; alias::AbstractString, retry_maxtime::Real=600, retry_sleep::Real=30, kwargs...
-)
+function submit_test_job(args...; alias::AbstractString, kwargs...)
     full_alias = gen_jobalias(alias)
-    start_time = time()
-    while true
-        try
-            job = JuliaHub.submit_job(args...; alias=full_alias, kwargs...)
-            @info "Submitted $(alias): $(job.id)" alias = full_alias job.status
-            return job, full_alias
-        catch e
-            if _is_platform_limit_error(e) && time() < start_time + retry_maxtime
-                @warn "Platform limit hit while submitting job: $alias; retrying in $(retry_sleep)s" e.msg
-                sleep(retry_sleep)
-                continue
-            end
-            @error "Failed to submit job: $alias" args kwargs full_alias
-            rethrow()
-        end
+    try
+        job = JuliaHub.submit_job(args...; alias=full_alias, kwargs...)
+        @info "Submitted $(alias): $(job.id)" alias = full_alias job.status
+        return job, full_alias
+    catch
+        @error "Failed to submit job: $alias" args kwargs full_alias
+        rethrow()
     end
 end
 
@@ -121,9 +103,8 @@ end
     @test_throws JuliaHub.InvalidRequestError JuliaHub.extend_job("this-job-does-not-exist", 1)
 end
 
-function wait_submission(job::JuliaHub.Job; maxtime::Real=600)
-    # maxtime: it can definitely take at least 3 minutes for a job to start, and
-    # longer when the platform is busy (e.g. several CI legs running concurrently).
+function wait_submission(job::JuliaHub.Job; maxtime::Real=300)
+    # maxtime: it can definitely take at least 3 minutes for a job to start
     start_time = time()
     job = JuliaHub.job(job; auth=auth)
     while job.status == "Submitted"
