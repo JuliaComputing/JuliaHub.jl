@@ -17,7 +17,9 @@ concurrency:
 
 jobs:
   test:
-    name: Julia ${{ matrix.version }} - ${{ matrix.os }} - HTTP ${{ matrix.http }}
+    # Note: the HTTP.jl 1.x legs keep the pre-HTTP-2 job names, since the
+    # "Julia 1 - ubuntu-latest" check is required by the main branch ruleset.
+    name: Julia ${{ matrix.version }} - ${{ matrix.os }}${{ matrix.http == '2' && ' - HTTP 2' || '' }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
