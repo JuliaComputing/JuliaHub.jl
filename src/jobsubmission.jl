@@ -997,7 +997,7 @@ function _upload_appbundle(appbundle_tar_path::AbstractString; auth::Authenticat
     r::_RESTResponse = open(appbundle_tar_path, "r") do input
         Mocking.@mock _restput_mockable(
             upload_url,
-            ["Content-Length" => filesize(appbundle_tar_path)],
+            ["Content-Length" => string(filesize(appbundle_tar_path))],
             input,
         )
     end

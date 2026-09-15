@@ -2,6 +2,10 @@
 # HTTP.jl exception (generally indicating a connection failure) and throws a
 # JuliaHubError
 #
+# Note: `HTTP.HTTPError` is the top-level abstract supertype of all HTTP.jl exceptions
+# on both HTTP.jl 1.x (where it is re-exported from the `HTTP.Exceptions` submodule)
+# and 2.x (which dropped the submodule, leaving only a deprecating shim).
+#
 # A `msg` "keyword" can be used to customize the error message. E.g.
 #
 # @_httpcatch HTTP.get(...) msg = "Getting X failed"
@@ -23,7 +27,7 @@ macro _httpcatch(ex, kwargexprs...)
         try
             $(esc(ex))
         catch e
-            e isa HTTP.Exceptions.HTTPError || rethrow(e)
+            e isa HTTP.HTTPError || rethrow(e)
             throw(JuliaHubConnectionError($message, e, catch_backtrace()))
         end
     end
@@ -39,6 +43,15 @@ function _parse_macro_kwargs(kwargexprs)
     end
     return kwargs
 end
+
+# User-Agent header sent with requests where HTTP.jl does not add one itself. HTTP.jl 1.x
+# added a default `User-Agent: HTTP.jl/...` to every request, including websocket handshakes,
+# but 2.x only does so for regular `HTTP.request` calls. Some edge proxies (e.g. Cloudflare)
+# reject requests without a User-Agent with a 403.
+const _USER_AGENT = string(
+    "JuliaHub.jl/",
+    TOML.parsefile(joinpath(@__DIR__, "..", "Project.toml"))["version"],
+)
 
 struct _RESTResponse
     status::Int
@@ -128,6 +141,8 @@ end
 # Should return _RESTResponse (even if the server returns a bad code), or throw
 # a JuliaHubConnectionError if there is a connection failure.
 _rest_request_mockable(args...; kwargs...) = _rest_request_http(args...; kwargs...)
+# `query` must be `nothing`, a string, a dictionary, or a vector of pairs. NamedTuples
+# are accepted by HTTP.jl 1.x but not 2.x, so callers should not use them.
 function _rest_request_http(method::Symbol, url::AbstractString, headers, payload; query=nothing)
     # HTTP.jl passes HTTP.nobody == UInt[] when it populates the `body` argument
     # with a default value, so we also do that here.

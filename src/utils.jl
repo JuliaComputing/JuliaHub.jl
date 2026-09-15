@@ -113,7 +113,15 @@ function Base.showerror(io::IO, e::InvalidJuliaHubVersion)
     print(io, "InvalidJuliaHubVersion: $(e.msg)")
 end
 
-_takebody!(r::HTTP.Response)::Vector{UInt8} = isa(r.body, IO) ? take!(r.body) : r.body
+# Note: when a `response_stream` is passed to HTTP.request, the body of the returned
+# response is the stream itself on HTTP.jl 1.x, but `nothing` on HTTP.jl 2.x. In both
+# cases the body has already been written to the stream, so there is nothing to take.
+function _takebody!(r::HTTP.Response)::Vector{UInt8}
+    body = r.body
+    isnothing(body) && return UInt8[]
+    isa(body, IO) && return take!(body)
+    return body
+end
 _takebody!(r::HTTP.Response, ::Type{T}) where {T} = T(_takebody!(r))
 
 # This function is used to throw a consistent error message when the status code from
@@ -129,7 +137,7 @@ function _throw_invalidresponse(r::HTTP.Response; checkauth=true, msg=nothing)
     else
         errormsg = """
         Invalid HTTP response ($(r.status)) returned by the server:
-        $(String(r.body))
+        $(_takebody!(r, String))
         """
         isnothing(msg) || (errormsg = string(msg, '\n', errormsg))
         throw(JuliaHubError(errormsg))

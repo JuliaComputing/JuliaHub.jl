@@ -607,14 +607,18 @@ function _job_logs_legacy_websocket(
     # instead of tailing from the current end of the log (its default when no
     # offset is provided).
     isnothing(offset) || push!(query, "offset" => string(offset))
+    # Note: the explicit User-Agent is required on HTTP.jl 2.x, see `_USER_AGENT`.
     @_httpcatch HTTP.WebSockets.open(
         ws_url;
-        headers=_authheaders(auth),
+        headers=[_authheaders(auth)..., "User-Agent" => _USER_AGENT],
         query=query,
     ) do ws
         for msg in ws
             @debug "_job_log_websocket_legacy: message from websocket ($jobname)" _taskstamp() msg
-            f(ws, msg)
+            # Text frames are delivered as `String`s and binary frames as `Vector{UInt8}`s
+            # (on both HTTP.jl 1.x and 2.x). The server is expected to send text (JSON)
+            # frames, but we normalize here so that `f` always receives a `String`.
+            f(ws, msg isa AbstractVector{UInt8} ? String(msg) : msg)
         end
     end
     @debug "_job_logs_legacy_websocket: task finishing ($jobname)" _taskstamp()
