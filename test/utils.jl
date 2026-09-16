@@ -136,3 +136,11 @@ end
     _, sz_low = JuliaHub._max_appbundle_dir_size(dir; maxsize=200)
     @test !sz_low
 end
+
+@testset "_HTTP_VERSION" begin
+    @test JuliaHub._HTTP_VERSION isa VersionNumber
+    @test v"1" <= JuliaHub._HTTP_VERSION < v"3"
+    if isdefined(Base, :pkgversion)
+        @test JuliaHub._HTTP_VERSION == pkgversion(HTTP)
+    end
+end

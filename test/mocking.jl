@@ -736,6 +736,7 @@ function _http_request_mocked(
     kwargs...,
 )
     global MOCK_JULIAHUB_STATE
+    MOCK_JULIAHUB_STATE[:last_http_request] = (; method, url, headers, body, kwargs=Dict(kwargs))
     headers = [
         "Content-Type" => "text/plain; charset=utf-8",
         "Content-Length" => "7",

@@ -1038,6 +1038,24 @@ end
             @test r isa HTTP.Response
             @test r.status == 200
             @test r.body == b"success"
+            req = MOCK_JULIAHUB_STATE[:last_http_request]
+            @test req.method == "GET"
+            @test req.url == "https://afyux.launch.juliahub.app/"
+            # On HTTP.jl 2.x, the job proxy requests must be pinned to HTTP/1.1, since
+            # the proxy does not support HTTP/2. HTTP.jl 1.x does not have the keyword.
+            if JuliaHub._HTTP_VERSION >= v"2"
+                @test get(req.kwargs, :protocol, nothing) === :h1
+            else
+                @test !haskey(req.kwargs, :protocol)
+            end
+        end
+        # User-provided keyword arguments are passed through, and override the defaults.
+        let r = JuliaHub.request(job, "GET", "/foo"; status_exception=false, protocol=:h2)
+            @test r.status == 200
+            req = MOCK_JULIAHUB_STATE[:last_http_request]
+            @test req.url == "https://afyux.launch.juliahub.app/foo"
+            @test req.kwargs[:status_exception] === false
+            @test req.kwargs[:protocol] === :h2
         end
     end
 end

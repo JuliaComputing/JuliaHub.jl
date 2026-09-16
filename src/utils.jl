@@ -113,6 +113,13 @@ function Base.showerror(io::IO, e::InvalidJuliaHubVersion)
     print(io, "InvalidJuliaHubVersion: $(e.msg)")
 end
 
+# The version of HTTP.jl that we are loaded against. Some HTTP.jl 2.x behaviors differ
+# from 1.x in ways that need explicit handling (e.g. HTTP.jl 2.x negotiates HTTP/2 by
+# default), so we need to be able to check the major version at runtime.
+const _HTTP_VERSION = VersionNumber(
+    TOML.parsefile(joinpath(pkgdir(HTTP), "Project.toml"))["version"]
+)
+
 # Note: when a `response_stream` is passed to HTTP.request, the body of the returned
 # response is the stream itself on HTTP.jl 1.x, but `nothing` on HTTP.jl 2.x. In both
 # cases the body has already been written to the stream, so there is nothing to take.
