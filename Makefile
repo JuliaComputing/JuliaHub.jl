@@ -5,6 +5,7 @@ help:
 	@echo " - make docs: build the documentation"
 	@echo " - make docs-environment: instantiate the docs environment"
 	@echo " - make test: run the tests"
+	@echo " - make release-(patch|minor|major): prepare a release commit"
 
 docs/Manifest.toml: docs/Project.toml
 	@echo "Instantiating the docs/ environment:"
@@ -26,7 +27,16 @@ check-doctests: docs/Manifest.toml
 changelog:
 	${JULIA} --project=docs/ docs/changelog.jl
 
+release-patch: docs/Manifest.toml
+	${JULIA} --project=docs/ docs/prepare-release.jl patch
+
+release-minor: docs/Manifest.toml
+	${JULIA} --project=docs/ docs/prepare-release.jl minor
+
+release-major: docs/Manifest.toml
+	${JULIA} --project=docs/ docs/prepare-release.jl major
+
 test:
 	${JULIA} --project -e 'using Pkg; Pkg.test()'
 
-.PHONY: default docs-manifest docs test
+.PHONY: default docs-manifest docs test release-patch release-minor release-major
