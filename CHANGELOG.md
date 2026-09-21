@@ -4,6 +4,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## Unreleased
 
+## Version [v0.1.19] - 2026-09-18
+
 ### Added
 
 * JuliaHub.jl now supports HTTP.jl 2.x, in addition to 1.x. Note that HTTP.jl 2.x requires Julia 1.10 or newer. ([#171], [#173], [#174])
