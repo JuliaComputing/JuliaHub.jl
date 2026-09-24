@@ -491,7 +491,7 @@ function _restcall_mocked(method, url, headers, payload; query)
                 "message" => "Job submission successful",
                 "data" => Dict(
                     "job_name" =>
-                        get(MOCK_JULIAHUB_STATE, :project_deployment_jobname, "jr-xf4tslavut")
+                        get(MOCK_JULIAHUB_STATE, :project_deployment_jobname, "jr-xf4tslavut"),
                 ),
             ) |> jsonresponse(200)
         end
