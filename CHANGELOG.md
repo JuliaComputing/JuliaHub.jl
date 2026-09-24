@@ -4,6 +4,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## Unreleased
 
+### Added
+
+* `JuliaHub.project_deployment_specs` and `JuliaHub.deploy_project` allow listing the deployment specifications of a deployable project, and starting a new project deployment, respectively. ([#180])
+
 ## Version [v0.1.19] - 2026-09-18
 
 ### Added
@@ -217,6 +221,8 @@ Initial package release.
 [v0.1.15]: https://github.com/JuliaComputing/JuliaHub.jl/releases/tag/v0.1.15
 [v0.1.16]: https://github.com/JuliaComputing/JuliaHub.jl/releases/tag/v0.1.16
 [v0.1.17]: https://github.com/JuliaComputing/JuliaHub.jl/releases/tag/v0.1.17
+[v0.1.18]: https://github.com/JuliaComputing/JuliaHub.jl/releases/tag/v0.1.18
+[v0.1.19]: https://github.com/JuliaComputing/JuliaHub.jl/releases/tag/v0.1.19
 [#1]: https://github.com/JuliaComputing/JuliaHub.jl/issues/1
 [#2]: https://github.com/JuliaComputing/JuliaHub.jl/issues/2
 [#3]: https://github.com/JuliaComputing/JuliaHub.jl/issues/3
@@ -270,3 +276,4 @@ Initial package release.
 [#171]: https://github.com/JuliaComputing/JuliaHub.jl/issues/171
 [#173]: https://github.com/JuliaComputing/JuliaHub.jl/issues/173
 [#174]: https://github.com/JuliaComputing/JuliaHub.jl/issues/174
+[#180]: https://github.com/JuliaComputing/JuliaHub.jl/issues/180

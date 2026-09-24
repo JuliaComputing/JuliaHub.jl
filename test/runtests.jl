@@ -218,6 +218,7 @@ end
             :request,
             :ProjectReference, :ProjectNotSetError, :DatasetProjectLink,
             :project_dataset, :project_datasets, :upload_project_dataset,
+            :ProjectDeploymentSpec, :project_deployment_specs, :deploy_project,
         ])
         extra_public_symbols = setdiff(public_symbols, expected_public_symbols)
         isempty(extra_public_symbols) || @warn """

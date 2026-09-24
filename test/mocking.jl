@@ -164,8 +164,32 @@ const MOCK_JULIAHUB_DEFAULT_JOB_FILES = Any[
 _query_dict(::Nothing) = Dict{String, String}()
 _query_dict(query) = Dict{String, String}(string(k) => string(v) for (k, v) in query)
 
+# Default deployment specification list for the project deployment endpoints.
+function mock_project_deployment_specs(project_uuid)
+    #! format: off
+    [
+        Dict{String, Any}(
+            "spec_id" => 33, "project_id" => project_uuid,
+            "name" => "Default", "description" => "Migrated from the project deployment settings.",
+            "machineType" => "m64", "port" => 8080, "dnsAutogen" => true,
+            "authentication" => "me", "autoscaleToZero" => true, "autoscaleToZeroHours" => 1,
+            "autoWakeUp" => true, "sysimageBuild" => false, "env" => [], "default" => false,
+        ),
+        Dict{String, Any}(
+            "spec_id" => 96, "project_id" => project_uuid,
+            "name" => "Large", "description" => "",
+            "machineType" => "r64", "port" => 9999, "dnsAutogen" => false, "dnsPrefix" => "myapp",
+            "authentication" => "password", "autoscaleToZero" => true, "autoscaleToZeroHours" => 3,
+            "autoWakeUp" => false, "sysimageBuild" => true, "env" => [], "default" => true,
+        ),
+    ]
+    #! format: on
+end
+
 function _restcall_mocked(method, url, headers, payload; query)
     GET_JOB_REGEX = r"api/rest/jobs/([a-z0-9-]+)"
+    PROJECT_DEPLOYMENTSPEC_REGEX = r"api/v1/jobs/project/([0-9a-f-]+)/deploymentspec$"
+    PROJECT_DEPLOYMENTSPEC_SUBMIT_REGEX = r"api/v1/jobs/project/([0-9a-f-]+)/deploymentspec/([0-9]+)/submit$"
     DATASET_REGEX = r"user/datasets/([A-Za-z0-9%-]+)"
     DATASET_VERSIONS_REGEX = r"(user/)?datasets/([A-Za-z0-9%-]+)/versions"
     # MOCK_JULIAHUB_STATE[:existing_datasets], if set, must be mutable (i.e. Vector), since
@@ -430,6 +454,46 @@ function _restcall_mocked(method, url, headers, payload; query)
             JuliaHub._RESTResponse(403, "User does not have access to this job")
         else
             Dict("message" => "", "success" => true) |> jsonresponse(200)
+        end
+    elseif (method == :GET) && occursin(PROJECT_DEPLOYMENTSPEC_REGEX, url)
+        project_uuid = match(PROJECT_DEPLOYMENTSPEC_REGEX, url)[1]
+        status = get(MOCK_JULIAHUB_STATE, :project_deployment_specs_status, 200)
+        if status == 404
+            JuliaHub._RESTResponse(404, "")
+        elseif status != 200
+            Dict(
+                "message" => "Deployment specifications are only available for deployable projects"
+            ) |>
+            jsonresponse(status)
+        else
+            specs = get(MOCK_JULIAHUB_STATE, :project_deployment_specs) do
+                mock_project_deployment_specs(project_uuid)
+            end
+            specs |> jsonresponse(200)
+        end
+    elseif (method == :POST) && occursin(PROJECT_DEPLOYMENTSPEC_SUBMIT_REGEX, url)
+        m = match(PROJECT_DEPLOYMENTSPEC_SUBMIT_REGEX, url)
+        project_uuid, spec_id = m[1], parse(Int, m[2])
+        status = get(MOCK_JULIAHUB_STATE, :project_deployment_submit_status, 200)
+        specs = get(MOCK_JULIAHUB_STATE, :project_deployment_specs) do
+            mock_project_deployment_specs(project_uuid)
+        end
+        if status == 404 || isnothing(findfirst(s -> s["spec_id"] == spec_id, specs))
+            JuliaHub._RESTResponse(404, "")
+        elseif status != 200
+            Dict(
+                "message" => "Deployment specification uses password authentication but has no password set"
+            ) |>
+            jsonresponse(status)
+        else
+            MOCK_JULIAHUB_STATE[:project_deployment_submitted] = (; project_uuid, spec_id)
+            Dict(
+                "message" => "Job submission successful",
+                "data" => Dict(
+                    "job_name" =>
+                        get(MOCK_JULIAHUB_STATE, :project_deployment_jobname, "jr-xf4tslavut")
+                ),
+            ) |> jsonresponse(200)
         end
     elseif (method == :GET) && endswith(url, "datasets")
         # Note: query will be `nothing` if it's unset in _restcall, so we need

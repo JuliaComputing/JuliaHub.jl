@@ -310,3 +310,281 @@ function _close_dataset_version(
         headers=["Content-Type" => "application/json"],
     )
 end
+
+"""
+    struct ProjectDeploymentSpec
+
+Represents a deployment specification of a deployable JuliaHub project. Deployment
+specifications are managed in the JuliaHub web UI, and can be listed with
+[`project_deployment_specs`](@ref). A project can be deployed according to a specification
+with [`deploy_project`](@ref).
+
+Objects have the following properties:
+
+* `id :: Int`: the numeric ID of the specification (unique across the JuliaHub instance)
+* `project_id :: UUID`: the UUID of the project the specification belongs to
+* `name :: String`: the (project-unique) name of the specification
+* `description :: String`: description of the specification
+* `machine_type :: String`: the JuliaHub machine type the deployment runs on (e.g. `"m64"`)
+* `port :: Int`: the port the deployed application listens on
+* `authentication :: String`: how access to the deployment is authenticated (e.g. `"me"`,
+  `"password"`)
+* `sysimage_build :: Bool`: whether a system image is built for the deployment
+* `default :: Bool`: whether this is the default deployment specification of the project
+"""
+struct ProjectDeploymentSpec
+    id::Int
+    project_id::UUIDs.UUID
+    name::String
+    description::String
+    machine_type::String
+    port::Int
+    authentication::String
+    sysimage_build::Bool
+    default::Bool
+    _json::Dict{String, Any}
+
+    function ProjectDeploymentSpec(json::AbstractDict)
+        var = "project deployment spec"
+        id = _json_get(json, "spec_id", Integer; var)
+        project_id = _json_get(json, "project_id", UUIDs.UUID; var, parse=true)
+        name = _json_get(json, "name", AbstractString; var)
+        description = _get_json_or(json, "description", AbstractString, "")
+        machine_type = _get_json_or(json, "machineType", AbstractString, "")
+        port = _get_json_or(json, "port", Integer, 0)
+        authentication = _get_json_or(json, "authentication", AbstractString, "")
+        sysimage_build = _get_json_or(json, "sysimageBuild", Bool, false)
+        default = _get_json_or(json, "default", Bool, false)
+        new(
+            id, project_id, name, description, machine_type, port, authentication,
+            sysimage_build, default, Dict{String, Any}(json),
+        )
+    end
+end
+
+function Base.show(io::IO, spec::ProjectDeploymentSpec)
+    print(io, "JuliaHub.ProjectDeploymentSpec(", spec.id, ", \"", spec.name, "\")")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", spec::ProjectDeploymentSpec)
+    printstyled(io, "ProjectDeploymentSpec:"; bold=true)
+    print(io, " ", spec.name, " (id: ", spec.id, ")")
+    spec.default && print(io, " [default]")
+    print(io, "\n project: ", spec.project_id)
+    isempty(spec.description) || print(io, "\n description: ", spec.description)
+    print(io, "\n machine type: ", spec.machine_type)
+    print(io, "\n port: ", spec.port)
+    print(io, "\n authentication: ", spec.authentication)
+    print(io, "\n sysimage build: ", spec.sysimage_build)
+end
+
+"""
+    JuliaHub.project_deployment_specs([project::ProjectReference]; [auth::Authentication]) -> Vector{ProjectDeploymentSpec}
+
+Returns the list of deployment specifications ([`ProjectDeploymentSpec`](@ref) objects)
+of the project. If `project` is omitted, the project associated with the authentication
+object is used.
+
+Throws an [`InvalidRequestError`](@ref) if the project does not exist, if the user does not
+have owner or editor access to it, or if the project is not a deployable project.
+
+```jldoctest; setup = :(Main.projectauth_setup!()), teardown = :(Main.projectauth_teardown!())
+julia> JuliaHub.project_deployment_specs()
+2-element Vector{JuliaHub.ProjectDeploymentSpec}:
+ JuliaHub.ProjectDeploymentSpec(33, "Default")
+ JuliaHub.ProjectDeploymentSpec(96, "Large")
+```
+"""
+function project_deployment_specs(
+    project::Union{ProjectReference, Nothing}=nothing;
+    auth::Authentication=__auth__(),
+)
+    project_uuid = _project_uuid(auth, project)
+    return _project_deployment_specs(auth, project_uuid)
+end
+
+function _project_deployment_specs(
+    auth::Authentication, project::UUIDs.UUID
+)::Vector{ProjectDeploymentSpec}
+    _assert_projects_enabled(auth)
+    r = _restcall(auth, :GET, "api", "v1", "jobs", "project", string(project), "deploymentspec")
+    _check_project_deployment_response(r, project; msg="Unable to fetch deployment specifications")
+    specs, _ = _parse_response_json(r, Vector)
+    return ProjectDeploymentSpec[ProjectDeploymentSpec(spec) for spec in specs]
+end
+
+# The project deployment endpoints return a bare 404 if the project does not exist
+# (or the user does not have owner/editor access to it), and a 400 with a JSON
+# {"message": ...} for other client errors (e.g. project is not deployable).
+function _check_project_deployment_response(
+    r::_RESTResponse, project::UUIDs.UUID; msg::AbstractString
+)
+    r.status == 200 && return nothing
+    if r.status == 404
+        throw(
+            InvalidRequestError(
+                "$(msg): project '$(project)' does not exist, or you do not have access to it."
+            ),
+        )
+    elseif r.status == 400
+        message = try
+            json, _ = _parse_response_json(r, AbstractDict)
+            _get_json_or(json, "message", AbstractString, String(r.body))
+        catch
+            String(r.body)
+        end
+        throw(InvalidRequestError("$(msg) for project '$(project)': $(message)"))
+    end
+    _throw_invalidresponse(r; msg)
+end
+
+"""
+    JuliaHub.deploy_project(
+        [project::ProjectReference];
+        [spec::Union{ProjectDeploymentSpec, Integer, AbstractString}],
+        [auth::Authentication]
+    ) -> Job
+
+Starts a new deployment of the project, according to one of its deployment specifications,
+and returns the corresponding [`Job`](@ref) object. If `project` is omitted, the project
+associated with the authentication object is used.
+
+The deployment specification can be specified with `spec`, either as a
+[`ProjectDeploymentSpec`](@ref) object, its numeric ID, or its name (see
+[`project_deployment_specs`](@ref)). If `spec` is omitted, the project's default deployment
+specification is used. If the project has no default specification, but has exactly one
+specification, that one is used. Otherwise an [`InvalidRequestError`](@ref) is thrown.
+
+Also throws an [`InvalidRequestError`](@ref) if the project does not exist, if the user does
+not have owner or editor access to it, if the project is not a deployable project, or if the
+specified deployment specification does not exist.
+
+!!! note
+
+    JuliaHub bundles the project before queueing the deployment job, so it can take a little
+    while for the job to become visible. This function blocks until the job can be queried
+    (up to a few minutes), and throws a [`JuliaHubError`](@ref) with the job name if the job
+    does not show up in that time.
+
+```jldoctest; setup = :(Main.projectauth_setup!()), teardown = :(Main.projectauth_teardown!())
+julia> job = JuliaHub.deploy_project(; spec="Large")
+JuliaHub.Job: jr-xf4tslavut (Completed)
+ submitted: 2023-03-15T07:56:50.974+00:00
+ started:   2023-03-15T07:56:51.251+00:00
+ finished:  2023-03-15T07:56:59.000+00:00
+ files:
+  - code.jl (input; 3 bytes)
+  - code.jl (source; 3 bytes)
+  - Project.toml (project; 244 bytes)
+  - Manifest.toml (project; 9056 bytes)
+ outputs: "{}"
+```
+
+$(_DOCS_nondynamic_job_object_warning)
+"""
+function deploy_project(
+    project::Union{ProjectReference, Nothing}=nothing;
+    spec::Union{ProjectDeploymentSpec, Integer, AbstractString, Nothing}=nothing,
+    auth::Authentication=__auth__(),
+)
+    project_uuid = _project_uuid(auth, project)
+    _assert_projects_enabled(auth)
+    spec_id = _project_deployment_spec_id(auth, project_uuid, spec)
+    r = _restcall(
+        auth, :POST,
+        (
+            "api",
+            "v1",
+            "jobs",
+            "project",
+            string(project_uuid),
+            "deploymentspec",
+            string(spec_id),
+            "submit",
+        ),
+        nothing,
+    )
+    if r.status == 404
+        # The endpoint also returns a bare 404 if the specification does not exist
+        # (for a project the user does have access to).
+        throw(
+            InvalidRequestError(
+                "Unable to deploy project '$(project_uuid)': deployment specification $(spec_id) not found, or project does not exist."
+            ),
+        )
+    end
+    _check_project_deployment_response(r, project_uuid; msg="Unable to deploy project")
+    json, jsonstr = _parse_response_json(r, AbstractDict)
+    data = _get_json_or(json, "data", AbstractDict, nothing)
+    jobname = isnothing(data) ? nothing : _get_json_or(data, "job_name", AbstractString, nothing)
+    if isnothing(jobname)
+        throw(JuliaHubError("Invalid JSON returned by the server (missing job_name):\n$(jsonstr)"))
+    end
+    return _wait_for_deployment_job(auth, jobname)
+end
+
+# How long deploy_project waits for the newly submitted deployment job to become
+# queryable (in seconds). A Ref so that the tests can shorten it.
+const _DEPLOY_PROJECT_JOB_TIMEOUT = Base.RefValue(300.0)
+
+# Unlike the legacy submit_job endpoint, the project deployment submit endpoint returns
+# before the job is queryable: the server first bundles the project and only then queues
+# the job. So we need to poll for a bit for the job to show up.
+function _wait_for_deployment_job(auth::Authentication, jobname::AbstractString)::Job
+    deadline = time() + _DEPLOY_PROJECT_JOB_TIMEOUT[]
+    interval = 1.0
+    while true
+        j = job(jobname; throw=false, auth)
+        isnothing(j) || return j
+        if time() >= deadline
+            throw(
+                JuliaHubError(
+                    "Deployment job '$(jobname)' was submitted, but is not visible after $(_DEPLOY_PROJECT_JOB_TIMEOUT[]) seconds. Use JuliaHub.job(\"$(jobname)\") to look it up later."
+                ),
+            )
+        end
+        sleep(min(interval, max(deadline - time(), 0.0)))
+        interval = min(2 * interval, 10.0)
+    end
+end
+
+# Resolves the `spec` argument of deploy_project into a spec ID. The specification list
+# only gets fetched if we need it (i.e. for name lookups, or to determine the default spec).
+function _project_deployment_spec_id(
+    auth::Authentication, project::UUIDs.UUID,
+    spec::Union{ProjectDeploymentSpec, Integer, AbstractString, Nothing},
+)::Int
+    if isa(spec, ProjectDeploymentSpec)
+        spec.project_id == project || throw(
+            ArgumentError(
+                "Deployment specification '$(spec.name)' belongs to project '$(spec.project_id)', not '$(project)'"
+            ),
+        )
+        return spec.id
+    elseif isa(spec, Integer)
+        spec > 0 || throw(ArgumentError("Invalid deployment specification ID: $(spec)"))
+        return Int(spec)
+    end
+    specs = _project_deployment_specs(auth, project)
+    if isa(spec, AbstractString)
+        idx = findfirst(s -> s.name == spec, specs)
+        isnothing(idx) && throw(
+            InvalidRequestError(
+                "Project '$(project)' does not have a deployment specification named '$(spec)'. Available: $(join(map(s -> "'$(s.name)'", specs), ", "))"
+            ),
+        )
+        return specs[idx].id
+    end
+    # spec === nothing: fall back to the default specification, or the only specification
+    isempty(specs) && throw(
+        InvalidRequestError("Project '$(project)' does not have any deployment specifications.")
+    )
+    idx = findfirst(s -> s.default, specs)
+    isnothing(idx) || return specs[idx].id
+    length(specs) == 1 && return only(specs).id
+    throw(
+        InvalidRequestError(
+            "Project '$(project)' has no default deployment specification; pass `spec` explicitly. Available: $(join(map(s -> "'$(s.name)'", specs), ", "))"
+        ),
+    )
+end
