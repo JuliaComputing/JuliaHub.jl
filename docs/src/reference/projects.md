@@ -4,10 +4,11 @@ CurrentModule=JuliaHub
 
 # Projects
 
-These APIs allow you to interact with datasets that have been attached to projects.
+These APIs allow you to interact with JuliaHub projects: the datasets that have been attached to them, and project deployments.
 
 * [`project_datasets`](@ref) and [`project_dataset`](@ref) let you list and access datasets linked to a project
 * [`upload_project_dataset`](@ref) allows uploading new versions of project-linked datasets
+* [`project_deployment_specs`](@ref) and [`deploy_project`](@ref) let you list a deployable project's deployment specifications and start new deployments
 
 ## Automatic project authentication
 
@@ -37,6 +38,14 @@ project_datasets
 project_dataset
 upload_project_dataset
 ProjectReference
+```
+
+### Project deployments
+
+```@docs
+project_deployment_specs
+deploy_project
+ProjectDeploymentSpec
 ```
 
 ## Index
