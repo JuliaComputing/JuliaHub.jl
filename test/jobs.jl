@@ -631,6 +631,68 @@ end
     end
 end
 
+@testset "JuliaHub.Job compute resources" begin
+    job_json(; kwargs...) = Dict{String, Any}(
+        "jobname" => "jr-eezd3arpcj",
+        "outputs" => "",
+        "status" => "Running",
+        "inputs" => "{}",
+        "submittimestamp" => nothing,
+        "starttimestamp" => nothing,
+        "endtimestamp" => nothing,
+        (string(k) => v for (k, v) in kwargs)...,
+    )
+    # The server reports memory per vCPU; Job reports it per node.
+    let j = JuliaHub.Job(job_json(; cpu=4, memory=4.0, workers=2))
+        @test j.ncpu === 4
+        @test j.memory === 16
+        @test j.nnodes === 3
+        @test occursin("3 nodes × 4 vCPUs, 16 GB", sprint(show, MIME("text/plain"), j))
+    end
+    # Floating point node sizes (the job details endpoint), and `null` workers for a
+    # single-node job.
+    let j = JuliaHub.Job(job_json(; cpu=3.0, memory=16 / 3, workers=nothing))
+        @test j.ncpu === 3
+        @test j.memory === 16
+        @test j.nnodes === 1
+        @test occursin("1 node × 3 vCPUs, 16 GB", sprint(show, MIME("text/plain"), j))
+    end
+    let j = JuliaHub.Job(job_json(; cpu=8, memory=nothing))
+        @test j.ncpu === 8
+        @test j.memory === nothing
+        @test j.nnodes === 1
+    end
+    # Not reported by the server
+    for j in (JuliaHub.Job(job_json()), JuliaHub.Job(job_json(; cpu=nothing, workers=1)))
+        @test j.ncpu === nothing
+        @test j.memory === nothing
+        @test j.nnodes === nothing
+        @test !occursin("compute:", sprint(show, MIME("text/plain"), j))
+    end
+end
+
+@testset "JuliaHub.job_usage" begin
+    empty!(MOCK_JULIAHUB_STATE)
+    Mocking.apply(mocking_patch) do
+        MOCK_JULIAHUB_STATE[:job_usage] = (; jobs=(3, 50), vcpus=(96, 1000), gpus=(0, 10))
+        let usage = JuliaHub.job_usage()
+            @test usage isa JuliaHub.JobUsage
+            @test usage.jobs == JuliaHub.ResourceUsage(3, 50)
+            @test usage.vcpus == JuliaHub.ResourceUsage(96, 1000)
+            @test usage.gpus == JuliaHub.ResourceUsage(0, 10)
+            @test sprint(show, MIME("text/plain"), usage) == """
+            JuliaHub.JobUsage
+             jobs:  3 of 50
+             vCPUs: 96 of 1000
+             GPUs:  0 of 10"""
+        end
+        MOCK_JULIAHUB_STATE[:job_usage] = :unsupported
+        @test_throws JuliaHub.InvalidJuliaHubVersion JuliaHub.job_usage()
+        MOCK_JULIAHUB_STATE[:job_usage] = (; jobs=(3, 50), vcpus=(96, 1000))
+        @test_throws JuliaHub.JuliaHubError JuliaHub.job_usage()
+    end
+end
+
 @testset "JuliaHub.download_job_file" begin
     empty!(MOCK_JULIAHUB_STATE)
     Mocking.apply(mocking_patch) do
