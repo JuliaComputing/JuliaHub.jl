@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 * `JuliaHub.project_deployment_specs` and `JuliaHub.deploy_project` allow listing the deployment specifications of a deployable project, and starting a new project deployment, respectively. ([#180])
+* `JuliaHub.job_usage` returns your current compute usage (active jobs, and the vCPUs and GPUs allocated to them) together with your per-user compute limits, so that you can check whether a job fits before submitting it. It requires a JuliaHub instance that supports reporting compute usage. ([#181])
+* `Job` objects now have `ncpu`, `memory` and `nnodes` properties, describing the compute resources allocated to the job. Note that `memory` is the memory of each node, not the per-vCPU value that the JuliaHub job APIs report. ([#181])
 
 ## Version [v0.1.19] - 2026-09-18
 
@@ -277,3 +279,4 @@ Initial package release.
 [#173]: https://github.com/JuliaComputing/JuliaHub.jl/issues/173
 [#174]: https://github.com/JuliaComputing/JuliaHub.jl/issues/174
 [#180]: https://github.com/JuliaComputing/JuliaHub.jl/issues/180
+[#181]: https://github.com/JuliaComputing/JuliaHub.jl/issues/181

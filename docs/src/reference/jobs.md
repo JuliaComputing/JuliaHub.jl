@@ -54,6 +54,14 @@ In most cases, your requests to the job also need to be authenticated (see also 
 
 See also: [the guide on submitting batch jobs with open ports](@ref jobs-batch-expose-port), [`expose` argument for `JuliaHub.submit_job`](@ref JuliaHub.submit_job), [`JuliaHub.request`](@ref)
 
+## [Compute usage and limits](@id jobs-apis-usage)
+
+JuliaHub administrators can limit how many jobs you can have active at any one time, and how many vCPUs and GPUs those jobs can use in total.
+A job submission that would exceed any of these limits is rejected.
+[`JuliaHub.job_usage`](@ref) returns your current usage and your limits, e.g. to check whether a job fits before submitting it.
+
+The compute resources allocated to an individual job are available via the `ncpu`, `memory`, and `nnodes` properties of the [`Job`](@ref) object.
+
 ## Reference
 
 ```@docs
@@ -78,6 +86,9 @@ JuliaHub.job_file
 JuliaHub.download_job_file
 JuliaHub.Job
 JuliaHub.JobStatus
+JuliaHub.job_usage
+JuliaHub.JobUsage
+JuliaHub.ResourceUsage
 JuliaHub.JobFile
 JuliaHub.FileHash
 JuliaHub.request
