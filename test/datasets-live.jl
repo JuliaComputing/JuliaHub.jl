@@ -215,12 +215,14 @@ try
     # License updates
     JuliaHub.update_dataset(dataset.name; auth, license="MIT")
     dataset = JuliaHub.dataset(blobname; auth)
-    @test dataset._json["license"] == Dict{String, Any}(
-        "name" => "MIT License",
-        "spdx_id" => "MIT",
-        "text" => nothing,
-        "url" => "https://opensource.org/licenses/MIT",
-    )
+    # The URL comes from the SPDX license list the server ships, and SPDX changes
+    # it between list releases, so only the stable fields are compared.
+    let license = dataset._json["license"]
+        @test license["name"] == "MIT License"
+        @test license["spdx_id"] == "MIT"
+        @test license["text"] === nothing
+        @test license["url"] isa AbstractString && !isempty(license["url"])
+    end
     JuliaHub.update_dataset(
         dataset.name; auth, license=(:text, "hello license my old friend")
     )
