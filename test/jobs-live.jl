@@ -31,6 +31,27 @@ function submit_test_job(args...; alias::AbstractString, kwargs...)
     end
 end
 
+# The manifest to send with a single-manifest submit (`JuliaHub.script(; manifest)`) from
+# a jobenv. The job runs on the instance's default image, and a jobenv carries
+# `Manifest-vX.Y.toml` files for the Julia versions its `Manifest.toml` does not load on
+# (e.g. it lists MbedTLS_jll, which is not a stdlib from Julia 1.12 on). Use the one for
+# the default image's Julia, read from its "Julia X.Y" name, else `Manifest.toml`.
+# Whole-directory uploads (`appbundle`) don't need this: they ship every manifest, and
+# Pkg in the job picks the matching one.
+function jobenv_manifest(dir::AbstractString; auth)
+    image = try
+        JuliaHub.batchimage(; throw=false, auth)
+    catch e
+        @warn "Could not determine the default batch image; using Manifest.toml" exception = e
+        nothing
+    end
+    m = isnothing(image) ? nothing : match(r"Julia (\d+\.\d+)", image.image)
+    versioned = isnothing(m) ? nothing : joinpath(dir, "Manifest-v$(m[1]).toml")
+    manifest =
+        isnothing(versioned) || !isfile(versioned) ? joinpath(dir, "Manifest.toml") : versioned
+    return read(manifest, String)
+end
+
 jobs = JuliaHub.jobs(; limit=HIGH_JOB_LIMIT, auth=auth)
 num_jobs_prev = length(jobs)
 previous_last_job = nothing
@@ -216,7 +237,7 @@ end
         JuliaHub.script(;
             code=read(joinpath(script_path, "script.jl"), String),
             project=read(joinpath(script_path, "Project.toml"), String),
-            manifest=read(joinpath(script_path, "Manifest.toml"), String),
+            manifest=jobenv_manifest(script_path; auth),
         );
         nnodes=3,
         auth, alias="distributed",
@@ -238,7 +259,7 @@ end
         JuliaHub.script(;
             code=read(joinpath(script_path, "script.jl"), String),
             project=read(joinpath(script_path, "Project.toml"), String),
-            manifest=read(joinpath(script_path, "Manifest.toml"), String),
+            manifest=jobenv_manifest(script_path; auth),
         );
         ncpu=2, nnodes=3, process_per_node=false,
         env=Dict("FOO" => "bar"),
