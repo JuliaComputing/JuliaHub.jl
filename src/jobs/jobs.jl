@@ -201,6 +201,14 @@ Represents a single job submitted to JuliaHub. Objects have the following proper
   output files of the job (see: [`job_files`](@ref), [`job_file`](@ref), [`download_job_file`](@ref)).
 * `hostname :: Union{String, Nothing}`: for jobs that expose a port over HTTP, this will be set to the
   hostname of the job (`nothing` otherwise; see: [the relevant section in the manual](@ref jobs-batch-expose-port))
+* `ncpu :: Union{Int, Nothing}`: the number of vCPUs of each node the job runs on
+* `memory :: Union{Int, Nothing}`: the memory of each node the job runs on, in GB
+* `nnodes :: Union{Int, Nothing}`: the number of nodes allocated to the job (the main process node
+  plus any worker nodes); the job's total vCPUs are `ncpu * nnodes`
+
+The compute resource properties (`ncpu`, `memory`, `nnodes`) are `nothing` if the JuliaHub instance
+does not report them for the job. See also [`job_usage`](@ref) to check your current total usage
+against your compute limits.
 
 See also: [`job`](@ref), [`jobs`](@ref).
 
@@ -216,6 +224,9 @@ struct Job
     results::String
     files::Vector{JobFile}
     hostname::Union{String, Nothing}
+    ncpu::Union{Int, Nothing}
+    memory::Union{Int, Nothing}
+    nnodes::Union{Int, Nothing}
     _timestamp_submit::Union{String, Nothing}
     _timestamp_start::Union{String, Nothing}
     _timestamp_end::Union{String, Nothing}
@@ -264,6 +275,7 @@ struct Job
                 end
             end
         end
+        ncpu, memory, nnodes = _job_resources(j)
         return new(
             jobname,
             _get_json_or(j, "jobname_alias", Union{String, Nothing}, nothing),
@@ -272,6 +284,9 @@ struct Job
             outputs,
             haskey(j, "files") ? JobFile.(jobname, j["files"]; var) : JobFile[],
             hostname,
+            ncpu,
+            memory,
+            nnodes,
             # Under some circumstances, submittimestamp can also be nothing, even though that is
             # weird.
             _json_get(j, "submittimestamp", Union{String, Nothing}; var), # TODO: drop Nothing?
@@ -280,6 +295,22 @@ struct Job
             j,
         )
     end
+end
+
+# The job listing and job details endpoints report the node's vCPUs as `cpu`, its memory
+# *per vCPU* (in GB) as `memory`, and the number of nodes beyond the main one as `workers`
+# (`null` for a single-node job). We report the memory per node instead, which matches how
+# node specs are presented everywhere else (e.g. `NodeSpec`, `nodespec`).
+function _job_resources(j::AbstractDict)
+    cpu = get(j, "cpu", nothing)
+    memory_per_cpu = get(j, "memory", nothing)
+    workers = get(j, "workers", nothing)
+    if !(cpu isa Real) || !(workers isa Union{Integer, Nothing})
+        return nothing, nothing, nothing
+    end
+    ncpu = round(Int, cpu)
+    memory = memory_per_cpu isa Real ? round(Int, cpu * memory_per_cpu) : nothing
+    return ncpu, memory, something(workers, 0) + 1
 end
 
 Base.show(io::IO, job::Job) = print(io, "JuliaHub.job(\"", job.id, "\")")
@@ -297,6 +328,11 @@ function Base.show(io::IO, ::MIME"text/plain", job::Job)
     isnothing(job._timestamp_start) || print(io, '\n', " started:   ", job._timestamp_start)
     isnothing(job._timestamp_end) || print(io, '\n', " finished:  ", job._timestamp_end)
     isnothing(job.hostname) || print(io, '\n', " hostname:  ", job.hostname)
+    if !isnothing(job.ncpu)
+        print(io, '\n', " compute:   ", job.nnodes, job.nnodes == 1 ? " node" : " nodes", " × ")
+        print(io, job.ncpu, " vCPUs")
+        isnothing(job.memory) || print(io, ", ", job.memory, " GB")
+    end
     # List of job files:
     if !isempty(job.files)
         print(io, '\n', " files: ")
@@ -619,4 +655,104 @@ function extend_job(jobname::AbstractString, extension::Limit; auth::Authenticat
         throw(InvalidRequestError("$(jobname) does not exist"))
     end
     _throw_invalidresponse(r)
+end
+
+"""
+    struct ResourceUsage
+
+Current usage of one compute resource, and the limit on it. Objects have the following properties:
+
+* `used :: Int`: how much of the resource is in use by your active (submitted or running) jobs
+* `limit :: Int`: the maximum that may be in use at any one time
+
+See also: [`job_usage`](@ref), [`JobUsage`](@ref).
+
+$(_DOCS_no_constructors_admonition)
+"""
+struct ResourceUsage
+    used::Int
+    limit::Int
+end
+
+"""
+    struct JobUsage
+
+Your current compute usage against your per-user compute limits, as returned by
+[`job_usage`](@ref). Objects have the following properties, each a [`ResourceUsage`](@ref):
+
+* `jobs`: the number of active jobs
+* `vcpus`: the number of vCPUs allocated to active jobs (vCPUs per node times the number of nodes,
+  summed over the jobs; see the `ncpu` and `nnodes` properties of [`Job`](@ref))
+* `gpus`: the number of GPUs allocated to active jobs (counted like `vcpus`)
+
+A job counts as active from the moment it is submitted until it finishes. JuliaHub rejects a job
+submission that would take any `used` value above its `limit`.
+
+$(_DOCS_no_constructors_admonition)
+"""
+struct JobUsage
+    jobs::ResourceUsage
+    vcpus::ResourceUsage
+    gpus::ResourceUsage
+end
+
+function Base.show(io::IO, ::MIME"text/plain", usage::JobUsage)
+    printstyled(io, "JuliaHub.JobUsage"; bold=true)
+    for (name, u) in (("jobs", usage.jobs), ("vCPUs", usage.vcpus), ("GPUs", usage.gpus))
+        print(io, '\n', " ", rpad(name * ":", 7), u.used, " of ", u.limit)
+    end
+end
+
+"""
+    JuliaHub.job_usage(; [auth::Authentication]) -> JobUsage
+
+Returns your current compute usage, and your per-user compute limits: how many jobs you have
+active, and how many vCPUs and GPUs are allocated to them. This can be used to check, before
+submitting a job, whether it fits within your limits. The limits are set by the JuliaHub
+administrators.
+
+```jldoctest
+julia> usage = JuliaHub.job_usage()
+JuliaHub.JobUsage
+ jobs:  3 of 50
+ vCPUs: 96 of 1000
+ GPUs:  0 of 10
+
+julia> usage.vcpus.limit - usage.vcpus.used
+904
+```
+
+!!! compat "JuliaHub compatibility"
+
+    This requires a JuliaHub instance that supports reporting compute usage; older
+    instances throw an [`InvalidJuliaHubVersion`](@ref) exception.
+"""
+function job_usage(; auth::Authentication=__auth__())
+    r = _restcall(auth, :GET, "api", "v1", "jobs", "usage")
+    if r.status == 200
+        json, _ = _parse_response_json(r, AbstractDict)
+        return JobUsage(
+            _resource_usage(json, "jobs"),
+            _resource_usage(json, "vcpus"),
+            _resource_usage(json, "gpus"),
+        )
+    elseif r.status == 404
+        # Instances without the endpoint route the request to GET /api/v1/jobs/{job_name}
+        # (as a job called 'usage'), which responds with a 404.
+        throw(
+            InvalidJuliaHubVersion(
+                "This JuliaHub instance ($(auth.server)) does not support reporting compute usage."
+            ),
+        )
+    end
+    _throw_invalidresponse(r)
+end
+
+function _resource_usage(json::AbstractDict, key::AbstractString)
+    var = "jobs/usage"
+    usage = _json_get(json, key, AbstractDict; var)
+    return ResourceUsage(
+        _json_get(usage, "used", Integer; var),
+        _json_get(usage, "limit", Integer; var),
+    )
 end

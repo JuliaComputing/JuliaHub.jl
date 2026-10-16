@@ -423,6 +423,20 @@ function _restcall_mocked(method, url, headers, payload; query)
             ),
             "success" => true,
         ) |> jsonresponse(200)
+    elseif (method == :GET) && endswith(url, "api/v1/jobs/usage")
+        # MOCK_JULIAHUB_STATE[:job_usage] can be set to a (; jobs, vcpus, gpus) named tuple of
+        # (used, limit) pairs, or to :unsupported to mock an instance without the endpoint.
+        usage = get(
+            MOCK_JULIAHUB_STATE, :job_usage, (; jobs=(3, 50), vcpus=(96, 1000), gpus=(0, 10))
+        )
+        if usage === :unsupported
+            Dict("message" => "Not found") |> jsonresponse(404)
+        else
+            Dict(
+                string(k) => Dict("used" => used, "limit" => limit)
+                for (k, (used, limit)) in pairs(usage)
+            ) |> jsonresponse(200)
+        end
     elseif (method == :GET) && occursin(GET_JOB_REGEX, url)
         jobname = match(GET_JOB_REGEX, url)[1]
         idx = findfirst(isequal(jobname), job_names)
