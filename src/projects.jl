@@ -250,14 +250,15 @@ function upload_project_dataset(
         throw(JuliaHubError("Data upload failed", e, catch_backtrace()))
     end
     # Finalize the upload
-    try
-        # _close_dataset_version will also throw on non-200 responses
-        r = _close_dataset_version(auth, ds.uuid, upload_config; local_path)
-        if r.status != 200
-        end
+    r = try
+        _close_dataset_version(auth, ds.uuid, upload_config; local_path)
     catch e
         throw(JuliaHubError("Finalizing upload failed", e, catch_backtrace()))
     end
+    # A non-200 response means that the new version did not get finalized. This is checked
+    # outside of the try block, so that 401/403 responses get reported as InvalidAuthentication
+    # and PermissionError, like they are for the open request.
+    r.status == 200 || _throw_invalidresponse(r; msg="Finalizing upload failed.")
     # If everything was successful, we'll return an updated DataSet object.
     return project_dataset(ds; project, auth)
 end
@@ -299,16 +300,16 @@ function _close_dataset_version(
         "upload_id" => upload_config["upload_id"],
         "action" => "close",
     )
-    if isnothing(local_path)
-        body["filename"] = local_path
-    end
-    return _restcall(
+    isnothing(local_path) || push!(body, "filename" => local_path)
+    r = _restcall(
         auth,
         :POST,
         ("datasets", string(dataset_uuid), "versions"),
         JSON.json(body);
         headers=["Content-Type" => "application/json"],
     )
+    _check_internal_error(r; var="POST /datasets/{uuid}/versions (close)")
+    return r
 end
 
 """

@@ -242,6 +242,7 @@ end
         @test dataset.project isa JuliaHub.DatasetProjectLink
         @test dataset.project.uuid === project_auth_2.project_id
         @test dataset.project.is_writable === false
+        @test MOCK_JULIAHUB_STATE[:dataset_version_close_payload]["filename"] == @__FILE__
         @test JuliaHub.upload_project_dataset(dataset_noproject, @__FILE__) isa JuliaHub.Dataset
 
         MOCK_JULIAHUB_STATE[:internal_error_200] = true
@@ -249,6 +250,26 @@ end
             dataset_noproject, @__FILE__
         )
         MOCK_JULIAHUB_STATE[:internal_error_200] = false
+
+        MOCK_JULIAHUB_STATE[:dataset_version_close_status] = 504
+        @test_throws JuliaHub.JuliaHubError JuliaHub.upload_project_dataset(
+            dataset_noproject, @__FILE__
+        )
+        MOCK_JULIAHUB_STATE[:dataset_version_close_status] = 401
+        @test_throws JuliaHub.InvalidAuthentication JuliaHub.upload_project_dataset(
+            dataset_noproject, @__FILE__
+        )
+        MOCK_JULIAHUB_STATE[:dataset_version_close_status] = 403
+        @test_throws JuliaHub.PermissionError JuliaHub.upload_project_dataset(
+            dataset_noproject, @__FILE__
+        )
+        MOCK_JULIAHUB_STATE[:dataset_version_close_status] = 200
+        MOCK_JULIAHUB_STATE[:dataset_version_close_internal_error] = true
+        @test_throws JuliaHub.JuliaHubError JuliaHub.upload_project_dataset(
+            dataset_noproject, @__FILE__
+        )
+        MOCK_JULIAHUB_STATE[:dataset_version_close_internal_error] = false
+        @test JuliaHub.upload_project_dataset(dataset_noproject, @__FILE__) isa JuliaHub.Dataset
     end
 end
 

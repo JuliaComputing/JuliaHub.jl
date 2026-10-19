@@ -703,12 +703,15 @@ function upload_dataset end
         throw(JuliaHubError("Data upload failed", e, catch_backtrace()))
     end
     # Finalize the upload
-    try
-        # _close_dataset_version will also throw on non-200 responses
+    r = try
         _close_dataset_version(auth, dataset_name, upload_config; local_path)
     catch e
         throw(JuliaHubError("Finalizing upload failed", e, catch_backtrace()))
     end
+    # A non-200 response means that the new version did not get finalized. This is checked
+    # outside of the try block, so that 401/403 responses get reported as InvalidAuthentication
+    # and PermissionError, like they are for the open request.
+    r.status == 200 || _throw_invalidresponse(r; msg="Finalizing upload failed.")
     # Finally, update the dataset metadata with the new metadata fields.
     if !all(ismissing.((description, tags, visibility, license, groups)))
         update_dataset(
@@ -859,13 +862,15 @@ function _close_dataset_version(
         "action" => "close",
     )
     isnothing(local_path) || push!(body, "filename" => local_path)
-    _restcall(
+    r = _restcall(
         auth,
         :POST,
         ("user", "datasets", name, "versions"),
         JSON.json(body);
         headers=["Content-Type" => "application/json"],
     )
+    _check_internal_error(r; var="POST /user/datasets/{name}/versions (close)")
+    return r
 end
 
 function _write_rclone_config(

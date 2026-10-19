@@ -594,6 +594,14 @@ function _restcall_mocked(method, url, headers, payload; query)
             end
         else
             @assert payload["action"] == "close"
+            if get(MOCK_JULIAHUB_STATE, :dataset_version_close_internal_error, false)
+                return internal_error_200_response()
+            end
+            MOCK_JULIAHUB_STATE[:dataset_version_close_payload] = payload
+            close_status = get(MOCK_JULIAHUB_STATE, :dataset_version_close_status, 200)
+            if close_status != 200
+                return JuliaHub._RESTResponse(close_status, "Mock close failure ($close_status)")
+            end
             Dict{String, Any}(
                 "size_bytes" => 8124,
                 "dataset_id" => "c1488c3f-0910-4f73-9c40-14f3c7a8696b",

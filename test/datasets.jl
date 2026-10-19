@@ -444,6 +444,29 @@ end
             "example-dataset-200-error", @__FILE__
         )
         MOCK_JULIAHUB_STATE[:internal_error_200] = false
+
+        # A non-200 response when finalizing (closing) the new version must not be
+        # silently ignored.
+        MOCK_JULIAHUB_STATE[:dataset_version_close_status] = 504
+        @test_throws JuliaHub.JuliaHubError JuliaHub.upload_dataset(
+            "example-dataset-close-error", @__FILE__
+        )
+        MOCK_JULIAHUB_STATE[:dataset_version_close_status] = 401
+        @test_throws JuliaHub.InvalidAuthentication JuliaHub.upload_dataset(
+            "example-dataset-close-error", @__FILE__; update=true
+        )
+        MOCK_JULIAHUB_STATE[:dataset_version_close_status] = 403
+        @test_throws JuliaHub.PermissionError JuliaHub.upload_dataset(
+            "example-dataset-close-error", @__FILE__; update=true
+        )
+        MOCK_JULIAHUB_STATE[:dataset_version_close_status] = 200
+        # Same for a legacy internal error reported over a 200 by the close call.
+        MOCK_JULIAHUB_STATE[:dataset_version_close_internal_error] = true
+        @test_throws JuliaHub.JuliaHubError JuliaHub.upload_dataset(
+            "example-dataset-close-internal-error", @__FILE__
+        )
+        MOCK_JULIAHUB_STATE[:dataset_version_close_internal_error] = false
+        @test JuliaHub.upload_dataset("example-dataset-close-ok", @__FILE__) isa JuliaHub.Dataset
     end
     empty!(MOCK_JULIAHUB_STATE)
 end
