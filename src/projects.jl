@@ -298,9 +298,7 @@ function _close_dataset_version(
         "upload_id" => upload_config["upload_id"],
         "action" => "close",
     )
-    if isnothing(local_path)
-        body["filename"] = local_path
-    end
+    isnothing(local_path) || push!(body, "filename" => local_path)
     return _restcall(
         auth,
         :POST,
