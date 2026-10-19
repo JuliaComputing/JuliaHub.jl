@@ -213,6 +213,7 @@ end
             :job_logs, :job_logs_buffered, :job_logs_newer!, :job_logs_older!,
             :AbstractJobLogsBuffer,
             :hasfirst, :haslast, :jobs, :kill_job,
+            :job_usage, :JobUsage, :ResourceUsage,
             :nodespec, :nodespecs, :reauthenticate!, :submit_job,
             :update_dataset, :upload_dataset, :wait_job,
             :request,
