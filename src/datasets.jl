@@ -704,8 +704,9 @@ function upload_dataset end
     end
     # Finalize the upload
     try
-        # _close_dataset_version will also throw on non-200 responses
-        _close_dataset_version(auth, dataset_name, upload_config; local_path)
+        # A non-200 response means that the new version did not get finalized.
+        r = _close_dataset_version(auth, dataset_name, upload_config; local_path)
+        r.status == 200 || _throw_invalidresponse(r)
     catch e
         throw(JuliaHubError("Finalizing upload failed", e, catch_backtrace()))
     end

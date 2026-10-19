@@ -249,6 +249,13 @@ end
             dataset_noproject, @__FILE__
         )
         MOCK_JULIAHUB_STATE[:internal_error_200] = false
+
+        MOCK_JULIAHUB_STATE[:dataset_version_close_status] = 504
+        @test_throws JuliaHub.JuliaHubError JuliaHub.upload_project_dataset(
+            dataset_noproject, @__FILE__
+        )
+        MOCK_JULIAHUB_STATE[:dataset_version_close_status] = 200
+        @test JuliaHub.upload_project_dataset(dataset_noproject, @__FILE__) isa JuliaHub.Dataset
     end
 end
 

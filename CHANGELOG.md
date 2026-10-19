@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 * `JuliaHub.project_deployment_specs` and `JuliaHub.deploy_project` allow listing the deployment specifications of a deployable project, and starting a new project deployment, respectively. ([#180])
 
+### Fixed
+
+* `upload_dataset` and `upload_project_dataset` now throw a `JuliaHubError` if finalizing the upload (closing the new dataset version) fails with a non-200 response. Previously the failure was silently ignored, and the upload appeared to succeed even though the new version was never finalized.
+
 ## Version [v0.1.19] - 2026-09-18
 
 ### Added
