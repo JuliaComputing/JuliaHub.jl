@@ -452,6 +452,12 @@ end
             "example-dataset-close-error", @__FILE__
         )
         MOCK_JULIAHUB_STATE[:dataset_version_close_status] = 200
+        # Same for a legacy internal error reported over a 200 by the close call.
+        MOCK_JULIAHUB_STATE[:dataset_version_close_internal_error] = true
+        @test_throws JuliaHub.JuliaHubError JuliaHub.upload_dataset(
+            "example-dataset-close-internal-error", @__FILE__
+        )
+        MOCK_JULIAHUB_STATE[:dataset_version_close_internal_error] = false
         @test JuliaHub.upload_dataset("example-dataset-close-ok", @__FILE__) isa JuliaHub.Dataset
     end
     empty!(MOCK_JULIAHUB_STATE)

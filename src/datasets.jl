@@ -860,13 +860,15 @@ function _close_dataset_version(
         "action" => "close",
     )
     isnothing(local_path) || push!(body, "filename" => local_path)
-    _restcall(
+    r = _restcall(
         auth,
         :POST,
         ("user", "datasets", name, "versions"),
         JSON.json(body);
         headers=["Content-Type" => "application/json"],
     )
+    _check_internal_error(r; var="POST /user/datasets/{name}/versions (close)")
+    return r
 end
 
 function _write_rclone_config(

@@ -10,7 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
-* `upload_dataset` and `upload_project_dataset` now throw a `JuliaHubError` if finalizing the upload (closing the new dataset version) fails with a non-200 response. Previously the failure was silently ignored, and the upload appeared to succeed even though the new version was never finalized.
+* `upload_dataset` and `upload_project_dataset` now throw a `JuliaHubError` if finalizing the upload (closing the new dataset version) fails with a non-200 response, or with an internal error reported over a 200 response. Previously the failure was silently ignored, and the upload appeared to succeed even though the new version was never finalized.
 * `upload_project_dataset` now sends the uploaded file's name when finalizing the upload, as `upload_dataset` already did. An inverted condition meant it was only sent when there was no file name.
 
 ## Version [v0.1.19] - 2026-09-18
