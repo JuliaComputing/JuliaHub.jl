@@ -451,6 +451,14 @@ end
         @test_throws JuliaHub.JuliaHubError JuliaHub.upload_dataset(
             "example-dataset-close-error", @__FILE__
         )
+        MOCK_JULIAHUB_STATE[:dataset_version_close_status] = 401
+        @test_throws JuliaHub.InvalidAuthentication JuliaHub.upload_dataset(
+            "example-dataset-close-error", @__FILE__; update=true
+        )
+        MOCK_JULIAHUB_STATE[:dataset_version_close_status] = 403
+        @test_throws JuliaHub.PermissionError JuliaHub.upload_dataset(
+            "example-dataset-close-error", @__FILE__; update=true
+        )
         MOCK_JULIAHUB_STATE[:dataset_version_close_status] = 200
         # Same for a legacy internal error reported over a 200 by the close call.
         MOCK_JULIAHUB_STATE[:dataset_version_close_internal_error] = true

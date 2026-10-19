@@ -255,6 +255,14 @@ end
         @test_throws JuliaHub.JuliaHubError JuliaHub.upload_project_dataset(
             dataset_noproject, @__FILE__
         )
+        MOCK_JULIAHUB_STATE[:dataset_version_close_status] = 401
+        @test_throws JuliaHub.InvalidAuthentication JuliaHub.upload_project_dataset(
+            dataset_noproject, @__FILE__
+        )
+        MOCK_JULIAHUB_STATE[:dataset_version_close_status] = 403
+        @test_throws JuliaHub.PermissionError JuliaHub.upload_project_dataset(
+            dataset_noproject, @__FILE__
+        )
         MOCK_JULIAHUB_STATE[:dataset_version_close_status] = 200
         MOCK_JULIAHUB_STATE[:dataset_version_close_internal_error] = true
         @test_throws JuliaHub.JuliaHubError JuliaHub.upload_project_dataset(

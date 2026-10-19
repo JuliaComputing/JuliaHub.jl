@@ -250,13 +250,15 @@ function upload_project_dataset(
         throw(JuliaHubError("Data upload failed", e, catch_backtrace()))
     end
     # Finalize the upload
-    try
-        # A non-200 response means that the new version did not get finalized.
-        r = _close_dataset_version(auth, ds.uuid, upload_config; local_path)
-        r.status == 200 || _throw_invalidresponse(r)
+    r = try
+        _close_dataset_version(auth, ds.uuid, upload_config; local_path)
     catch e
         throw(JuliaHubError("Finalizing upload failed", e, catch_backtrace()))
     end
+    # A non-200 response means that the new version did not get finalized. This is checked
+    # outside of the try block, so that 401/403 responses get reported as InvalidAuthentication
+    # and PermissionError, like they are for the open request.
+    r.status == 200 || _throw_invalidresponse(r; msg="Finalizing upload failed.")
     # If everything was successful, we'll return an updated DataSet object.
     return project_dataset(ds; project, auth)
 end
