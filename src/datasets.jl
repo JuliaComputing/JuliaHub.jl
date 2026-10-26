@@ -826,6 +826,9 @@ function _upload_dataset(upload_config, local_path; progress::Bool)
             #   issue rclone/rclone#8975) that 403 propagates as a fatal NewFs
             #   error instead of being swallowed; older versions silently
             #   treated it as "destination is a directory" and proceeded.
+            # --multi-thread-streams=0 - avoid rclone's generic large-file copy
+            #   path, which needs HeadObject metadata for size verification.
+            #   The S3 backend's multipart uploader still uploads parts concurrently.
             # --no-check-dest - don't check whether the file exists before uploading
             #
             # Additional useful options not included here:
@@ -835,6 +838,7 @@ function _upload_dataset(upload_config, local_path; progress::Bool)
                 "--s3-no-check-bucket",
                 "--s3-no-head",
                 "--s3-no-head-object",
+                "--multi-thread-streams=0",
                 "--no-check-dest",
             ]
 
