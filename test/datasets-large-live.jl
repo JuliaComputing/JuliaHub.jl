@@ -3,8 +3,9 @@ dataset_name = "JuliaHubLargeTest_$(TESTID)_Blob"
 try
     lf_ds, lf_filesize = mktemp() do path, io
         chunk = ones(UInt8, 1024^2)
-        # 210 MB forces multipart upload in rclone
-        for i = 1:210
+        # 300 MiB is above rclone's 256 MiB --multi-thread-cutoff, so this
+        # covers the large-file path as well as multipart upload
+        for i = 1:300
             write(io, chunk)
         end
         close(io)
