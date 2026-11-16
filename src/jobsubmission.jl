@@ -31,6 +31,7 @@ struct _JobSubmission1
     node_class::String
     cpu::String
     nworkers::String
+    worker_pool_type::Union{String, Nothing}
     elastic::Union{String, Nothing}
     min_workers_required::Union{String, Nothing}
     isthreaded::String
@@ -67,6 +68,7 @@ struct _JobSubmission1
         node_class::AbstractString,
         cpu::Integer,
         nworkers::Integer,
+        worker_pool_type::Union{AbstractString, Nothing}=nothing,
         elastic::Union{Bool, Nothing}=nothing,
         min_workers_required::Union{Int, Nothing}=nothing,
         limit_type::AbstractString,
@@ -147,7 +149,8 @@ struct _JobSubmission1
             string(sysimage_build), sysimage_manifest_sha,
             # Compute configuration
             node_class, string(cpu),
-            string(nworkers), _string_or_nothing(elastic), _string_or_nothing(min_workers_required),
+            string(nworkers), worker_pool_type, _string_or_nothing(elastic),
+            _string_or_nothing(min_workers_required),
             string(isthreaded),
             limit_type, limit_value, limit_value,
         )
@@ -367,6 +370,7 @@ _submit_preprocess(app::AbstractJobConfig; auth::Authentication) = app
 # These values are re-used in submit_job
 const _DEFAULT_ComputeConfig_nnodes = 1
 const _DEFAULT_ComputeConfig_elastic = false
+const _DEFAULT_ComputeConfig_mpi = false
 const _DEFAULT_ComputeConfig_process_per_node = true
 
 """
@@ -385,6 +389,7 @@ JuliaHub.ComputeConfig(
     nnodes::Integer = 1,
     process_per_node::Bool = true,
     elastic::Bool = false,
+    mpi::Bool = false,
 )
 ```
 
@@ -403,6 +408,9 @@ JuliaHub.ComputeConfig(
 
 * `elastic::Bool = false`: if set, the job will be started in an elastic cluster mode. In this case,
   a minimum number of `nnodes` must not be passed.
+
+* `mpi::Bool = false`: if set, the job will be started with multi-node MPI support. MPI jobs cannot
+  use elastic cluster mode.
 """
 struct ComputeConfig
     node::NodeSpec
@@ -410,13 +418,17 @@ struct ComputeConfig
     nnodes_min::Union{Int, Nothing}
     nnodes_max::Int
     elastic::Bool
+    mpi::Bool
 
     function ComputeConfig(
         node::NodeSpec;
         nnodes::Union{Integer, Tuple{Integer, Integer}}=_DEFAULT_ComputeConfig_nnodes,
         elastic::Bool=_DEFAULT_ComputeConfig_elastic,
+        mpi::Bool=_DEFAULT_ComputeConfig_mpi,
         process_per_node::Bool=_DEFAULT_ComputeConfig_process_per_node,
     )
+        mpi && elastic &&
+            throw(ArgumentError("'mpi=true' and 'elastic=true' cannot be specified together"))
         nnodes_min, nnodes_max = if isa(nnodes, Integer)
             nnodes >= 1 || throw(ArgumentError("Invalid 'nnodes' value '$nnodes'"))
             nothing, nnodes
@@ -431,7 +443,7 @@ struct ComputeConfig
             end
             nnodes
         end
-        new(node, process_per_node, nnodes_min, nnodes_max, elastic)
+        new(node, process_per_node, nnodes_min, nnodes_max, elastic, mpi)
     end
 end
 
@@ -445,7 +457,8 @@ function Base.show(io::IO, c::ComputeConfig)
     end
     print(io, ", ")
     print(io, "process_per_node = ", c.process_per_node, ", ")
-    print(io, "elastic = ", c.elastic)
+    print(io, "elastic = ", c.elastic, ", ")
+    print(io, "mpi = ", c.mpi)
     print(io, ")")
 end
 
@@ -1274,6 +1287,7 @@ end
         ncpu::Integer = 1, ngpu::Integer = 0, memory::Integer = 1,
         nnodes::Integer = 1, minimum_nnodes::Union{Integer,Nothing} = nothing,
         elastic::Bool = false,
+        mpi::Bool = false,
         process_per_node::Bool = true,
         # Runtime configuration keyword arguments
         [alias::AbstractString], [env], [expose::Union{Integer, JobRemoteAccess}],
@@ -1295,8 +1309,8 @@ via keyword arguments:
   resources than specified by the arguments (it corresponds to the `exactmatch = false` case of
   [`nodespec`](@ref)).
 
-* `nnodes`, `minimum_nnodes`, `process_per_node`, and `elastic` specify the corresponding arguments
-  in [`ComputeConfig`](@ref).
+* `nnodes`, `minimum_nnodes`, `process_per_node`, `elastic`, and `mpi` specify the corresponding
+  arguments in [`ComputeConfig`](@ref).
 
 **Runtime configuration.** These are used to set the [Runtime configuration](@ref jobs-runtime-config)
 of the job.
@@ -1364,13 +1378,14 @@ function submit_job(
     memory::Integer=_DEFAULT_NodeSpec_memory,
     nnodes::Union{Integer, Tuple{Integer, Integer}}=_DEFAULT_ComputeConfig_nnodes,
     elastic::Bool=_DEFAULT_ComputeConfig_elastic,
+    mpi::Bool=_DEFAULT_ComputeConfig_mpi,
     process_per_node::Bool=_DEFAULT_ComputeConfig_process_per_node,
     # General submit_job arguments
     auth::Authentication=__auth__(),
     kwargs...,
 )
     n = nodespec(; ncpu, ngpu, memory, auth)
-    c = ComputeConfig(n; nnodes, process_per_node, elastic)
+    c = ComputeConfig(n; nnodes, process_per_node, elastic, mpi)
     submit_job(app, c; auth, kwargs...)
 end
 
@@ -1470,6 +1485,7 @@ function _job_submit_args(
         # 'nworkers' in the API defined how many _extra_ nodes gets allocated
         nworkers=c.nnodes_max - 1,
         min_workers_required=isnothing(c.nnodes_min) ? nothing : c.nnodes_min - 1,
+        worker_pool_type=c.mpi ? "mpi" : nothing,
         elastic=c.elastic,
         isthreaded=c.process_per_node,
     )

@@ -354,6 +354,7 @@ end
         @test cc.nnodes_min === nothing
         @test cc.process_per_node === true
         @test cc.elastic === false
+        @test cc.mpi === false
         ComputeConfig_eval_tests(cc)
     end
     let cc = JuliaHub.ComputeConfig(ns_cheapest; nnodes=5, elastic=true)
@@ -361,6 +362,14 @@ end
         @test cc.nnodes_min === nothing
         @test cc.process_per_node === true
         @test cc.elastic === true
+        @test cc.mpi === false
+        ComputeConfig_eval_tests(cc)
+    end
+    let cc = JuliaHub.ComputeConfig(ns_cheapest; mpi=true)
+        @test cc.nnodes_max === 1
+        @test cc.nnodes_min === nothing
+        @test cc.elastic === false
+        @test cc.mpi === true
         ComputeConfig_eval_tests(cc)
     end
     let cc = JuliaHub.ComputeConfig(ns_cheapest; nnodes=(10, 20))
@@ -375,6 +384,7 @@ end
     @test_throws ArgumentError JuliaHub.ComputeConfig(ns_cheapest; nnodes=(3, 2))
     @test_throws ArgumentError JuliaHub.ComputeConfig(ns_cheapest; nnodes=(4, 4))
     @test_throws ArgumentError JuliaHub.ComputeConfig(ns_cheapest; nnodes=(5, 10), elastic=true)
+    @test_throws ArgumentError JuliaHub.ComputeConfig(ns_cheapest; elastic=true, mpi=true)
 end
 
 @testset "JuliaHub.JobStatus" begin
@@ -438,6 +448,13 @@ end
             @test jc.alias === nothing
             @test jc.project === nothing
             @test isempty(jc.env)
+        end
+        let jc = JuliaHub.submit_job(s; mpi=true, dryrun=true)
+            @test jc.compute.mpi === true
+            args = JuliaHub._job_submit_args(
+                JuliaHub.current_authentication(), jc, jc.compute, JuliaHub._JobSubmission1
+            )
+            @test args.worker_pool_type == "mpi"
         end
         @test JuliaHub.submit_job(s) isa JuliaHub.Job
         # Test passing valid parameters
