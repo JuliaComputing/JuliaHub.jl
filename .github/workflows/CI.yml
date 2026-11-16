@@ -83,7 +83,7 @@ jobs:
           Pkg.pin("HTTP")
           Pkg.status()
       - uses: julia-actions/julia-buildpkg@e3eb439fad4f9aba7da2667e7510e4a46ebc46e1 # v1
-      - uses: julia-actions/julia-runtest@6e050c8013b833b1195105ff2fce9cd802f53271 # v1
+      - uses: julia-actions/julia-runtest@e89ac6c957d7c4d7e0cb3162f12d8290a008f9d1 # v1
       - name: Run live tests
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         shell: julia --color=yes --project {0}
@@ -122,7 +122,7 @@ jobs:
           import Pkg
           Pkg.add(name="JSON", version="0.21")
           Pkg.instantiate()
-      - uses: julia-actions/julia-runtest@6e050c8013b833b1195105ff2fce9cd802f53271 # v1
+      - uses: julia-actions/julia-runtest@e89ac6c957d7c4d7e0cb3162f12d8290a008f9d1 # v1
 
   aqua:
     name: Aqua
